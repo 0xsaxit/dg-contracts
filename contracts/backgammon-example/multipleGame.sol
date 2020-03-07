@@ -47,6 +47,8 @@ contract Backgammon is HashChain, AccessControl {
 
     mapping(uint256 => Game) public currentGames;
 
+    mapping(address => uint256) public wins;
+
     modifier onlyDoublingStage(uint256 gameId) {
         require(
             currentGames[gameId].state == GameState.DoublingStage,
@@ -229,6 +231,8 @@ contract Backgammon is HashChain, AccessControl {
             currentGames[_gameId].lastStaker,
             currentGames[_gameId].total
         );
+
+        wins[currentGames[_gameId].lastStaker] = wins[currentGames[_gameId].lastStaker].add(1);
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit PlayerDropped(_gameId, _playerDropping);
@@ -246,6 +250,8 @@ contract Backgammon is HashChain, AccessControl {
             _winPlayer,
             currentGames[_gameId].total
         );
+
+        wins[_winPlayer] = wins[_winPlayer].add(1);
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit GameResolved(_gameId, _winPlayer);
