@@ -1,0 +1,14 @@
+{
+  "name": "dcl-contracts-solidity",
+  "version": "1.0.0",
+  "description": "Decentraland Games Contracts",
+  "scripts": {
+    "chain": "ganache-cli -i 999",
+    "test-roulette": "truffle test test/roulette.test.js",
+    "test-slots": "truffle test test/slots.test.js",
+    "test-master": "truffle test test/master.test.js"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^2.5.0"
+  }
+}

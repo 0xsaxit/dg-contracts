@@ -1,0 +1,11 @@
+CEO/Worker public key:
+0x1FcdE174C13691ef0C13fcEE042e0951452C0f8A
+
+MasterParent.sol on Matic:
+0xd5d543db6aaf6442d9dd14b9539285fc4470c773
+
+Slots.sol on Matic:
+0x7742c83b2e82e3234f9cf4376f6222e954a6e3b7
+
+Roulette.sol on Matic:
+0xc21cc78ae7ae82801a0d106c1c4d0d11a716780e
