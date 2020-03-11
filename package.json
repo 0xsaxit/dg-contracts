@@ -6,7 +6,8 @@
     "chain": "ganache-cli -i 999",
     "test-roulette": "truffle test test/roulette.test.js",
     "test-slots": "truffle test test/slots.test.js",
-    "test-master": "truffle test test/master.test.js"
+    "test-master": "truffle test test/master.test.js",
+    "flatten": "cd contracts && truffle-flattener NFT.sol > ../NFT-Flattened.sol"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^2.5.0"
