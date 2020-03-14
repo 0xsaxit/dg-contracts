@@ -25,7 +25,7 @@ contract MasterParent is HashChain, AccessControl {
 
     event GameResult(
         address[] _players,
-        string _tokenName,
+        string indexed _tokenName,
         uint256 _landID,
         uint256 indexed _number,
         uint256 indexed _machineID,
