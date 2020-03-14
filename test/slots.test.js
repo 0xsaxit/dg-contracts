@@ -9,7 +9,7 @@ const getLastEvent = async (eventName, instance) => {
     toBlock: "latest"
   });
 
-  //console.log(events);
+  //   console.log(events);
   return events.pop().returnValues;
 };
 
@@ -46,9 +46,9 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
       assert.equal(factor, 4);
     });
 
-    it("correct initial value of current bet", async () => {
-      const currentBet = await slots.currentBet();
-      assert.equal(currentBet, 0);
+    it("correct initial amount of bets", async () => {
+      const amount = await slots.getAmountBets();
+      assert.equal(amount, 0);
     });
 
     it("contract must be unpaused initially", async () => {
@@ -117,7 +117,7 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
     it("correctly create a bet", async () => {
       await slots.createBet(1101, user1, 5, 100);
 
-      const currentBet = await slots.currentBet();
+      const currentBet = await slots.currentBets(0);
       assert.equal(currentBet, 100);
     });
 
@@ -125,22 +125,21 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
       localHash =
         "0xb3c529065a012035b65655465a52ad426f830a8e1ae7f4dd1ef590b41d09f05d";
 
-      await slots.launch(localHash, user1, 1, 2, "BET");
+      await slots.launch(localHash, 1, 2, "BET");
 
       const {
-        _walletAddress,
         _tokenName,
-        _landID,
-        _amountWin
+        _landID ,
+        _winAmounts      
       } = await getLastEvent("SpinResult", slots);
-
-      assert.equal(_walletAddress, user1);
-      assert.equal(_amountWin, 0);
+      assert.equal(JSON.stringify(_winAmounts), JSON.stringify(['0']));
       assert.equal(_tokenName, "BET");
       assert.equal(_landID, 2);
     });
 
     it("correct win amount", async () => {
+      await slots.createBet(1101, user1, 5, 100);
+
       const hash =
         "0x974ad959476b4156e4f324b692d9ad9af68af768041b6b014b36f1bc4cab7a13";
 
@@ -158,13 +157,13 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
         "4": 4
       };
 
-      const currentBet = await slots.currentBet();
+      const currentBet = await slots.currentBets(0);
 
-      await slots.launch(hash, user1, 1, 2, "BET");
+      await slots.launch(hash, 1, 2, "BET");
 
-      const { _amountWin, _number } = await getLastEvent("SpinResult", slots);
+      const { _winAmounts, _number } = await getLastEvent("SpinResult", slots);
 
-      assert.equal(_amountWin, currentBet * factors[symbols[number % 10]]);
+      assert.equal(_winAmounts[0], currentBet * factors[symbols[number % 10]]);
       assert.equal(_number, number);
     });
 

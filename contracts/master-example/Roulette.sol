@@ -21,7 +21,7 @@ contract RouletteLogic {
         uint256 _landID,
         uint256 indexed _number,
         uint256 indexed _machineID,
-        uint256[] indexed _amountWins
+        uint256[] _amountWins
     );
 
     uint256[] winAmounts;
@@ -285,6 +285,10 @@ contract RouletteLogic {
         if (_betID == 3306 || _betID == 3307) return 2; //low-high
         if (_betID == 3308 || _betID == 3309) return 3; //column-dozen
         return 0;
+    }
+
+    function getAmountBets() external view returns (uint256) {
+        return bets.length;
     }
 
 }

@@ -18,10 +18,10 @@ contract SlotMachineLogic is AccessControl {
 
     event SpinResult(
         string _tokenName,
-        uint256 _landID,
-        uint256 indexed _number,
+        uint256 indexed _landID,
+        uint256 _number,
         uint256 indexed _machineID,
-        uint256[] indexed _winAmounts
+        uint256[] _winAmounts
     );
 
     constructor() public payable {
@@ -34,10 +34,15 @@ contract SlotMachineLogic is AccessControl {
 
     uint256[] symbols; // array to hold symbol integer groups
 
-    function createBet(uint _betID, address _player, uint _number, uint _value) external {
-        require(_player != address(0), 'please provide player parameter');
-        require(_number >= 0, 'please provide _number parameter');
-        require(_value > 0, 'bet value should be more than 0 ');
+    function createBet(
+        uint256 _betID,
+        address _player,
+        uint256 _number,
+        uint256 _value
+    ) external {
+        require(_player != address(0), "please provide player parameter");
+        require(_number >= 0, "please provide _number parameter");
+        require(_value > 0, "bet value should be more than 0 ");
         if (_betID == 1101) {
             currentBets.push(_value);
         }
@@ -67,7 +72,7 @@ contract SlotMachineLogic is AccessControl {
             }
         }
 
-        for (uint i = 0; i < currentBets.length; i++) {
+        for (uint256 i = 0; i < currentBets.length; i++) {
             if (winner == 1) {
                 winAmount = factor1.mul(currentBets[i]);
             } else if (winner == 2) {
@@ -86,24 +91,34 @@ contract SlotMachineLogic is AccessControl {
         emit SpinResult(_tokenName, _landID, numbers, _machineID, winAmounts);
 
         //return wins
-        return(winAmounts, number);
+        return (winAmounts, number);
     }
 
-    function setJackpots(uint256 _factor1, uint256 _factor2, uint256 _factor3, uint256 _factor4) external onlyCEO {
+    function setJackpots(
+        uint256 _factor1,
+        uint256 _factor2,
+        uint256 _factor3,
+        uint256 _factor4
+    ) external onlyCEO {
         factor1 = _factor1;
         factor2 = _factor2;
         factor3 = _factor3;
         factor4 = _factor4;
     }
 
-    function getPayoutForType(uint256 _betID) public view returns(uint256) {
+    function getPayoutForType(uint256 _betID) public view returns (uint256) {
         if (_betID == 1101) return factor1; //return highest possible win
     }
 
-    function randomNumber(bytes32 _localhash) private pure returns (uint256 numbers) {
-        return
-            uint256(
-                keccak256(abi.encodePacked(_localhash))
-            );
+    function randomNumber(bytes32 _localhash)
+        private
+        pure
+        returns (uint256 numbers)
+    {
+        return uint256(keccak256(abi.encodePacked(_localhash)));
+    }
+
+    function getAmountBets() external view returns (uint256) {
+        return currentBets.length;
     }
 }

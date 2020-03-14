@@ -28,7 +28,12 @@ contract("Roulette", ([owner, user1, user2, random]) => {
       assert.equal(ts.toNumber(), info.timestamp);
     });
 
-    it("correct initial bets and value", async () => {
+    it("correct initial bet amounts", async () => {
+      const amount = await roulette.getAmountBets();
+      assert.equal(amount, 0);
+    });
+
+    it("correct initial values", async () => {
       let payout;
       payout = await roulette.getPayoutForType(3301);
       assert.equal(payout, 36);
@@ -449,10 +454,24 @@ contract("Roulette", ([owner, user1, user2, random]) => {
       roulette = await Roulette.new();
     });
 
-    it("should not be able to launch game without bets", async () => {
+    it("should revert if current time is not greater than next round timestamp", async () => {
       const localHash =
         "0x2540a8d1ecac31d69ad55354fba8289cfbb61adac332291b1fe0a8c1011f1a2f";
-      await catchRevert(roulette.launch(localHash, user1, 1, 2, "MANA"));
+      await catchRevert(
+        roulette.launch(localHash, 1, 2, "MANA"),
+        "revert expired round"
+      );
+    });
+
+    it("should revert if there are no bets", async () => {
+      await advanceTimeAndBlock(60);
+
+      const localHash =
+        "0x2540a8d1ecac31d69ad55354fba8289cfbb61adac332291b1fe0a8c1011f1a2f";
+      await catchRevert(
+        roulette.launch(localHash, 1, 2, "MANA"),
+        "revert must have bets"
+      );
     });
 
     it("should create different bets", async () => {
@@ -473,25 +492,27 @@ contract("Roulette", ([owner, user1, user2, random]) => {
       assert.equal(res["1"], 9000);
     });
 
-    it("should launch game", async () => {
+    it("should be able to launch game", async () => {
       await advanceTimeAndBlock(60);
 
       const localHash =
         "0x2540a8d1ecac31d69ad55354fba8289cfbb61adac332291b1fe0a8c1011f1a2f";
-      await roulette.launch(localHash, user1, 1, 2, "MANA");
+      await roulette.launch(localHash, 1, 2, "MANA");
 
       const block = await web3.eth.getBlockNumber();
       const info = await web3.eth.getBlock(block);
 
-      const event1 = await getLastEvent("Finished", roulette);
-      assert.equal(event1.nextRoundTimestamp, info.timestamp);
-
-      const event2 = await getLastEvent("SpinResult", roulette);
-      assert.equal(event2._walletAddress, user1);
-      assert.equal(event2._tokenName, "MANA");
-      assert.equal(event2._landID, 2);
-      assert.equal(event2._machineID, 1);
-      assert.equal(event2._number, event1.number);
+      const {
+        _tokenName,
+        _landID,
+        _machineID,
+        _number,
+        _amountWins
+      } = await getLastEvent("SpinResult", roulette);
+      // assert.equal(event2._walletAddress, user1);
+      assert.equal(_tokenName, "MANA");
+      assert.equal(_landID, 2);
+      assert.equal(_machineID, 1);
     });
   });
 });

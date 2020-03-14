@@ -29,7 +29,7 @@ contract MasterParent is HashChain, AccessControl {
         uint256 _landID,
         uint256 indexed _number,
         uint256 indexed _machineID,
-        uint256[] indexed _winAmounts
+        uint256[] _winAmounts
     );
 
     mapping(string => address) public tokens;
@@ -119,7 +119,7 @@ contract MasterParent is HashChain, AccessControl {
     ) internal whenNotPaused {
         require(
             _value <= games[_gameID].maximumBets[_tokenName],
-            'bet amount is more than maximum'
+            "bet amount is more than maximum"
         );
 
         GameInstance _game = GameInstance(games[_gameID].gameAddress);
@@ -166,20 +166,19 @@ contract MasterParent is HashChain, AccessControl {
         bytes32 _localhash,
         string memory _tokenName
     ) public whenNotPaused onlyWorker {
-
         _consume(_localhash); // hash-chain check
 
         require(
             _betIDs.length == _betValues.length,
-            'inconsistent amount of bets/values'
+            "inconsistent amount of bets/values"
         );
         require(
             _betIDs.length == _betAmount.length,
-            'inconsistent amount of bets/amount'
+            "inconsistent amount of bets/amount"
         );
         require(
             _betIDs.length <= maximumNumberBets,
-            'maximum amount of bets per game is 36'
+            "maximum amount of bets per game is 36"
         );
 
         GameInstance _game = GameInstance(games[_gameID].gameAddress);
@@ -200,16 +199,15 @@ contract MasterParent is HashChain, AccessControl {
         // consider adding the bet to payout amount before calculating
         require(
             necessaryBalance <= games[_gameID].gameTokens[_tokenName],
-            'must have enough funds for payouts'
+            "must have enough funds for payouts"
         );
 
         // set bets for the game
         for (uint256 i = 0; i < _betIDs.length; i++) {
-
             //check approval
             require(
                 _token.allowance(_players[i], address(this)) >= _betAmount[i],
-                'must approve/allow this contract as spender'
+                "must approve/allow this contract as spender"
             );
 
             // get user tokens if approved
@@ -288,14 +286,14 @@ contract MasterParent is HashChain, AccessControl {
     ) external onlyCEO {
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
 
-        require(_tokenAmount > 0, 'No funds sent');
+        require(_tokenAmount > 0, "No funds sent");
         require(
             _token.allowance(msg.sender, address(this)) >= _tokenAmount,
-            'must allow to transfer'
+            "must allow to transfer"
         );
         require(
             _token.balanceOf(msg.sender) >= _tokenAmount,
-            'user must have enough tokens'
+            "user must have enough tokens"
         );
 
         _token.transferFrom(msg.sender, address(this), _tokenAmount);
@@ -320,7 +318,7 @@ contract MasterParent is HashChain, AccessControl {
     ) external onlyCEO {
         require(
             _amount <= games[_gameID].gameTokens[_tokenName],
-            'Amount more than game allocated balance'
+            "Amount more than game allocated balance"
         );
 
         ERC20Token token = ERC20Token(tokens[_tokenName]);

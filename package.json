@@ -1,15 +1,27 @@
 {
-  "name": "dcl-contracts-solidity",
+  "name": "code-challenge",
   "version": "1.0.0",
-  "description": "Decentraland Games Contracts",
+  "description": "",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
   "scripts": {
-    "chain": "ganache-cli -i 999",
+    "chain": "ganache-cli -p 7545 -i 5777",
+    "deploy": "truffle migrate --reset",
     "test-roulette": "truffle test test/roulette.test.js",
     "test-slots": "truffle test test/slots.test.js",
     "test-master": "truffle test test/master.test.js",
     "flatten": "cd contracts && truffle-flattener NFT.sol > ../NFT-Flattened.sol"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "@openzeppelin/contracts": "^2.5.0"
+  },
+  "devDependencies": {
+    "colors": "^1.4.0",
+    "eth-gas-reporter": "^0.2.15"
   }
 }
