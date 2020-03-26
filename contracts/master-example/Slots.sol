@@ -91,7 +91,7 @@ contract SlotMachineLogic is AccessControl {
         emit SpinResult(_tokenName, _landID, numbers, _machineID, winAmounts);
 
         //return wins
-        return (winAmounts, number);
+        return (winAmounts, numbers);
     }
 
     function setJackpots(
