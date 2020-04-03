@@ -69,10 +69,10 @@ contract("Roulette", ([owner, user1, user2, random]) => {
             assert.equal(res["1"], 0);
         });
     });
-    /*
+
     describe("Betting: Single", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create a single bet", async () => {
@@ -118,7 +118,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Even", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create an even bet", async () => {
@@ -158,7 +158,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Odd", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create an odd bet", async () => {
@@ -198,7 +198,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Red", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create a red bet", async () => {
@@ -238,7 +238,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Black", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create a black bet", async () => {
@@ -281,7 +281,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: High", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create a High bet", async () => {
@@ -321,7 +321,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Low", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create a Low bet", async () => {
@@ -361,7 +361,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Column", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create a Column bet", async () => {
@@ -406,7 +406,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Dozen", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new();
+            roulette = await Roulette.new(owner, 4000);
         });
 
         it("should let user create a Dozen bet", async () => {
@@ -448,7 +448,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
             assert.equal(value, userBet.value.toNumber());
         });
     });
-    */
+
     describe("Betting: Launch", () => {
         before(async () => {
             roulette = await Roulette.new(owner, 4000);
