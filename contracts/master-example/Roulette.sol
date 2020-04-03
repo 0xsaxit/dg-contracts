@@ -325,4 +325,8 @@ contract RouletteLogic is AccessControl {
         maxSquareBet = _newMaxBet;
     }
 
+    function changeMaster(address _newMaster) external onlyCEO {
+        masterAddress = _newMaster;
+    }
+
 }

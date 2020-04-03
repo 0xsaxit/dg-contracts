@@ -8,6 +8,7 @@ import "../common-contracts/AccessControl.sol";
 contract SlotMachineLogic is AccessControl {
     using SafeMath for uint256;
 
+    address public masterAddress;
     uint256[] public currentBets;
     uint256 public factor1;
     uint256 public factor2;
@@ -24,12 +25,18 @@ contract SlotMachineLogic is AccessControl {
         uint256[] _winAmounts
     );
 
-    constructor() public payable {
+    constructor(address _masterAddress) public payable {
+        masterAddress = _masterAddress;
         //default factor multipliers
         factor1 = 250;
         factor2 = 15;
         factor3 = 8;
         factor4 = 4;
+    }
+
+    modifier onlyMaster {
+        require(msg.sender == masterAddress, 'can only be called by master/parent contract');
+        _;
     }
 
     uint256[] symbols; // array to hold symbol integer groups
@@ -121,4 +128,9 @@ contract SlotMachineLogic is AccessControl {
     function getAmountBets() external view returns (uint256) {
         return currentBets.length;
     }
+
+    function changeMaster(address _newMaster) external onlyCEO {
+        masterAddress = _newMaster;
+    }
+
 }
