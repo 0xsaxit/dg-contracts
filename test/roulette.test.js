@@ -550,6 +550,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
             assert.equal(resC.toNumber(), 1000);
 
             //launch play
+            await advanceTimeAndBlock(60);
             await rouletteB.launch(localHash, 1, 2, "MANA");
             await advanceTimeAndBlock(60);
 
@@ -571,6 +572,25 @@ contract("Roulette", ([owner, user1, user2, random]) => {
                 rouletteA.createBet(3301, user1, 34, 1000),
                 "revert can only be called by master/parent contract"
             );
+        });
+
+        it("should allow to chang master contract address", async () => {
+            const rouletteA = await Roulette.new(user1, 4000);
+
+            await advanceTimeAndBlock(60);
+            await catchRevert(
+                rouletteA.createBet(3301, user1, 34, 1000),
+                "revert can only be called by master/parent contract"
+            );
+
+            await rouletteA.changeMaster(user1);
+
+            await rouletteA.createBet(3301, user2, 5, 1000, { from: user1 });
+            const resA = await rouletteA.squareBets(3301, 5);
+            const resB = await rouletteA.masterAddress();
+
+            assert.equal(resA.toNumber(), 1000);
+            assert.equal(resB, user1);
         });
 
         it("should be able to launch game", async () => {
