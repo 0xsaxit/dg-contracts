@@ -1,12 +1,31 @@
 pragma solidity ^0.5.14;
 
+// Slot Machine Logic Contract ///////////////////////////////////////////////////////////
+// Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
 import "../common-contracts/SafeMath.sol";
-import "../common-contracts/ERC20Token.sol";
+import "../common-contracts/AccessControl.sol";
 
-contract RouletteLogic {
+contract RouletteLogic is AccessControl {
+
     using SafeMath for uint;
     uint public nextRoundTimestamp;
     enum BetType { Single, Odd, Even, Red, Black, High, Low, Column, Dozen }
+
+    address public masterAddress;
+    uint public maxSquareBet;
+
+    mapping (uint => mapping (uint => uint256)) public squareBets;
+
+    constructor(address _masterAddress, uint256 _maxSquareBet) public {
+        masterAddress = _masterAddress;
+        maxSquareBet = _maxSquareBet;
+        nextRoundTimestamp = now;
+    }
+
+    modifier onlyMaster {
+        require(msg.sender == masterAddress, 'can only be called by master/parent contract');
+        _;
+    }
 
     struct Bet {
         BetType betType;
@@ -38,10 +57,6 @@ contract RouletteLogic {
     event NewColumnBet(uint bet, address player, uint column, uint value);
     event NewDozenBet(uint bet, address player, uint dozen, uint value);
 
-    constructor() public payable {
-	    nextRoundTimestamp = now;
-    }
-
     function getNextRoundTimestamp() external view returns(uint) {
         return nextRoundTimestamp;
     }
@@ -54,7 +69,20 @@ contract RouletteLogic {
         return (bets.length, value);
     }
 
-    function createBet(uint _betID, address _player, uint _number, uint _value) external {
+    function createBet(
+        uint _betID,
+        address _player,
+        uint _number,
+        uint _value
+    ) external onlyMaster {
+
+        squareBets[_betID][_number] += _value;
+
+        require(
+            squareBets[_betID][_number] <= maxSquareBet,
+            'exceeding maximum bet square limit'
+        );
+
         if (_betID == 3301) {
             betSingle(_number, _player, _value);
         }
@@ -203,7 +231,7 @@ contract RouletteLogic {
         uint256 _machineID,
         uint256 _landID,
         string calldata _tokenName
-    ) external returns(uint256[] memory, uint256 number) {
+    ) external onlyMaster returns(uint256[] memory, uint256 number) {
         require(now > nextRoundTimestamp, 'expired round');
         require(bets.length > 0, 'must have bets');
 
@@ -268,6 +296,8 @@ contract RouletteLogic {
             } else {
                 winAmounts.push(0);
             }
+
+            squareBets[b.betID][b.number] = 0;
         }
 
         bets.length = 0;
@@ -289,6 +319,10 @@ contract RouletteLogic {
 
     function getAmountBets() external view returns (uint256) {
         return bets.length;
+    }
+
+    function changeMaxSquareBet(uint256 _newMaxBet) external onlyCEO {
+        maxSquareBet = _newMaxBet;
     }
 
 }
