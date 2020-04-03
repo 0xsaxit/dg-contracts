@@ -137,6 +137,31 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
             assert.equal(_landID, 2);
         });
 
+        it("should only allow master contract to call script", async () => {
+            // await advanceTimeAndBlock(60);
+            const slotsA = await Slots.new(user1);
+            // await advanceTimeAndBlock(60);
+            await catchRevert(
+                slotsA.createBet(1101, user1, 34, 1000),
+                "revert can only be called by master/parent contract"
+            );
+        });
+
+
+        it("should allow to chang master contract address", async () => {
+            const slotsA = await Slots.new(user1);
+            // await advanceTimeAndBlock(60);
+            await catchRevert(
+                slotsA.createBet(1101, user1, 34, 1000),
+                "revert can only be called by master/parent contract"
+            );
+            await slotsA.changeMaster(user1);
+            await slotsA.createBet(1101, user2, 5, 1000, { from: user1 });
+            const resB = await slotsA.masterAddress();
+            assert.equal(resB, user1);
+        });
+
+
         it("correct win amount", async () => {
             await slots.createBet(1101, user1, 5, 100);
 

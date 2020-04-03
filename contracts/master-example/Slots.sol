@@ -46,7 +46,7 @@ contract SlotMachineLogic is AccessControl {
         address _player,
         uint256 _number,
         uint256 _value
-    ) external {
+    ) external onlyMaster {
         require(_player != address(0), "please provide player parameter");
         require(_number >= 0, "please provide _number parameter");
         require(_value > 0, "bet value should be more than 0 ");
@@ -60,7 +60,7 @@ contract SlotMachineLogic is AccessControl {
         uint256 _machineID,
         uint256 _landID,
         string calldata _tokenName
-    ) external returns (uint256[] memory, uint256 numbers) {
+    ) external onlyMaster returns (uint256[] memory, uint256 numbers) {
         // randomly determine number from 0 - 999
         numbers = randomNumber(_localhash) % 1000;
         uint256 number = numbers;
