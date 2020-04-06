@@ -1,4 +1,5 @@
 # Master/Child game design implementation
+
 ## Phase 1 - setting-up contracts
 - A1) Decide your *default token* (address, name) as input parameters and deploy `MasterParent.sol` (contracts/master-example/MasterParent.sol)
 
@@ -21,18 +22,19 @@
 		_gameAddress - check output of step B1 and B2 when deploying games
 
 ## Phase 2 - allocating funds for each game
+
 - Before allocating funds(tokens) for each game make sure you've added any other additional tokens to the master contract:
-using: `masterContract.addToken()` with 2 parameters: _tokenAddress, _tokenName
+  using: `masterContract.addToken()` with 2 parameters: \_tokenAddress, \_tokenName
 
- - Now that you've added tokens you can allocate any of those for each game by using the `masterContract.addFunds()` function with the following parameters: _gameID, _tokenAmount, _tokenName (_gameID is the index of the game in array (0, 1, 2, etc...))
+- Now that you've added tokens you can allocate any of those for each game by using the `masterContract.addFunds()` function with the following parameters: \_gameID, \_tokenAmount, \_tokenName (\_gameID is the index of the game in array (0, 1, 2, etc...))
 
-    *Important: Before executing this function make sure this contract is approved to access your wallet funds*
+  _Important: Before executing this function make sure this contract is approved to access your wallet funds_
 
 - You can also allocate funds manually. Simply send tokens to the masterContract address and use the `masterContract.manaulAllocation()` function
 
-- To withdraw funds from the contract use the `masterContract.withdrawCollateral()` function with the _gameID, _amount, and _tokensName parameters. For example: `masterContract.withdrawCollateral(0, 100000000000000, "MANA")`
+- To withdraw funds from the contract use the `masterContract.withdrawCollateral()` function with the \_gameID, \_amount, and \_tokensName parameters. For example: `masterContract.withdrawCollateral(0, 100000000000000, "MANA")`
 
-    *(or simply call withdrawMaxTokenBalance() using the _tokenName to withdraw all of the contract funds)*
+  _(or simply call withdrawMaxTokenBalance() using the \_tokenName to withdraw all of the contract funds)_
 
 ## Phase 3 - play games
 
@@ -99,7 +101,8 @@ _tokenName: MANA
 
 ```
 
-for testing:
+
+## For testing:
 
 npm install -g truffle@latest
 npm install -g ethereumjs-testrpc@latest
