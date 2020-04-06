@@ -1,11 +1,24 @@
-
 # Master/Child game design implementation
 ## Phase 1 - setting-up contracts
-- A) Choose your *default token* (address, name) -> input parameters for next step
-- B) Deploy master (contracts/master-example/MasterParent.sol) - *defaultToken (address), tokenName*
-- C) Deploy game (contracts/master-example/Roulette.sol) -> save address for E
-- D) Deploy game (contracts/master-example/Slots.sol) -> save address for E
-- E) Add games to master by using `masterContract.addGame(_newGameAddress, _newGameName, _maximumBet (Wei))`  
+- A1) Decide your *default token* (address, name) as input parameters and deploy `MasterParent.sol` (contracts/master-example/MasterParent.sol)
+
+	input -> constructor (`address defaultToken, string  tokenName`)
+	output -> master address (`0x34ae0be093a2c82c63aaf763abb94b8343b56241`)
+
+- B1) Deploy game (contracts/master-example/Roulette.sol)
+
+	input parameters: `address _masterAddress` and `uint256 _maxSquareBet`
+	output -> game address (`0xde39dd59f3e3525bace5e7718a70d5646d20f14e`)
+		_masterAddress - check step A) when deploying MasterParent.sol
+		_maxSquareBet - maximum amount of bet on each sqaure in game (in wei)
+
+- B2) Deploy game (contracts/master-example/Slots.sol)
+	input parameters: `address _masterAddress`
+	output -> game address (`0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689`)
+		_masterAddress - check step A) when deploying MasterParent.sol
+
+- C1) Add games to master by using `masterParent.addGame(_gameAddress, _newGameName, _maximumBet (Wei))` (game address take from B1/B2)
+		_gameAddress - check output of step B1 and B2 when deploying games
 
 ## Phase 2 - allocating funds for each game
 - Before allocating funds(tokens) for each game make sure you've added any other additional tokens to the master contract:
@@ -32,24 +45,6 @@ using: `masterContract.addToken()` with 2 parameters: _tokenAddress, _tokenName
     masterContract.play(1, 0x641ad78baca220c5bd28b51ce8e0f495e85fe689, 1, 1, [1101], [0], [1000000000000000000], _localhash, "MANA") // playing slots
 ```
 
-#
-#
-#
-#
-#
-# roulette
-Decentral Games roulette
-
-## Step 1 - deploying logic contract
-- deploy RouletteLogicInternal.sol
-- write down address of the contract
-
-## Step 2 - deploying game controller parent contract
-- deploy RouletteParent.sol with contract address from Step 1 as required input parameter
-- add some MANA tokens into deployed RouletteParent contract
-- make sure user approved/allowed deployed contract to move MANA tokens on his behalf >
- --- https://ropsten.etherscan.io/address/0x2a8Fd99c19271F4F04B1B7b9c4f7cF264b626eDB#writeContract
- --- 1. approve (_spender (address) of contract deployed in Step 2 /  _value (uint256) - amount willing to bet)
 
 ## Step 3 - play / make bets / spin (logic guide)
 - to place bets and play you need to call only 1 method play() with following parameters
