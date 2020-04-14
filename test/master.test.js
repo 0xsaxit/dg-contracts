@@ -76,14 +76,14 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
 
         it("only CEO can add a game", async () => {
             await catchRevert(
-                master.addGame(slots.address, "Slots", 100, { from: random })
+                master.addGame(slots.address, "Slots", 100, false, { from: random })
             );
-            await master.addGame(slots.address, "Slots", 100, { from: owner });
+            await master.addGame(slots.address, "Slots", 100, false, { from: owner });
         });
 
         it("correct game details after added", async () => {
-            await master.addGame(slots.address, "Slots", 100, { from: owner });
-            await master.addGame(roulette.address, "Roulette", 200, { from: owner });
+            await master.addGame(slots.address, "Slots", 100, false, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 200, false, { from: owner });
 
             const slotsInfo = await master.games(0);
             const slotsMaxBet = await master.getMaximumBet(0, "MANA");
@@ -111,11 +111,6 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
 
         it("only CEO can add funds to a game", async () => {
             await catchRevert(master.addFunds(0, 100, "MANA", { from: random }));
-        });
-
-        it("should revert if not correct parameters sent", async () => {
-            // Token Amount = 0
-            await catchRevert(master.addFunds(0, 0, "MANA", { from: owner }));
         });
 
         it("should revert if user does not have enough funds", async () => {
@@ -162,7 +157,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             roulette = await Roulette.new(master.address, 4000);
-            await master.addGame(roulette.address, "Roulette", 200, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 200, false, { from: owner });
             await token.approve(master.address, 1000);
             await master.addFunds(0, 1000, "MANA", { from: owner });
         });
@@ -230,7 +225,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             roulette = await Roulette.new(master.address, 4000);
-            await master.addGame(roulette.address, "Roulette", 1000, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 1000, false, { from: owner });
             await token.approve(master.address, web3.utils.toWei("100"));
             await master.addFunds(0, web3.utils.toWei("100"), "MANA", {
                 from: owner
@@ -502,7 +497,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             roulette = await Roulette.new(master.address, 4000);
 
             // Add game and fund it
-            await master.addGame(roulette.address, "Roulette", 2000, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 2000, false, { from: owner });
             await token.approve(master.address, 1e7);
             await master.addFunds(0, 1e7, "MANA", {
                 from: owner
@@ -620,7 +615,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             slots = await Slots.new(master.address);
-            await master.addGame(slots.address, "Slots", 1000, { from: owner });
+            await master.addGame(slots.address, "Slots", 1000, false, { from: owner });
             await token.approve(master.address, web3.utils.toWei("100"));
             await master.addFunds(0, web3.utils.toWei("100"), "MANA", {
                 from: owner
@@ -704,7 +699,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             slots = await Slots.new(master.address);
 
             // Add game and fund it
-            await master.addGame(slots.address, "Slots", 2000, { from: owner });
+            await master.addGame(slots.address, "Slots", 2000, false, { from: owner });
             await token.approve(master.address, 1e7);
             await master.addFunds(0, 1e7, "MANA", {
                 from: owner
