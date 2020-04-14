@@ -3,25 +3,32 @@ pragma solidity ^0.5.14;
 import "../common-contracts/SafeMath.sol";
 import "../common-contracts/AccessControl.sol";
 import "../common-contracts/ERC20Token.sol";
-import "./GameInterface.sol";
 import "../common-contracts/HashChain.sol";
+
+import "./GameInterface.sol";
 
 contract MasterParent is HashChain, AccessControl {
     using SafeMath for uint256;
     event NewBalance(uint256 _gameID, uint256 _balance);
 
+    uint8 public maximumNumberBets = 36; // contract's maximum amount of bets
     uint256[] public winAmounts; // last winning amounts
-    uint256 public number = 0; // last reels numbers
-    uint256 public maximumNumberBets = 36; // contract's maximum amount of bets
+    uint256 public number = 0; // last reels numbers1
     string public defaultTokenName;
     uint256 necessaryBalance = 0;
 
     struct Game {
         address gameAddress;
         string gameName;
+        bool isDelegated;
         mapping(string => uint256) gameTokens;
         mapping(string => uint256) maximumBets;
     }
+
+    event MoveResult(
+        bool success,
+        bytes result
+    );
 
     event GameResult(
         address[] _players,
@@ -36,19 +43,64 @@ contract MasterParent is HashChain, AccessControl {
     Game[] public games;
 
     constructor(address defaultToken, string memory tokenName) public {
-        // set default token
         tokens[tokenName] = defaultToken;
         defaultTokenName = tokenName;
+    }
+
+    function tokenAddress(string calldata _tokenName) external view returns (address) {
+        return tokens[_tokenName];
+    }
+
+    function tokenInstance(string calldata _tokenName) external view returns (ERC20Token) {
+        return ERC20Token(tokens[_tokenName]);
+    }
+
+    function tokenInboundTransfer(string calldata _tokenName, address _from, uint256 _amount)
+        external
+        returns (bool)
+    {
+        (bool result, uint gameID) = findGameID(msg.sender);
+        require(result && games[gameID].isDelegated, 'delegated-game is not present');
+
+        ERC20Token _token = ERC20Token(tokens[_tokenName]);
+        games[gameID].gameTokens[_tokenName] = games[gameID].gameTokens[_tokenName].add(_amount);
+        _token.transferFrom(_from, address(this), _amount);
+        return true;
+    }
+
+    function tokenOutboundTransfer(string calldata _tokenName, address _to, uint256 _amount)
+        external
+        returns (bool)
+    {
+
+        (bool result, uint gameID) = findGameID(msg.sender);
+        require(result && games[gameID].isDelegated, 'delegated-game is not present');
+
+        ERC20Token _token = ERC20Token(tokens[_tokenName]);
+        games[gameID].gameTokens[_tokenName] = games[gameID].gameTokens[_tokenName].sub(_amount);
+        _token.transfer(_to, _amount);
+        return true;
+    }
+
+    function findGameID(address _gameAddress) public view returns (bool, uint) {
+        for (uint i = 0; i < games.length; i++) {
+            if (games[i].gameAddress == _gameAddress) {
+                return (true, i);
+            }
+        }
+        return (false, 0);
     }
 
     function addGame(
         address _newGameAddress,
         string calldata _newGameName,
-        uint256 _maximumBet
+        uint256 _maximumBet,
+        bool _isDelegated
     ) external onlyCEO {
         Game memory newGame;
         newGame.gameAddress = _newGameAddress;
         newGame.gameName = _newGameName;
+        newGame.isDelegated = _isDelegated;
         uint256 gameID = games.push(newGame);
         games[gameID - 1].gameTokens[defaultTokenName] = 0;
         games[gameID - 1].maximumBets[defaultTokenName] = _maximumBet;
@@ -57,10 +109,12 @@ contract MasterParent is HashChain, AccessControl {
     function updateGame(
         uint256 _gameID,
         address _newGame,
+        bool _isDelegated,
         string calldata _newGameName
     ) external onlyCEO {
         games[_gameID].gameAddress = _newGame;
         games[_gameID].gameName = _newGameName;
+        games[_gameID].isDelegated = _isDelegated;
     }
 
     function removeGame(uint256 _gameID) external onlyCEO {
@@ -100,7 +154,6 @@ contract MasterParent is HashChain, AccessControl {
     function checkApproval(address _userAddress, string memory _tokenName)
         public
         view
-        whenNotPaused
         returns (uint256 approved)
     {
         approved = ERC20Token(tokens[_tokenName]).allowance(
@@ -119,7 +172,7 @@ contract MasterParent is HashChain, AccessControl {
     ) internal whenNotPaused {
         require(
             _value <= games[_gameID].maximumBets[_tokenName],
-            "bet amount is more than maximum"
+            'bet amount is more than maximum'
         );
 
         GameInstance _game = GameInstance(games[_gameID].gameAddress);
@@ -132,7 +185,6 @@ contract MasterParent is HashChain, AccessControl {
         returns (uint256)
     {
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
-
         return _token.balanceOf(address(this));
     }
 
@@ -142,7 +194,6 @@ contract MasterParent is HashChain, AccessControl {
         returns (uint256)
     {
         ERC20Token _token = ERC20Token(_tokenAddress);
-
         return _token.balanceOf(address(this));
     }
 
@@ -165,20 +216,22 @@ contract MasterParent is HashChain, AccessControl {
         uint256[] memory _betAmount,
         bytes32 _localhash,
         string memory _tokenName
+        // string memory _actionName
     ) public whenNotPaused onlyWorker {
+
         _consume(_localhash); // hash-chain check
 
         require(
             _betIDs.length == _betValues.length,
-            "inconsistent amount of bets/values"
+            'inconsistent amount of bets/values'
         );
         require(
             _betIDs.length == _betAmount.length,
-            "inconsistent amount of bets/amount"
+            'inconsistent amount of bets/amount'
         );
         require(
             _betIDs.length <= maximumNumberBets,
-            "maximum amount of bets per game is 36"
+            'maximum amount of bets per game is 36'
         );
 
         GameInstance _game = GameInstance(games[_gameID].gameAddress);
@@ -199,15 +252,16 @@ contract MasterParent is HashChain, AccessControl {
         // consider adding the bet to payout amount before calculating
         require(
             necessaryBalance <= games[_gameID].gameTokens[_tokenName],
-            "must have enough funds for payouts"
+            'must have enough funds for payouts'
         );
 
         // set bets for the game
         for (uint256 i = 0; i < _betIDs.length; i++) {
+
             //check approval
             require(
                 _token.allowance(_players[i], address(this)) >= _betAmount[i],
-                "must approve/allow this contract as spender"
+                'must approve/allow this contract as spender'
             );
 
             // get user tokens if approved
@@ -228,6 +282,17 @@ contract MasterParent is HashChain, AccessControl {
                 );
             }
         }
+
+        // play move
+        /* if (games[_gameID].isDelegated) {
+
+            (bool success, bytes memory result) = games[_gameID].gameAddress.call(
+                abi.encodeWithSignature('_actionName')
+            );
+
+            emit MoveResult(success, result);
+
+        } else { */
 
         // play game
         (winAmounts, number) = _game.launch(
@@ -284,16 +349,12 @@ contract MasterParent is HashChain, AccessControl {
         uint256 _tokenAmount,
         string calldata _tokenName
     ) external onlyCEO {
+
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
 
-        require(_tokenAmount > 0, "No funds sent");
         require(
             _token.allowance(msg.sender, address(this)) >= _tokenAmount,
-            "must allow to transfer"
-        );
-        require(
-            _token.balanceOf(msg.sender) >= _tokenAmount,
-            "user must have enough tokens"
+            'must allow to transfer'
         );
 
         _token.transferFrom(msg.sender, address(this), _tokenAmount);
@@ -301,7 +362,8 @@ contract MasterParent is HashChain, AccessControl {
             .gameTokens[_tokenName]
             .add(_tokenAmount);
 
-        emit NewBalance(_gameID, games[_gameID].gameTokens[_tokenName]); // notify server of new contract balance
+        // notify server of new contract balance
+        emit NewBalance(_gameID, games[_gameID].gameTokens[_tokenName]);
     }
 
     function checkAllocatedTokensPerGame(
@@ -318,7 +380,7 @@ contract MasterParent is HashChain, AccessControl {
     ) external onlyCEO {
         require(
             _amount <= games[_gameID].gameTokens[_tokenName],
-            "Amount more than game allocated balance"
+            'Amount more than game allocated balance'
         );
 
         ERC20Token token = ERC20Token(tokens[_tokenName]);
