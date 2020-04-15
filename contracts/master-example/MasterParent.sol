@@ -334,24 +334,8 @@ contract MasterParent is HashChain, AccessControl {
         );
     }
 
-    function() external payable {} // can send tokens directly
-
-    function manualAllocation(
-        uint256 _gameID,
-        uint256 _tokenAmount,
-        string calldata _tokenName
-    ) external onlyCEO {
-        games[_gameID].gameTokens[_tokenName] = games[_gameID]
-            .gameTokens[_tokenName]
-            .add(_tokenAmount);
-    }
-
-    function manualAdjustment(
-        uint256 _gameID,
-        uint256 _tokenAmount,
-        string calldata _tokenName
-    ) external onlyCEO {
-        games[_gameID].gameTokens[_tokenName] = _tokenAmount; // overwrite allocated tokens per game value
+    function() external payable {
+        revert();
     }
 
     function addFunds(
