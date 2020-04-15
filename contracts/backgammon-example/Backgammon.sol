@@ -116,6 +116,11 @@ contract Backgammon is AccessControl {
             "token is not delcared in master!"
         );
 
+        require(
+            master.selfMaximumBet(_tokenName) <= _defaultStake,
+            "exceeding maximum bet defined in master/treasury"
+        );
+
         // declare token (from treasury)
         ERC20Token _token = master.tokenInstance(_tokenName);
 

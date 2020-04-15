@@ -129,6 +129,16 @@ contract MasterParent is HashChain, AccessControl {
         games[_gameID].maximumBets[_tokenName] = _maximumBet;
     }
 
+    function selfMaximumBet(string calldata _tokenName)
+        external
+        view
+        returns (uint256)
+    {
+        (bool result, uint _gameID) = findGameID(msg.sender);
+        require(result && games[_gameID].isDelegated, 'delegated-game is not present');
+        return games[_gameID].maximumBets[_tokenName];
+    }
+
     function getMaximumBet(uint256 _gameID, string calldata _tokenName)
         external
         view

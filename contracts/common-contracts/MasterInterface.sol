@@ -23,4 +23,9 @@ interface MasterInstance {
         address _from,
         uint256 _amount
     )  external returns (bool);
+
+    function selfMaximumBet(
+        string calldata _tokenName
+    ) external view returns (uint256);
+
 }
