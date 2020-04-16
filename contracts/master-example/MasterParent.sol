@@ -11,11 +11,10 @@ contract MasterParent is HashChain, AccessControl {
     using SafeMath for uint256;
     event NewBalance(uint256 _gameID, uint256 _balance);
 
-    uint8 public maximumNumberBets = 36; // contract's maximum amount of bets
     uint256[] public winAmounts; // last winning amounts
-    uint256 public number = 0; // last reels numbers1
+    uint256 public number = 0;
+    uint256 public maximumNumberBets = 36; // contract's maximum amount of bets
     string public defaultTokenName;
-    uint256 necessaryBalance = 0;
 
     struct Game {
         address gameAddress;
@@ -233,22 +232,22 @@ contract MasterParent is HashChain, AccessControl {
 
         require(
             _betIDs.length == _betValues.length,
-            'inconsistent amount of bets/values'
+            'inconsistent amount of bets'
         );
         require(
             _betIDs.length == _betAmount.length,
-            'inconsistent amount of bets/amount'
+            'inconsistent amount of bets'
         );
         require(
             _betIDs.length <= maximumNumberBets,
-            'maximum amount of bets per game is 36'
+            'maximum amount of bets reached'
         );
 
         GameInstance _game = GameInstance(games[_gameID].gameAddress);
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
 
         // check necessary funds for payout based on betID
-        necessaryBalance = 0;
+        uint256 necessaryBalance = 0;
         for (uint256 i = 0; i < _betIDs.length; i++) {
             uint256 fundsPerBet = _game.getPayoutForType(_betIDs[i]);
             if (_betIDs[i] > 0) {
@@ -262,8 +261,11 @@ contract MasterParent is HashChain, AccessControl {
         // consider adding the bet to payout amount before calculating
         require(
             necessaryBalance <= games[_gameID].gameTokens[_tokenName],
-            'must have enough funds for payouts'
+            'dont have funds for payout'
         );
+
+        // reusing variable to save on gas
+        necessaryBalance = 0;
 
         // set bets for the game
         for (uint256 i = 0; i < _betIDs.length; i++) {
@@ -271,15 +273,12 @@ contract MasterParent is HashChain, AccessControl {
             //check approval
             require(
                 _token.allowance(_players[i], address(this)) >= _betAmount[i],
-                'must approve/allow this contract as spender'
+                'approve contract as spender'
             );
 
             // get user tokens if approved
             _token.transferFrom(_players[i], address(this), _betAmount[i]);
-
-            games[_gameID].gameTokens[_tokenName] = games[_gameID]
-                .gameTokens[_tokenName]
-                .add(_betAmount[i]);
+            necessaryBalance = necessaryBalance.add(_betAmount[i]);
 
             if (_betIDs[i] > 0) {
                 bet(
@@ -292,6 +291,11 @@ contract MasterParent is HashChain, AccessControl {
                 );
             }
         }
+
+        // keep track of funds
+        games[_gameID].gameTokens[_tokenName] = games[_gameID]
+            .gameTokens[_tokenName]
+            .add(necessaryBalance);
 
         // play move
         /* if (games[_gameID].isDelegated) {
@@ -312,16 +316,23 @@ contract MasterParent is HashChain, AccessControl {
             _tokenName
         );
 
+        necessaryBalance = 0;
+
         for (uint256 i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
-                games[_gameID].gameTokens[_tokenName] = games[_gameID]
-                    .gameTokens[_tokenName]
-                    .sub(winAmounts[i]); // keep balance of tokens per game
-
+                necessaryBalance = necessaryBalance.add(winAmounts[i]);
                 //issue tokens to each winner
                 _token.transfer(_players[i], winAmounts[i]); // transfer winning amount to player
             }
         }
+
+        // keep track of funds
+        games[_gameID].gameTokens[_tokenName] = games[_gameID]
+            .gameTokens[_tokenName]
+            .sub(necessaryBalance);
+
+        // free-up refund on gas
+        delete necessaryBalance;
 
         // notify server of result numbers and winning amount if any
         emit GameResult(
@@ -374,7 +385,7 @@ contract MasterParent is HashChain, AccessControl {
     ) external onlyCEO {
         require(
             _amount <= games[_gameID].gameTokens[_tokenName],
-            'Amount more than game allocated balance'
+            'game balance is lower'
         );
 
         ERC20Token token = ERC20Token(tokens[_tokenName]);
@@ -382,9 +393,9 @@ contract MasterParent is HashChain, AccessControl {
         games[_gameID].gameTokens[_tokenName] = games[_gameID]
             .gameTokens[_tokenName]
             .sub(_amount);
-        token.transfer(ceoAddress, _amount); // transfer contract funds to contract owner
+        token.transfer(ceoAddress, _amount);
 
-        emit NewBalance(_gameID, games[_gameID].gameTokens[_tokenName]); // notify server of new contract balance
+        emit NewBalance(_gameID, games[_gameID].gameTokens[_tokenName]);
     }
 
     function withdrawMaxTokenBalance(string calldata _tokenName)
@@ -395,10 +406,10 @@ contract MasterParent is HashChain, AccessControl {
         uint256 amount = token.balanceOf(address(this));
 
         for (uint256 i = 0; i < games.length; i++) {
-            games[i].gameTokens[_tokenName] = 0; // reset game-specific token that is being withdrawn to 0
+            games[i].gameTokens[_tokenName] = 0;
         }
 
-        token.transfer(ceoAddress, amount); // withdraw max token amount
+        token.transfer(ceoAddress, amount);
     }
 
 }
