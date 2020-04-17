@@ -809,4 +809,332 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             );
         });
     });
+
+    describe.only("Game Play: Roulette Special Cases", () => {
+        const betIDs = [
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301,
+            3301
+        ];
+        const betValues = [
+            5,
+            14,
+            15,
+            20,
+            21,
+            24,
+            26,
+            27,
+            30,
+            36,
+            1,
+            2,
+            4,
+            7,
+            8,
+            10,
+            11,
+            13,
+            16,
+            17,
+            19,
+            22,
+            23,
+            25,
+            28,
+            29,
+            31,
+            32,
+            34,
+            35
+        ];
+        const players = [
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2
+        ];
+        const betAmount = [
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000'
+        ];
+
+        beforeEach(async () => {
+            token = await Token.new();
+            master = await Master.new(token.address, "MANA");
+            roulette = await Roulette.new(master.address, web3.utils.toWei("4000"));
+            await master.addGame(roulette.address, "Roulette", web3.utils.toWei("4000"), false, { from: owner });
+            await token.approve(master.address, web3.utils.toWei("100000000"));
+            await master.addFunds(0, web3.utils.toWei("100000000"), "MANA", {
+                from: owner
+            });
+            await token.transfer(user1, web3.utils.toWei("100000000"));
+            await token.transfer(user2, web3.utils.toWei("100000000"));
+            await token.transfer(user3, web3.utils.toWei("100000000"));
+            await master.setTail(
+                "0x7f7e3e79bc27e06158e71e3d1ad06c358ac9634e29875cd95c3041e0206494d5",
+                { from: owner }
+            );
+        });
+
+        it("only CEO can set tail", async () => {
+            await catchRevert(
+                master.setTail(
+                    "0xd1f07819ba177c9c9977dade4370f99942f8a5e24ea36750207d890293c7866f",
+                    { from: random }
+                )
+            );
+            await master.setTail(
+                "0xd1f07819ba177c9c9977dade4370f99942f8a5e24ea36750207d890293c7866f",
+                { from: owner }
+            );
+        });
+
+        it("should be able to play game (30 bets)", async () => {
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user1 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user2 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user3 });
+            await advanceTimeAndBlock(60);
+            await master.play(
+                0,
+                players,
+                3,
+                20110003002006,
+                betIDs,
+                betValues,
+                betAmount,
+                "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
+                "MANA",
+                { from: owner }
+            );
+        });
+
+        it("should be able to play game (31 bets)", async () => {
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user1 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user2 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user3 });
+            await advanceTimeAndBlock(60);
+            await master.play(
+                0,
+                [
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2
+                ],
+                3,
+                20110003002006,
+                [
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301,
+                    3301
+                ],
+                [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    20,
+                    21,
+                    22,
+                    23,
+                    25,
+                    26,
+                    28,
+                    29,
+                    31,
+                    32,
+                    34,
+                    35
+                ],
+                [
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000'
+                ],
+                "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
+                "MANA",
+                { from: owner }
+            );
+        });
+    });
 });
