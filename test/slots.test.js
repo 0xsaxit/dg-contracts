@@ -115,10 +115,9 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
 
     describe("Game Play", () => {
         it("correctly create a bet", async () => {
-            await slots.createBet(1101, user1, 5, 100);
-
-            const currentBet = await slots.currentBets(0);
-            assert.equal(currentBet, 100);
+            await slots.createBet(0, user1, 0, 100);
+            const currentBet = await slots.currentBets(0, 0);
+            assert.equal(currentBet.toNumber(), 100);
         });
 
         it("correctly launches gameplay", async () => {
@@ -142,7 +141,7 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
             const slotsA = await Slots.new(user1);
             // await advanceTimeAndBlock(60);
             await catchRevert(
-                slotsA.createBet(1101, user1, 34, 1000),
+                slotsA.createBet(0, user1, 0, 1000),
                 "revert can only be called by master/parent contract"
             );
         });
@@ -152,18 +151,18 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
             const slotsA = await Slots.new(user1);
             // await advanceTimeAndBlock(60);
             await catchRevert(
-                slotsA.createBet(1101, user1, 34, 1000),
+                slotsA.createBet(0, user1, 0, 1000),
                 "revert can only be called by master/parent contract"
             );
             await slotsA.changeMaster(user1);
-            await slotsA.createBet(1101, user2, 5, 1000, { from: user1 });
+            await slotsA.createBet(0, user2, 0, 1000, { from: user1 });
             const resB = await slotsA.masterAddress();
             assert.equal(resB, user1);
         });
 
 
         it("correct win amount", async () => {
-            await slots.createBet(1101, user1, 5, 100);
+            await slots.createBet(0, user1, 0, 100);
 
             const hash =
                 "0x974ad959476b4156e4f324b692d9ad9af68af768041b6b014b36f1bc4cab7a13";
@@ -182,7 +181,7 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
                 "4": 4
             };
 
-            const currentBet = await slots.currentBets(0);
+            const currentBet = await slots.currentBets(0, 0);
 
             await slots.launch(hash, 1, 2, "BET");
 
@@ -193,11 +192,24 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
         });
 
         it("correct payout for type", async () => {
-            let factor = await slots.getPayoutForType(1101);
+            let factor = await slots.getPayoutForType(0);
             assert.equal(factor, 250);
-
-            factor = await slots.getPayoutForType(500);
-            assert.equal(factor, 0);
         });
+
+        it("correct necessary balance calculation", async () => {
+            const slotsA = await Slots.new(user1);
+            // await advanceTimeAndBlock(60);
+            await catchRevert(
+                slotsA.createBet(0, user1, 0, 1000),
+                "revert can only be called by master/parent contract"
+            );
+            await slotsA.changeMaster(user1);
+            await slotsA.createBet(0, user2, 0, 1000, { from: user1 });
+            let _necessaryBalance = await slots.getNecessaryBalance();
+            assert.equal(_necessaryBalance.toNumber(), 250 * 1000);
+        });
+
+
+
     });
 });

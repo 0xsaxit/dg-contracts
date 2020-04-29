@@ -246,26 +246,7 @@ contract MasterParent is HashChain, AccessControl {
         GameInstance _game = GameInstance(games[_gameID].gameAddress);
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
 
-        // check necessary funds for payout based on betID
-        uint256 necessaryBalance = 0;
-        for (uint256 i = 0; i < _betIDs.length; i++) {
-            uint256 fundsPerBet = _game.getPayoutForType(_betIDs[i]);
-            if (_betIDs[i] > 0) {
-                necessaryBalance = necessaryBalance.add(
-                    fundsPerBet.mul(_betAmount[i])
-                );
-            } else {
-                necessaryBalance = necessaryBalance.add(fundsPerBet);
-            }
-        }
-        // consider adding the bet to payout amount before calculating
-        require(
-            necessaryBalance <= games[_gameID].gameTokens[_tokenName],
-            'dont have funds for payout'
-        );
-
-        // reusing variable to save on gas
-        necessaryBalance = 0;
+        uint256 _trackingBalance = 0;
 
         // set bets for the game
         for (uint256 i = 0; i < _betIDs.length; i++) {
@@ -278,24 +259,28 @@ contract MasterParent is HashChain, AccessControl {
 
             // get user tokens if approved
             _token.transferFrom(_players[i], address(this), _betAmount[i]);
-            necessaryBalance = necessaryBalance.add(_betAmount[i]);
+            _trackingBalance = _trackingBalance.add(_betAmount[i]);
 
-            if (_betIDs[i] > 0) {
-                bet(
-                    _gameID,
-                    _betIDs[i],
-                    _players[i],
-                    _betValues[i],
-                    _betAmount[i],
-                    _tokenName
-                );
-            }
+            bet(
+                _gameID,
+                _betIDs[i],
+                _players[i],
+                _betValues[i],
+                _betAmount[i],
+                _tokenName
+            );
         }
 
         // keep track of funds
         games[_gameID].gameTokens[_tokenName] = games[_gameID]
             .gameTokens[_tokenName]
-            .add(necessaryBalance);
+            .add(_trackingBalance);
+
+        // check payouts balnace
+        require(
+            _game.getNecessaryBalance() <= games[_gameID].gameTokens[_tokenName],
+            "not enough tokens"
+        );
 
         // play move
         /* if (games[_gameID].isDelegated) {
@@ -316,11 +301,11 @@ contract MasterParent is HashChain, AccessControl {
             _tokenName
         );
 
-        necessaryBalance = 0;
+        _trackingBalance = 0;
 
         for (uint256 i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
-                necessaryBalance = necessaryBalance.add(winAmounts[i]);
+                _trackingBalance = _trackingBalance.add(winAmounts[i]);
                 //issue tokens to each winner
                 _token.transfer(_players[i], winAmounts[i]); // transfer winning amount to player
             }
@@ -329,10 +314,10 @@ contract MasterParent is HashChain, AccessControl {
         // keep track of funds
         games[_gameID].gameTokens[_tokenName] = games[_gameID]
             .gameTokens[_tokenName]
-            .sub(necessaryBalance);
+            .sub(_trackingBalance);
 
         // free-up refund on gas
-        delete necessaryBalance;
+        delete _trackingBalance;
 
         // notify server of result numbers and winning amount if any
         emit GameResult(
@@ -353,9 +338,14 @@ contract MasterParent is HashChain, AccessControl {
         uint256 _gameID,
         uint256 _tokenAmount,
         string calldata _tokenName
-    ) external onlyCEO {
+    ) external {
 
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
+
+        require(
+            tokens[_tokenName] != address(0x0),
+            'unauthorized token detected'
+        );
 
         require(
             _token.allowance(msg.sender, address(this)) >= _tokenAmount,

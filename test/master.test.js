@@ -217,7 +217,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Play: Roulette", () => {
-        const betIDs = [3301, 3304, 3308];
+        const betTypes = [0, 3304, 3308];
         const betValues = [20, 20, 2];
         const betAmount = [500, 300, 400];
 
@@ -262,7 +262,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -283,7 +283,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -298,7 +298,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -314,7 +314,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -333,7 +333,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -353,7 +353,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    [3301, 3304], // Arrays not equal length
+                    [0, 3304], // Arrays not equal length
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -374,7 +374,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     [500, 300, 3000],
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -395,7 +395,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -426,7 +426,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -440,7 +440,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -461,7 +461,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -475,7 +475,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0x85b19f01fe40119c675666a851d9e6b9a85424dc4016b2de0bdb69efecf08dea",
@@ -486,7 +486,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Results: Roulette", () => {
-        const betIDs = [3301, 3304, 3308, 3303, 3305];
+        const betTypes = [0, 3304, 3308, 3303, 3305];
         const betValues = [31, 20, 2, 1, 1];
         const betAmounts = [500, 300, 400, 100, 200];
 
@@ -527,7 +527,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user1, user1, user1, user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -575,7 +575,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user1, user1, user1, user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -607,7 +607,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Play: Slots", () => {
-        const betIDs = [1101];
+        const betTypes = [1101];
         const betValues = [15];
         const betAmounts = [500];
 
@@ -633,7 +633,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betAmounts,
                     [2000],
                     HASH_CHAIN[1],
@@ -651,7 +651,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betAmounts,
                 betValues,
                 HASH_CHAIN[1],
@@ -668,7 +668,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betAmounts,
                 betValues,
                 HASH_CHAIN[1],
@@ -688,7 +688,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Results: Slots", () => {
-        const betIDs = [1101];
+        const betTypes = [1101];
         const betValues = [15];
         const betAmounts = [500];
 
@@ -733,7 +733,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -779,7 +779,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -811,37 +811,37 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe.only("Game Play: Roulette Special Cases", () => {
-        const betIDs = [
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301,
-            3301
+        const betTypes = [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
         ];
         const betValues = [
             5,
@@ -981,7 +981,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 players,
                 3,
                 20110003002006,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -1033,37 +1033,37 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 3,
                 20110003002006,
                 [
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301,
-                    3301
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
                 ],
                 [
                     1,
