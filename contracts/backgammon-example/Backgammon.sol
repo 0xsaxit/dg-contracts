@@ -117,7 +117,7 @@ contract Backgammon is AccessControl {
         );
 
         require(
-            master.selfMaximumBet(_tokenName) <= _defaultStake,
+            master.selfMaximumBet(_tokenName) >= _defaultStake,
             "exceeding maximum bet defined in master/treasury"
         );
 
