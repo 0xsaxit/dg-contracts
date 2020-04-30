@@ -217,8 +217,8 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Play: Roulette", () => {
-        const betTypes = [0, 3304, 3308];
-        const betValues = [20, 20, 2];
+        const betTypes = [0, 2, 5];
+        const betValues = [20, 1, 1];
         const betAmount = [500, 300, 400];
 
         beforeEach(async () => {
@@ -353,7 +353,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    [0, 3304], // Arrays not equal length
+                    [0, 2], // Arrays not equal length
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -486,8 +486,8 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Results: Roulette", () => {
-        const betTypes = [0, 3304, 3308, 3303, 3305];
-        const betValues = [31, 20, 2, 1, 1];
+        const betTypes = [0, 2, 5, 1, 3];
+        const betValues = [31, 0, 2, 1, 1];
         const betAmounts = [500, 300, 400, 100, 200];
 
         beforeEach(async () => {
@@ -607,8 +607,8 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Play: Slots", () => {
-        const betTypes = [1101];
-        const betValues = [15];
+        const betTypes = [0];
+        const betValues = [0];
         const betAmounts = [500];
 
         beforeEach(async () => {
@@ -688,8 +688,8 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Results: Slots", () => {
-        const betTypes = [1101];
-        const betValues = [15];
+        const betTypes = [0];
+        const betValues = [0];
         const betAmounts = [500];
 
         beforeEach(async () => {

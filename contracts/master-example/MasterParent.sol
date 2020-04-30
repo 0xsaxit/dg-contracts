@@ -282,17 +282,6 @@ contract MasterParent is HashChain, AccessControl {
             "not enough tokens"
         );
 
-        // play move
-        /* if (games[_gameID].isDelegated) {
-
-            (bool success, bytes memory result) = games[_gameID].gameAddress.call(
-                abi.encodeWithSignature('_actionName')
-            );
-
-            emit MoveResult(success, result);
-
-        } else { */
-
         // play game
         (winAmounts, number) = _game.launch(
             _localhash,
@@ -340,12 +329,12 @@ contract MasterParent is HashChain, AccessControl {
         string calldata _tokenName
     ) external {
 
-        ERC20Token _token = ERC20Token(tokens[_tokenName]);
-
         require(
             tokens[_tokenName] != address(0x0),
             'unauthorized token detected'
         );
+
+        ERC20Token _token = ERC20Token(tokens[_tokenName]);
 
         require(
             _token.allowance(msg.sender, address(this)) >= _tokenAmount,
