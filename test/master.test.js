@@ -71,7 +71,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             roulette = await Roulette.new(master.address, 4000);
-            slots = await Slots.new(master.address);
+            slots = await Slots.new(master.address, 250, 16, 8, 4, 1000000000000000);
         });
 
         it("only CEO can add a game", async () => {
@@ -104,7 +104,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             roulette = await Roulette.new(master.address, 4000);
-            slots = await Slots.new(master.address);
+            slots = await Slots.new(master.address, 250, 16, 8, 4, 1000000);
             await master.addGame(slots.address, "Slots", 100, { from: owner });
             await master.addGame(roulette.address, "Roulette", 200, { from: owner });
         });
@@ -353,7 +353,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    [0, 2], // Arrays not equal length
+                    [0, 0], // Arrays not equal length
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -385,7 +385,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             );
         });
 
-        /*it("should emit a GameResult event with correct details", async () => {
+        it("should emit a GameResult event with correct details", async () => {
             await token.approve(master.address, 5000, { from: user1 });
             await token.approve(master.address, 5000, { from: user2 });
             await token.approve(master.address, 5000, { from: user3 });
@@ -399,7 +399,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
-                "0x4605d046b0132734b6fc45e75049e1422f8ec9d9cdeec93f928bdb57662cecdc",
+                "MANA",
                 { from: owner }
             );
             const { _players, _tokenName, _landID, _machineID } = await getLastEvent(
@@ -411,10 +411,10 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 JSON.stringify(_players),
                 JSON.stringify([user1, user2, user3])
             );
-            assert.equal(_tokenName, "MANA");
+            assert.equal(_tokenName, "0x4605d046b0132734b6fc45e75049e1422f8ec9d9cdeec93f928bdb57662cecdc");
             assert.equal(_landID, 1);
             assert.equal(_machineID, 2);
-        });*/
+        });
 
         it("should revert if uses same local hash after a play", async () => {
             await token.approve(master.address, 5000, { from: user1 });
@@ -614,7 +614,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
-            slots = await Slots.new(master.address);
+            slots = await Slots.new(master.address, 250, 16, 8, 4, 100000000);
             await master.addGame(slots.address, "Slots", 1000, false, { from: owner });
             await token.approve(master.address, web3.utils.toWei("100"));
             await master.addFunds(0, web3.utils.toWei("100"), "MANA", {
@@ -633,8 +633,8 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1],
                     1,
                     2,
-                    betTypes,
-                    betAmounts,
+                    [0],
+                    [0],
                     [2000],
                     HASH_CHAIN[1],
                     "MANA",
@@ -649,11 +649,11 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             await master.play(
                 0,
                 [user1],
-                1,
-                2,
-                betTypes,
-                betAmounts,
-                betValues,
+                0,
+                100,
+                [0],
+                [0],
+                [100],
                 HASH_CHAIN[1],
                 "MANA",
                 { from: owner }
@@ -668,9 +668,9 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1],
                 1,
                 2,
-                betTypes,
-                betAmounts,
-                betValues,
+                [0],
+                [0],
+                [100],
                 HASH_CHAIN[1],
 
                 "MANA",
@@ -696,7 +696,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             // Deploy contracts
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
-            slots = await Slots.new(master.address);
+            slots = await Slots.new(master.address, 250, 16, 8, 4, 1000000000000000);
 
             // Add game and fund it
             await master.addGame(slots.address, "Slots", 2000, false, { from: owner });
@@ -731,8 +731,8 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 await master.play(
                     0,
                     [user1],
-                    1,
-                    2,
+                    0,
+                    100,
                     betTypes,
                     betValues,
                     betAmounts,
@@ -777,7 +777,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 await master.play(
                     0,
                     [user1],
-                    1,
+                    0,
                     2,
                     betTypes,
                     betValues,
@@ -790,7 +790,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 const { _winAmounts } = await getLastEvent("GameResult", master);
 
                 console.log(
-                    `     Play ${i + 1}: WinAmounts:[${_winAmounts}]`.cyan.inverse
+                    `    Play ${i + 1}: WinAmounts:[${_winAmounts}]`.cyan.inverse
                 );
 
                 winTotal = _winAmounts.reduce((a, b) => Number(a) + Number(b));
@@ -810,7 +810,39 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Play: Roulette Special Cases", () => {
+    describe("Game Play: Roulette Special Cases", () => {
+        const players = [
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2
+        ];
         const betTypes = [
             0,
             0,
@@ -875,38 +907,6 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             34,
             35
         ];
-        const players = [
-            user1,
-            user1,
-            user1,
-            user1,
-            user1,
-            user1,
-            user1,
-            user1,
-            user1,
-            user1,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2,
-            user2
-        ];
         const betAmount = [
             '1000000000000000000000',
             '1000000000000000000000',
@@ -943,15 +943,15 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
-            roulette = await Roulette.new(master.address, web3.utils.toWei("4000"));
+            roulette = await Roulette.new(master.address, web3.utils.toWei("400000"));
             await master.addGame(roulette.address, "Roulette", web3.utils.toWei("4000"), false, { from: owner });
             await token.approve(master.address, web3.utils.toWei("100000000"));
-            await master.addFunds(0, web3.utils.toWei("100000000"), "MANA", {
+            await master.addFunds(0, web3.utils.toWei("1000000"), "MANA", {
                 from: owner
             });
-            await token.transfer(user1, web3.utils.toWei("100000000"));
-            await token.transfer(user2, web3.utils.toWei("100000000"));
-            await token.transfer(user3, web3.utils.toWei("100000000"));
+            await token.transfer(user1, web3.utils.toWei("1000000000"));
+            await token.transfer(user2, web3.utils.toWei("1000000000"));
+            await token.transfer(user3, web3.utils.toWei("1000000000"));
             await master.setTail(
                 "0x7f7e3e79bc27e06158e71e3d1ad06c358ac9634e29875cd95c3041e0206494d5",
                 { from: owner }
@@ -976,11 +976,17 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             await token.approve(master.address, web3.utils.toWei("100000000"), { from: user2 });
             await token.approve(master.address, web3.utils.toWei("100000000"), { from: user3 });
             await advanceTimeAndBlock(60);
+
+            await master.setTail(
+                "0x7f7e3e79bc27e06158e71e3d1ad06c358ac9634e29875cd95c3041e0206494d5",
+                { from: owner }
+            );
+
             await master.play(
                 0,
                 players,
                 3,
-                20110003002006,
+                10,
                 betTypes,
                 betValues,
                 betAmount,
@@ -991,10 +997,14 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
         });
 
         it("should be able to play game (31 bets)", async () => {
-            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user1 });
-            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user2 });
-            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user3 });
+            await token.approve(master.address, web3.utils.toWei("10000000000000"), { from: user1 });
+            await token.approve(master.address, web3.utils.toWei("10000000000000"), { from: user2 });
+            await token.approve(master.address, web3.utils.toWei("10000000000000"), { from: user3 });
             await advanceTimeAndBlock(60);
+            await master.setTail(
+                "0x7f7e3e79bc27e06158e71e3d1ad06c358ac9634e29875cd95c3041e0206494d5",
+                { from: owner }
+            );
             await master.play(
                 0,
                 [

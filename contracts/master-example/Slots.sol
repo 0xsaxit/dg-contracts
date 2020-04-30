@@ -58,7 +58,7 @@ contract SlotMachineLogic is AccessControl {
     }
 
     function createBet(
-        BetType _betType,
+        uint256 _betType,
         address _player,
         uint256 _number,
         uint256 _value
@@ -67,6 +67,7 @@ contract SlotMachineLogic is AccessControl {
         require(_player != address(0x0), "player undefined");
         require(_number == 0, "number must be 0");
         require(_value > 0, "bet value must be > 0");
+        require(_betType == uint(BetType.Single), 'bet undefined');
 
         betLimit = betLimit.add(_value);
 
@@ -76,7 +77,7 @@ contract SlotMachineLogic is AccessControl {
         );
 
         Bet memory newBet;
-        newBet.betType = _betType;
+        newBet.betType = BetType.Single;
         newBet.player = _player;
         newBet.number = _number;
         newBet.value = _value;

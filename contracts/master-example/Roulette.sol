@@ -2,6 +2,7 @@ pragma solidity ^0.5.14;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
+
 import "../common-contracts/SafeMath.sol";
 import "../common-contracts/AccessControl.sol";
 
@@ -23,7 +24,10 @@ contract RouletteLogic is AccessControl {
     }
 
     modifier onlyMaster {
-        require(msg.sender == masterAddress, 'can only be called by master/parent contract');
+        require(
+            msg.sender == masterAddress,
+            'can only be called by master/parent contract'
+        );
         _;
     }
 
@@ -58,25 +62,25 @@ contract RouletteLogic is AccessControl {
     }
 
     function createBet(
-        BetType _betType,
+        uint _betType,
         address _player,
         uint _number,
         uint _value
     ) external onlyMaster {
 
-        currentBets[uint(_betType)][_number] += _value;
+        currentBets[_betType][_number] += _value;
 
         require(
-            currentBets[uint(_betType)][_number] <= maxBet,
+            currentBets[_betType][_number] <= maxBet,
             'exceeding maximum bet limit'
         );
 
-        if (_betType == BetType.Single) return betSingle(_number, _player, _value);
-        if (_betType == BetType.EvenOdd) return betEvenOdd(_number, _player, _value);
-        if (_betType == BetType.RedBlack) return betRedBlack(_number ,_player, _value);
-        if (_betType == BetType.HighLow) return betHighLow(_number, _player, _value);
-        if (_betType == BetType.Column) return betColumn(_number, _player, _value);
-        if (_betType == BetType.Dozen) return betDozen(_number, _player, _value);
+        if (_betType == uint(BetType.Single)) return betSingle(_number, _player, _value);
+        if (_betType == uint(BetType.EvenOdd)) return betEvenOdd(_number, _player, _value);
+        if (_betType == uint(BetType.RedBlack)) return betRedBlack(_number ,_player, _value);
+        if (_betType == uint(BetType.HighLow)) return betHighLow(_number, _player, _value);
+        if (_betType == uint(BetType.Column)) return betColumn(_number, _player, _value);
+        if (_betType == uint(BetType.Dozen)) return betDozen(_number, _player, _value);
 
     }
 

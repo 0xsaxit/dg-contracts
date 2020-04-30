@@ -3,10 +3,10 @@ pragma solidity ^0.5.14;
 interface GameInstance {
 
     function createBet(
-        uint _betID,
+        uint256 _betID,
         address _player,
-        uint _number,
-        uint _value
+        uint256 _number,
+        uint256 _value
     ) external;
 
     function launch(
