@@ -1,5 +1,6 @@
 const Slots = artifacts.require("SlotMachineLogic");
 const catchRevert = require("./exceptionsHelpers.js").catchRevert;
+const positions = [192, 208, 224, 240];
 
 // require("./utils");
 
@@ -27,22 +28,22 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
         });
 
         it("correct factor1 value", async () => {
-            const factor = await slots.getPayoutForType(0, 192);
+            const factor = await slots.getPayoutFactor(positions[0]);
             assert.equal(factor, 250);
         });
 
         it("correct factor2 value", async () => {
-            const factor = await slots.getPayoutForType(0, 208);
+            const factor = await slots.getPayoutFactor(positions[1]);
             assert.equal(factor, 15);
         });
 
         it("correct factor3 value", async () => {
-            const factor = await slots.getPayoutForType(0, 224);
+            const factor = await slots.getPayoutFactor(positions[2]);
             assert.equal(factor, 8);
         });
 
         it("correct factor4 value", async () => {
-            const factor = await slots.getPayoutForType(0, 240);
+            const factor = await slots.getPayoutFactor(positions[3]);
             assert.equal(factor, 4);
         });
 
@@ -108,7 +109,7 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
             await catchRevert(slots.updateSettings(user1, 1, 2, 3, 4, { from: random }));
             await slots.updateSettings(user1, 250, 15, 8, 4, { from: newCEO });
 
-            const factor = await slots.getPayoutForType(0, 192);
+            const factor = await slots.getPayoutFactor(positions[0]);
             assert.equal(factor.toNumber(), 250);
         });
     });
@@ -187,7 +188,6 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
             };
 
             await slotsA.launch(hash, 1, 2, "MANA");
-
             const { _winAmounts, _number } = await getLastEvent("SpinResult", slotsA);
 
             assert.equal(_winAmounts[0], Bet * factors[symbols[number % 10]]);
@@ -195,7 +195,7 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
         });
 
         it("correct payout for type", async () => {
-            let factor = await slots.getPayoutForType(0, 192);
+            let factor = await slots.getPayoutFactor(positions[0]);
             assert.equal(factor.toNumber(), 250);
         });
 
@@ -210,7 +210,7 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
                 "revert can only be called by master/parent contract"
             );
             await slotsA.updateSettings(user1, 300, 15, 8, 4);
-            const factor = await slotsA.getPayoutForType(0, 192);
+            const factor = await slotsA.getPayoutFactor(positions[0]);
 
             await slotsA.createBet(0, user2, 0, betA, { from: user1 });
             _necessaryBalance = await slotsA.getNecessaryBalance();

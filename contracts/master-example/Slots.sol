@@ -23,7 +23,7 @@ contract SlotMachineLogic is AccessControl {
     }
 
     Bet[] public bets;
-    mapping (uint => mapping (uint => uint)) betLimits;
+    uint256 betLimit;
 
     event SpinResult(
         string _tokenName,
@@ -57,8 +57,6 @@ contract SlotMachineLogic is AccessControl {
         _;
     }
 
-    uint256[] symbols;
-
     function createBet(
         BetType _betType,
         address _player,
@@ -70,11 +68,10 @@ contract SlotMachineLogic is AccessControl {
         require(_number == 0, "number must be 0");
         require(_value > 0, "bet value must be > 0");
 
-        uint bt = uint(_betType);
-        betLimits[bt][_number] = betLimits[bt][_number].add(_value);
+        betLimit = betLimit.add(_value);
 
         require(
-            betLimits[bt][_number] <= maxBet,
+            betLimit <= maxBet,
             'exceeding maximum bet limit'
         );
 
@@ -99,7 +96,7 @@ contract SlotMachineLogic is AccessControl {
         uint256 number = numbers;
         delete winAmounts;
 
-        symbols = [4, 4, 4, 4, 3, 3, 3, 2, 2, 1];
+        uint8[10] memory symbols = [4, 4, 4, 4, 3, 3, 3, 2, 2, 1];
         uint256 winner = symbols[number % 10];
 
         for (uint256 i = 0; i < 2; i++) {
@@ -110,23 +107,17 @@ contract SlotMachineLogic is AccessControl {
             }
         }
 
+        uint8[5] memory positions = [255, 192, 208, 224, 240];
         for (uint256 i = 0; i < bets.length; i++) {
-            if (winner == 1) {
-                winAmount = bets[i].value.mul(uint256(uint16(store>>192)));
-            } else if (winner == 2) {
-                winAmount = bets[i].value.mul(uint256(uint16(store>>208)));
-            } else if (winner == 3) {
-                winAmount = bets[i].value.mul(uint256(uint16(store>>224)));
-            } else if (winner == 4) {
-                winAmount = bets[i].value.mul(uint256(uint16(store>>240)));
-            } else {
-                winAmount = 0;
-            }
+            winAmount = bets[i].value.mul(
+                uint16(store>>positions[winner])
+            );
             winAmounts.push(winAmount);
-            betLimits[uint(bets[i].betType)][0] = 0;
         }
 
         delete bets;
+        delete betLimit;
+
         emit SpinResult(_tokenName, _landID, numbers, _machineID, winAmounts);
         return (winAmounts, numbers);
     }
@@ -149,9 +140,12 @@ contract SlotMachineLogic is AccessControl {
         maxBet = _newMaxBet;
     }
 
-    function getPayoutForType(BetType _betType, uint256 _position) public view returns (uint256) {
-        if (_betType == BetType.Single) return uint16(store>>_position);
-        return 0;
+    function getPayoutFactor(uint256 _position) external view returns (uint16) {
+       return uint16(store>>_position);
+    }
+
+    function getMasterAddress() external view returns (address) {
+        return address(store);
     }
 
     function randomNumber(bytes32 _localhash) private pure returns (uint256 numbers) {
@@ -159,8 +153,8 @@ contract SlotMachineLogic is AccessControl {
     }
 
     function getNecessaryBalance() external view returns (uint256) {
-        return betLimits[uint(BetType.Single)][0].mul(
-            getPayoutForType(BetType.Single, 192)
+        return betLimit.mul(
+            uint16(store>>192)
         );
     }
 
