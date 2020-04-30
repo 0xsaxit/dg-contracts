@@ -1,24 +1,24 @@
 pragma solidity ^0.5.14;
 
-// Slot Machine Logic Contract ///////////////////////////////////////////////////////////
+// Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
 import "../common-contracts/SafeMath.sol";
 import "../common-contracts/AccessControl.sol";
 
 contract RouletteLogic is AccessControl {
-
     using SafeMath for uint;
-    uint public nextRoundTimestamp;
-    enum BetType { Single, Odd, Even, Red, Black, High, Low, Column, Dozen }
+
+    uint256 public nextRoundTimestamp;
+    uint256 public maxBet;
 
     address public masterAddress;
-    uint public maxSquareBet;
+    enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
 
-    mapping (uint => mapping (uint => uint256)) public squareBets;
+    mapping (uint => mapping (uint => uint256)) public currentBets;
 
-    constructor(address _masterAddress, uint256 _maxSquareBet) public {
+    constructor(address _masterAddress, uint256 _maxBet) public {
         masterAddress = _masterAddress;
-        maxSquareBet = _maxSquareBet;
+        maxBet = _maxBet;
         nextRoundTimestamp = now;
     }
 
@@ -32,7 +32,6 @@ contract RouletteLogic is AccessControl {
         address player;
         uint256 number;
         uint256 value;
-        uint256 betID;
     }
 
     event SpinResult(
@@ -48,12 +47,9 @@ contract RouletteLogic is AccessControl {
 
     event Finished(uint number, uint nextRoundTimestamp);
     event NewSingleBet(uint bet, address player, uint number, uint value);
-    event NewEvenBet(uint bet, address player, uint value);
-    event NewOddBet(uint bet, address player, uint value);
-    event NewRedBet(uint bet, address player, uint value);
-    event NewBlackBet(uint bet, address player, uint value);
-    event NewHighBet(uint bet, address player, uint value);
-    event NewLowBet(uint bet, address player, uint value);
+    event NewEvenOddBet(uint bet, address player, uint number, uint value);
+    event NewRedBlackBet(uint bet, address player, uint number, uint value);
+    event NewHighLowBet(uint bet, address player, uint number, uint value);
     event NewColumnBet(uint bet, address player, uint column, uint value);
     event NewDozenBet(uint bet, address player, uint dozen, uint value);
 
@@ -61,167 +57,93 @@ contract RouletteLogic is AccessControl {
         return nextRoundTimestamp;
     }
 
-    function getBetsCountAndValue() external view returns(uint, uint) {
-        uint value = 0;
-        for (uint i = 0; i < bets.length; i++) {
-            value += bets[i].value;
-        }
-        return (bets.length, value);
-    }
-
     function createBet(
-        uint _betID,
+        BetType _betType,
         address _player,
         uint _number,
         uint _value
     ) external onlyMaster {
 
-        squareBets[_betID][_number] += _value;
+        currentBets[uint(_betType)][_number] += _value;
 
         require(
-            squareBets[_betID][_number] <= maxSquareBet,
-            'exceeding maximum bet square limit'
+            currentBets[uint(_betType)][_number] <= maxBet,
+            'exceeding maximum bet limit'
         );
 
-        if (_betID == 3301) {
-            betSingle(_number, _player, _value);
-        }
-        else if (_betID == 3302) {
-            betEven(_player, _value);
-        }
-        else if (_betID == 3303) {
-            betOdd(_player, _value);
-        }
-        else if (_betID == 3304) {
-            betRed(_player, _value);
-        }
-        else if (_betID == 3305) {
-            betBlack(_player, _value);
-        }
-        else if (_betID == 3305) {
-            betBlack(_player, _value);
-        }
-        else if (_betID == 3306) {
-            betHigh(_player, _value);
-        }
-        else if (_betID == 3307) {
-            betLow(_player, _value);
-        }
-        else if (_betID == 3308) {
-            betColumn(_number, _player, _value);
-        }
-        else if (_betID == 3309) {
-            betDozen(_number, _player, _value);
-        }
+        if (_betType == BetType.Single) return betSingle(_number, _player, _value);
+        if (_betType == BetType.EvenOdd) return betEvenOdd(_number, _player, _value);
+        if (_betType == BetType.RedBlack) return betRedBlack(_number ,_player, _value);
+        if (_betType == BetType.HighLow) return betHighLow(_number, _player, _value);
+        if (_betType == BetType.Column) return betColumn(_number, _player, _value);
+        if (_betType == BetType.Dozen) return betDozen(_number, _player, _value);
+
     }
 
-    //3301
     function betSingle(uint _number, address _player, uint _value) internal {
-        require(_number <= 36, 'single bet must be in region between 0 and 36');
+        require(_number <= 36, 'must be between 0 and 36');
         bets.push(Bet({
             betType: BetType.Single,
             player: _player,
             number: _number,
-            value: _value,
-            betID: 3301
+            value: _value
         }));
         emit NewSingleBet(bets.length, _player, _number, _value);
     }
 
-    //3302
-    function betEven(address _player, uint _value) internal {
+    function betEvenOdd(uint256 _number, address _player, uint _value) internal {
+        require(_number <= 1, 'Even(0) - Odd(1)');
         bets.push(Bet({
-            betType: BetType.Even,
+            betType: BetType.EvenOdd,
             player: _player,
-            number: 0,
-            value: _value,
-            betID: 3302
+            number: _number,
+            value: _value
         }));
-        emit NewEvenBet(bets.length, _player, _value);
+        emit NewEvenOddBet(bets.length, _player, _number, _value);
     }
 
-    //3303
-    function betOdd(address _player, uint _value) internal {
+    function betRedBlack(uint256 _number, address _player, uint _value) internal {
+        require(_number <= 1, 'Red(0) - Black(1)');
         bets.push(Bet({
-            betType: BetType.Odd,
+            betType: BetType.RedBlack,
             player: _player,
-            number: 0,
-            value: _value,
-            betID: 3303
+            number: _number,
+            value: _value
         }));
-        emit NewOddBet(bets.length, _player, _value);
+        emit NewRedBlackBet(bets.length, _player, _number, _value);
     }
 
-    //3304
-    function betRed(address _player, uint _value) internal {
+
+    function betHighLow(uint256 _number, address _player, uint _value) internal {
+        require(_number <= 1, 'High(0) - Low(1)');
         bets.push(Bet({
-            betType: BetType.Red,
+            betType: BetType.HighLow,
             player: _player,
-            number: 0,
-            value: _value,
-            betID: 3304
+            number: _number,
+            value: _value
         }));
-        emit NewRedBet(bets.length, _player, _value);
+        emit NewHighLowBet(bets.length, _player, _number, _value);
     }
 
-    //3305
-    function betBlack(address _player, uint _value) internal {
-        bets.push(Bet({
-            betType: BetType.Black,
-            player: _player,
-            number: 0,
-            value: _value,
-            betID: 3305
-        }));
-        emit NewBlackBet(bets.length, _player, _value);
-    }
 
-    //3306
-    function betHigh(address _player, uint _value) internal {
-        bets.push(Bet({
-            betType: BetType.High,
-            player: _player,
-            number: 0,
-            value: _value,
-            betID: 3306
-        }));
-        emit NewHighBet(bets.length, _player, _value);
-    }
-
-    //3307
-    function betLow(address _player, uint _value) internal {
-        bets.push(Bet({
-            betType: BetType.Low,
-            player: _player,
-            number: 0,
-            value: _value,
-            betID: 3307
-        }));
-        emit NewLowBet(bets.length, _player, _value);
-    }
-
-    //3308
     function betColumn(uint _column, address _player, uint _value) internal {
-        require(_column >= 1 && _column <= 3, 'column bet must be in region between 1 and 3');
+        require(_column <= 2, 'column must be in region between 0 and 2');
         bets.push(Bet({
             betType: BetType.Column,
             player: _player,
             number: _column,
-            value: _value,
-            betID: 3308
+            value: _value
         }));
         emit NewColumnBet(bets.length, _player, _column, _value);
     }
 
-    //3309
     function betDozen(uint _dozen, address _player, uint _value) internal {
-        require(_dozen >= 1 && _dozen <= 3, 'dozen bet must be in region between 1 and 3');
+        require(_dozen <= 2, 'dozen must be in region between 0 and 2');
         bets.push(Bet({
             betType: BetType.Dozen,
             player: _player,
             number: _dozen,
-            value: _value,
-            betID: 3309
+            value: _value
         }));
         emit NewDozenBet(bets.length, _player, _dozen, _value);
     }
@@ -235,50 +157,40 @@ contract RouletteLogic is AccessControl {
         require(now > nextRoundTimestamp, 'expired round');
         require(bets.length > 0, 'must have bets');
 
-        /* reset */
         winAmounts.length = 0;
         nextRoundTimestamp = now;
 
-        /* calculate 'random' number */
         uint diff = block.difficulty;
         bytes32 hash = _localhash;
-        //bytes32 hash = blockhash(block.number-1);
         Bet memory lb = bets[bets.length-1];
         number = uint(keccak256(abi.encodePacked(now, diff, hash, lb.betType, lb.player, lb.number))) % 37;
 
         for (uint i = 0; i < bets.length; i++) {
             bool won = false;
             Bet memory b = bets[i];
-            if (b.betType == BetType.Single) {
-                if (b.number == number) {
+            if (b.betType == BetType.Single && b.number == number) {
+                won = true;
+            } else if (b.betType == BetType.EvenOdd) {
+                if (number > 0 && number % 2 == b.number) {
                     won = true;
                 }
-            } else if (b.betType == BetType.Even) {
-                if (number > 0 && number % 2 == 0) {
-                    won = true;
-                }
-            } else if (b.betType == BetType.Odd) {
-                if (number > 0 && number % 2 == 1) {
-                    won = true;
-                }
-            } else if (b.betType == BetType.Red) {
-                if (number <= 10 || (number >= 19 && number <= 28)) {
+            } else if (b.betType == BetType.RedBlack && b.number == 0) {
+                if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 1);
                 } else {
                     won = (number % 2 == 0);
                 }
-            } else if (b.betType == BetType.Black) {
+            } else if (b.betType == BetType.RedBlack && b.number == 1) {
                 if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 0);
                 } else {
                     won = (number % 2 == 1);
                 }
-            } else if (b.betType == BetType.High) {
-                if (number >= 19) {
+            } else if (b.betType == BetType.HighLow) {
+                if (number >= 19 && b.number == 0) {
                     won = true;
                 }
-            } else if (b.betType == BetType.Low) {
-                if (number > 0 && number <= 18) {
+                if (number > 0 && number <= 18 && b.number == 1) {
                     won = true;
                 }
             } else if (b.betType == BetType.Column) {
@@ -290,39 +202,78 @@ contract RouletteLogic is AccessControl {
                 if (b.number == 2) won = (number > 12 && number <= 24);
                 if (b.number == 3) won = (number > 24);
             }
+
             if (won) {
-                uint256 betWin = b.value.mul(getPayoutForType(b.betID));
+                uint256 betWin = b.value.mul(getPayoutForType(b.betType));
                 winAmounts.push(betWin);
             } else {
                 winAmounts.push(0);
             }
 
-            squareBets[b.betID][b.number] = 0;
+            currentBets[uint(b.betType)][b.number] = 0;
         }
 
+        // reset bets
         bets.length = 0;
         emit SpinResult(_tokenName, _landID, number, _machineID, winAmounts);
 
-        //return wins
+        // return wins
         return(winAmounts, number);
 
     }
 
-    function getPayoutForType(uint256 _betID) public pure returns(uint256) {
-        if (_betID == 3301) return 36; //single
-        if (_betID == 3302 || _betID == 3303) return 2; //odd-even
-        if (_betID == 3304 || _betID == 3305) return 2; //black-red
-        if (_betID == 3306 || _betID == 3307) return 2; //low-high
-        if (_betID == 3308 || _betID == 3309) return 3; //column-dozen
-        return 0;
+    function getPayoutForType(BetType _betType) public pure returns(uint256) {
+        if (_betType == BetType.Single) return 36;
+        if (_betType == BetType.EvenOdd) return 2;
+        if (_betType == BetType.RedBlack) return 2;
+        if (_betType == BetType.HighLow) return 2;
+        if (_betType == BetType.Column) return 3;
+        if (_betType == BetType.Dozen) return 3;
     }
 
-    function getAmountBets() external view returns (uint256) {
+    function getNecessaryBalance() external view returns (uint256 _necessaryBalance) {
+
+        uint256 _necessaryForBetType;
+        uint256 _i;
+        uint256[6] memory betTypesMax;
+
+        // determine highest for each betType
+        for (_i = 0; _i < bets.length; _i++) {
+
+            Bet memory b = bets[_i];
+
+            _necessaryForBetType = currentBets[uint(b.betType)][b.number].mul(
+                getPayoutForType(b.betType)
+            );
+
+            if (_necessaryForBetType > betTypesMax[uint(b.betType)]) {
+                betTypesMax[uint(b.betType)] = _necessaryForBetType;
+            }
+        }
+
+        // calculate total for all betTypes
+        for (_i = 0; _i < betTypesMax.length; _i++) {
+            _necessaryBalance = _necessaryBalance.add(
+                betTypesMax[_i]
+            );
+        }
+    }
+
+    function getBetsCountAndValue() external view returns(uint, uint) {
+        uint value = 0;
+        for (uint i = 0; i < bets.length; i++) {
+            value += bets[i].value;
+        }
+        return (bets.length, value);
+    }
+
+
+    function getBetsCount() external view returns (uint256) {
         return bets.length;
     }
 
     function changeMaxSquareBet(uint256 _newMaxBet) external onlyCEO {
-        maxSquareBet = _newMaxBet;
+        maxBet = _newMaxBet;
     }
 
     function changeMaster(address _newMaster) external onlyCEO {

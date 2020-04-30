@@ -2,7 +2,7 @@ pragma solidity ^0.5.11;
 
 // Slot Machine Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
-import "./SafeMath.sol";
+import "../common-contracts/SafeMath.sol";
 
 contract SlotMachineLogicOld {
     using SafeMath for uint256;

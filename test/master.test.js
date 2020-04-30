@@ -76,14 +76,14 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
 
         it("only CEO can add a game", async () => {
             await catchRevert(
-                master.addGame(slots.address, "Slots", 100, { from: random })
+                master.addGame(slots.address, "Slots", 100, false, { from: random })
             );
-            await master.addGame(slots.address, "Slots", 100, { from: owner });
+            await master.addGame(slots.address, "Slots", 100, false, { from: owner });
         });
 
         it("correct game details after added", async () => {
-            await master.addGame(slots.address, "Slots", 100, { from: owner });
-            await master.addGame(roulette.address, "Roulette", 200, { from: owner });
+            await master.addGame(slots.address, "Slots", 100, false, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 200, false, { from: owner });
 
             const slotsInfo = await master.games(0);
             const slotsMaxBet = await master.getMaximumBet(0, "MANA");
@@ -111,11 +111,6 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
 
         it("only CEO can add funds to a game", async () => {
             await catchRevert(master.addFunds(0, 100, "MANA", { from: random }));
-        });
-
-        it("should revert if not correct parameters sent", async () => {
-            // Token Amount = 0
-            await catchRevert(master.addFunds(0, 0, "MANA", { from: owner }));
         });
 
         it("should revert if user does not have enough funds", async () => {
@@ -162,7 +157,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             roulette = await Roulette.new(master.address, 4000);
-            await master.addGame(roulette.address, "Roulette", 200, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 200, false, { from: owner });
             await token.approve(master.address, 1000);
             await master.addFunds(0, 1000, "MANA", { from: owner });
         });
@@ -222,7 +217,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Play: Roulette", () => {
-        const betIDs = [3301, 3304, 3308];
+        const betTypes = [0, 3304, 3308];
         const betValues = [20, 20, 2];
         const betAmount = [500, 300, 400];
 
@@ -230,7 +225,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             roulette = await Roulette.new(master.address, 4000);
-            await master.addGame(roulette.address, "Roulette", 1000, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 1000, false, { from: owner });
             await token.approve(master.address, web3.utils.toWei("100"));
             await master.addFunds(0, web3.utils.toWei("100"), "MANA", {
                 from: owner
@@ -267,7 +262,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -288,7 +283,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -303,7 +298,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -319,7 +314,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -338,7 +333,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -358,7 +353,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    [3301, 3304], // Arrays not equal length
+                    [0, 3304], // Arrays not equal length
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -379,7 +374,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     [500, 300, 3000],
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -400,7 +395,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -431,7 +426,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -445,7 +440,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user2, user3],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -466,7 +461,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
@@ -480,7 +475,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1, user2, user3],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betValues,
                 betAmount,
                 "0x85b19f01fe40119c675666a851d9e6b9a85424dc4016b2de0bdb69efecf08dea",
@@ -491,7 +486,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Results: Roulette", () => {
-        const betIDs = [3301, 3304, 3308, 3303, 3305];
+        const betTypes = [0, 3304, 3308, 3303, 3305];
         const betValues = [31, 20, 2, 1, 1];
         const betAmounts = [500, 300, 400, 100, 200];
 
@@ -502,7 +497,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             roulette = await Roulette.new(master.address, 4000);
 
             // Add game and fund it
-            await master.addGame(roulette.address, "Roulette", 2000, { from: owner });
+            await master.addGame(roulette.address, "Roulette", 2000, false, { from: owner });
             await token.approve(master.address, 1e7);
             await master.addFunds(0, 1e7, "MANA", {
                 from: owner
@@ -532,7 +527,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user1, user1, user1, user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -580,7 +575,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1, user1, user1, user1, user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -612,7 +607,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Play: Slots", () => {
-        const betIDs = [1101];
+        const betTypes = [1101];
         const betValues = [15];
         const betAmounts = [500];
 
@@ -620,7 +615,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             token = await Token.new();
             master = await Master.new(token.address, "MANA");
             slots = await Slots.new(master.address);
-            await master.addGame(slots.address, "Slots", 1000, { from: owner });
+            await master.addGame(slots.address, "Slots", 1000, false, { from: owner });
             await token.approve(master.address, web3.utils.toWei("100"));
             await master.addFunds(0, web3.utils.toWei("100"), "MANA", {
                 from: owner
@@ -638,7 +633,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betAmounts,
                     [2000],
                     HASH_CHAIN[1],
@@ -656,7 +651,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betAmounts,
                 betValues,
                 HASH_CHAIN[1],
@@ -673,7 +668,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                 [user1],
                 1,
                 2,
-                betIDs,
+                betTypes,
                 betAmounts,
                 betValues,
                 HASH_CHAIN[1],
@@ -693,7 +688,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
     });
 
     describe("Game Results: Slots", () => {
-        const betIDs = [1101];
+        const betTypes = [1101];
         const betValues = [15];
         const betAmounts = [500];
 
@@ -704,7 +699,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             slots = await Slots.new(master.address);
 
             // Add game and fund it
-            await master.addGame(slots.address, "Slots", 2000, { from: owner });
+            await master.addGame(slots.address, "Slots", 2000, false, { from: owner });
             await token.approve(master.address, 1e7);
             await master.addFunds(0, 1e7, "MANA", {
                 from: owner
@@ -738,7 +733,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -784,7 +779,7 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
                     [user1],
                     1,
                     2,
-                    betIDs,
+                    betTypes,
                     betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
@@ -811,6 +806,334 @@ contract("Master", ([owner, user1, user2, user3, random]) => {
             assert.equal(
                 afterBetGame.toNumber(),
                 beforeBetGame.toNumber() + totalBet - winTotal
+            );
+        });
+    });
+
+    describe.only("Game Play: Roulette Special Cases", () => {
+        const betTypes = [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ];
+        const betValues = [
+            5,
+            14,
+            15,
+            20,
+            21,
+            24,
+            26,
+            27,
+            30,
+            36,
+            1,
+            2,
+            4,
+            7,
+            8,
+            10,
+            11,
+            13,
+            16,
+            17,
+            19,
+            22,
+            23,
+            25,
+            28,
+            29,
+            31,
+            32,
+            34,
+            35
+        ];
+        const players = [
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user1,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2,
+            user2
+        ];
+        const betAmount = [
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '1000000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000',
+            '50000000000000000000'
+        ];
+
+        beforeEach(async () => {
+            token = await Token.new();
+            master = await Master.new(token.address, "MANA");
+            roulette = await Roulette.new(master.address, web3.utils.toWei("4000"));
+            await master.addGame(roulette.address, "Roulette", web3.utils.toWei("4000"), false, { from: owner });
+            await token.approve(master.address, web3.utils.toWei("100000000"));
+            await master.addFunds(0, web3.utils.toWei("100000000"), "MANA", {
+                from: owner
+            });
+            await token.transfer(user1, web3.utils.toWei("100000000"));
+            await token.transfer(user2, web3.utils.toWei("100000000"));
+            await token.transfer(user3, web3.utils.toWei("100000000"));
+            await master.setTail(
+                "0x7f7e3e79bc27e06158e71e3d1ad06c358ac9634e29875cd95c3041e0206494d5",
+                { from: owner }
+            );
+        });
+
+        it("only CEO can set tail", async () => {
+            await catchRevert(
+                master.setTail(
+                    "0xd1f07819ba177c9c9977dade4370f99942f8a5e24ea36750207d890293c7866f",
+                    { from: random }
+                )
+            );
+            await master.setTail(
+                "0xd1f07819ba177c9c9977dade4370f99942f8a5e24ea36750207d890293c7866f",
+                { from: owner }
+            );
+        });
+
+        it("should be able to play game (30 bets)", async () => {
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user1 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user2 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user3 });
+            await advanceTimeAndBlock(60);
+            await master.play(
+                0,
+                players,
+                3,
+                20110003002006,
+                betTypes,
+                betValues,
+                betAmount,
+                "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
+                "MANA",
+                { from: owner }
+            );
+        });
+
+        it("should be able to play game (31 bets)", async () => {
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user1 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user2 });
+            await token.approve(master.address, web3.utils.toWei("100000000"), { from: user3 });
+            await advanceTimeAndBlock(60);
+            await master.play(
+                0,
+                [
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2,
+                    user2
+                ],
+                3,
+                20110003002006,
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                ],
+                [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9,
+                    10,
+                    11,
+                    12,
+                    13,
+                    14,
+                    15,
+                    16,
+                    17,
+                    18,
+                    19,
+                    20,
+                    21,
+                    22,
+                    23,
+                    25,
+                    26,
+                    28,
+                    29,
+                    31,
+                    32,
+                    34,
+                    35
+                ],
+                [
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000',
+                    '50000000000000000000'
+                ],
+                "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
+                "MANA",
+                { from: owner }
             );
         });
     });
