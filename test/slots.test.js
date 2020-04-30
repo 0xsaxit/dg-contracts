@@ -197,6 +197,9 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
         });
 
         it("correct necessary balance calculation", async () => {
+            let _necessaryBalance
+            const betA = 100;
+            const betB = 200;
             const slotsA = await Slots.new(user2);
             // await advanceTimeAndBlock(60);
             await catchRevert(
@@ -204,12 +207,15 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
                 "revert can only be called by master/parent contract"
             );
             await slotsA.masterChange(user1);
+            const factor = await slots.getPayoutForType(0);
 
-            await slotsA.createBet(0, user2, 0, 100, { from: user1 });
-            await slotsA.createBet(0, user1, 0, 200, { from: user1 });
+            await slotsA.createBet(0, user2, 0, betA, { from: user1 });
+            _necessaryBalance = await slotsA.getNecessaryBalance();
+            assert.equal(_necessaryBalance.toNumber(), factor * betA);
 
-            const _necessaryBalance = await slotsA.getNecessaryBalance();
-            assert.equal(_necessaryBalance.toNumber(), 250 * 300);
+            await slotsA.createBet(0, user1, 0, betB, { from: user1 });
+            _necessaryBalance = await slotsA.getNecessaryBalance();
+            assert.equal(_necessaryBalance.toNumber(), factor * (betA + betB));
         });
     });
 });
