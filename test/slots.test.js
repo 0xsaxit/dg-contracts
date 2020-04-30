@@ -116,8 +116,8 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
     describe("Game Play", () => {
         it("correctly create a bet", async () => {
             await slots.createBet(0, user1, 0, 100);
-            const currentBet = await slots.currentBets(0, 0);
-            assert.equal(currentBet.toNumber(), 100);
+            const betLimits = await slots.betLimits(0, 0);
+            assert.equal(betLimits.toNumber(), 100);
         });
 
         it("correctly launches gameplay", async () => {
@@ -154,7 +154,7 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
                 slotsA.createBet(0, user1, 0, 1000),
                 "revert can only be called by master/parent contract"
             );
-            await slotsA.changeMaster(user1);
+            await slotsA.masterChange(user1);
             await slotsA.createBet(0, user2, 0, 1000, { from: user1 });
             const resB = await slotsA.masterAddress();
             assert.equal(resB, user1);
@@ -181,13 +181,13 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
                 "4": 4
             };
 
-            const currentBet = await slots.currentBets(0, 0);
+            const betLimits = await slots.betLimits(0, 0);
 
             await slots.launch(hash, 1, 2, "BET");
 
             const { _winAmounts, _number } = await getLastEvent("SpinResult", slots);
 
-            assert.equal(_winAmounts[0], currentBet * factors[symbols[number % 10]]);
+            assert.equal(_winAmounts[0], betLimits * factors[symbols[number % 10]]);
             assert.equal(_number, number);
         });
 
@@ -197,19 +197,19 @@ contract("Slots", ([owner, newCEO, user1, user2, random]) => {
         });
 
         it("correct necessary balance calculation", async () => {
-            const slotsA = await Slots.new(user1);
+            const slotsA = await Slots.new(user2);
             // await advanceTimeAndBlock(60);
             await catchRevert(
                 slotsA.createBet(0, user1, 0, 1000),
                 "revert can only be called by master/parent contract"
             );
-            await slotsA.changeMaster(user1);
-            await slotsA.createBet(0, user2, 0, 1000, { from: user1 });
-            let _necessaryBalance = await slots.getNecessaryBalance();
-            assert.equal(_necessaryBalance.toNumber(), 250 * 1000);
+            await slotsA.masterChange(user1);
+
+            await slotsA.createBet(0, user2, 0, 100, { from: user1 });
+            await slotsA.createBet(0, user1, 0, 200, { from: user1 });
+
+            const _necessaryBalance = await slotsA.getNecessaryBalance();
+            assert.equal(_necessaryBalance.toNumber(), 250 * 300);
         });
-
-
-
     });
 });

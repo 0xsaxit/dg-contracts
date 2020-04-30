@@ -2,6 +2,7 @@ pragma solidity ^0.5.14;
 
 // Slot Machine Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
+
 import "../common-contracts/SafeMath.sol";
 import "../common-contracts/AccessControl.sol";
 
@@ -24,7 +25,7 @@ contract SlotMachineLogic is AccessControl {
 
     Bet[] public bets;
     address public masterAddress;
-    mapping (uint => mapping (uint => uint256)) public currentBets;
+    mapping (uint => mapping (uint => uint)) public betLimits;
 
     uint256[] winAmounts;
 
@@ -36,9 +37,8 @@ contract SlotMachineLogic is AccessControl {
         uint256[] _winAmounts
     );
 
-    constructor(address _masterAddress) public payable {
+    constructor(address _masterAddress) public {
         masterAddress = _masterAddress;
-        //default factor multipliers
         factor1 = 250;
         factor2 = 15;
         factor3 = 8;
@@ -46,11 +46,14 @@ contract SlotMachineLogic is AccessControl {
     }
 
     modifier onlyMaster {
-        require(msg.sender == masterAddress, 'can only be called by master/parent contract');
+        require(
+            msg.sender == masterAddress,
+            'can only be called by master/parent contract'
+        );
         _;
     }
 
-    uint256[] symbols; // array to hold symbol integer groups
+    uint256[] symbols;
 
     function createBet(
         BetType _betType,
@@ -58,19 +61,19 @@ contract SlotMachineLogic is AccessControl {
         uint256 _number,
         uint256 _value
     ) external onlyMaster {
-        require(_player != address(0), "please provide player parameter");
-        require(_number >= 0, "please provide _number parameter");
-        require(_value > 0, "bet value should be more than 0 ");
-        if (_betType == BetType.Single) {
-            bets.push(Bet({
-                betType: BetType.Single,
-                player: _player,
-                number: _number,
-                value: _value
-            }));
-        }
-        // keep track of bets combined amount
-        currentBets[uint(_betType)][_number] = currentBets[uint(_betType)][_number].add(_value);
+
+        require(_player != address(0x0), "player undefined");
+        require(_number == 0, "number must be 0");
+        require(_value > 0, "bet value must be > 0");
+
+        Bet memory newBet;
+        newBet.betType = _betType;
+        newBet.player = _player;
+        newBet.number = _number;
+        newBet.value = _value;
+        bets.push(newBet);
+
+        betLimits[uint(_betType)][_number] = betLimits[uint(_betType)][_number].add(_value);
     }
 
     function launch(
@@ -112,7 +115,7 @@ contract SlotMachineLogic is AccessControl {
             winAmounts.push(winAmount);
 
             // reset combined bets value tracking
-            currentBets[uint(bets[i].betType)][bets[i].number] = 0;
+            betLimits[uint(bets[i].betType)][bets[i].number] = 0;
         }
 
         // notify of results
@@ -150,38 +153,32 @@ contract SlotMachineLogic is AccessControl {
 
         uint256 _necessaryForBetType;
         uint256 _i;
-        uint256[1] memory betIDsMax;
+        uint256[1] memory betTypeMax;
 
         // determine highest for each betType
         for (_i = 0; _i < bets.length; _i++) {
 
             Bet memory b = bets[_i];
-            _necessaryForBetType = currentBets[uint256(b.betType)][b.number].mul(
+            _necessaryForBetType = betLimits[uint(b.betType)][b.number].mul(
                 getPayoutForType(b.betType)
             );
 
-            if (_necessaryForBetType > betIDsMax[uint(b.betType)]) {
-                betIDsMax[uint(b.betType)] = _necessaryForBetType;
+            if (_necessaryForBetType > betTypeMax[uint(b.betType)]) {
+                betTypeMax[uint(b.betType)] = _necessaryForBetType;
             }
         }
 
         // calculate total for all betTypes
-        for (_i = 0; _i < betIDsMax.length; _i++) {
-            _necessaryBalance = _necessaryBalance.add(
-                betIDsMax[_i]
-            );
+        for (_i = 0; _i < betTypeMax.length; _i++) {
+            _necessaryBalance = _necessaryBalance.add(betTypeMax[_i]);
         }
-    }
-
-    function getCurrentBets(uint _betID, uint256 _number) external view returns (uint256) {
-        return currentBets[_betID][_number];
     }
 
     function getAmountBets() external view returns (uint256) {
         return bets.length;
     }
 
-    function changeMaster(address _newMaster) external onlyCEO {
+    function masterChange(address _newMaster) external onlyCEO {
         masterAddress = _newMaster;
     }
 
