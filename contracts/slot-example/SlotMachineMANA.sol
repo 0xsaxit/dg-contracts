@@ -2,11 +2,12 @@ pragma solidity ^0.5.11;
 
 // Slot Machine MANA Contract ////////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
-import "./SafeMath.sol";
-import "./AccessControl.sol";
-import "./ERC20Token.sol";
+
+import "../common-contracts/AccessControl.sol";
+import "../common-contracts/ERC20Token.sol";
+import "../common-contracts/HashChain.sol";
+
 import "./SlotMachineLogicOld.sol";
-import "./HashChain.sol";
 
 contract SlotMachineMANA is HashChain, AccessControl {
     using SafeMath for uint256;

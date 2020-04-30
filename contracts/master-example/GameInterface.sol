@@ -16,7 +16,7 @@ interface GameInstance {
         string calldata _tokenName
     ) external returns(uint256[] memory winAmounts, uint256 number);
 
-    function getPayoutForType(
-        uint256 _betID
-    ) external returns(uint256);
+    function getNecessaryBalance() external view returns (
+        uint256 _necessaryBalance
+    );
 }

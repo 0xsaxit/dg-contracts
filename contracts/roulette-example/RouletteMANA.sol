@@ -1,12 +1,10 @@
 pragma solidity ^0.5.14;
 
-import "./SafeMath.sol";
-import "./AccessControl.sol";
-import "./ERC20Token.sol";
+import "../common-contracts/AccessControl.sol";
+import "../common-contracts/HashChain.sol";
 import "./RouletteLogicInternal.sol";
-import "./HashChain.sol";
 
-contract RouleteParent is HashChain, AccessControl {
+contract RouleteMachineMANA is HashChain, AccessControl {
     using SafeMath for uint256;
 
     // emit events to server node.js events handler

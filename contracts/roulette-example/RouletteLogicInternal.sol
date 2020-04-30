@@ -1,7 +1,7 @@
 pragma solidity ^0.5.13;
 
-import "./SafeMath.sol";
-import "./ERC20Token.sol";
+import "../common-contracts/SafeMath.sol";
+import "../common-contracts/ERC20Token.sol";
 
 contract RouletteLogicInternal {
     using SafeMath for uint;
