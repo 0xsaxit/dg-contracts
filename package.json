@@ -9,6 +9,7 @@
   "scripts": {
     "chain": "ganache-cli -p 7545 -i 5777",
     "deploy": "truffle migrate --reset",
+    "test-treasury-roulette": "truffle test test/treasury-roulette.test.js",
     "test-roulette": "truffle test test/roulette.test.js",
     "test-slots": "truffle test test/slots.test.js",
     "test-master": "truffle test test/master.test.js",

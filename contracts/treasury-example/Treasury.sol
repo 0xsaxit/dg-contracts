@@ -32,19 +32,13 @@ contract Treasury is HashChain, AccessControl {
         return tokens[_tokenName];
     }
 
-    function tokenInstance(string calldata _tokenName) external view returns (ERC20Token) {
-        return ERC20Token(tokens[_tokenName]);
-    }
-
     function tokenInboundTransfer(string calldata _tokenName, address _from, uint256 _amount)
         external
         returns (bool)
     {
-        (bool result, uint gameID) = gameID(msg.sender);
-        require(result && games[gameID].isActive, 'active-game not present');
-
+        uint256 _gameID = getGameID(msg.sender);
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
-        games[gameID].gameTokens[_tokenName] = games[gameID].gameTokens[_tokenName].add(_amount);
+        games[_gameID].gameTokens[_tokenName] = games[_gameID].gameTokens[_tokenName].add(_amount);
         _token.transferFrom(_from, address(this), _amount);
         return true;
     }
@@ -53,17 +47,23 @@ contract Treasury is HashChain, AccessControl {
         external
         returns (bool)
     {
-
-        (bool result, uint gameID) = gameID(msg.sender);
-        require(result && games[gameID].isActive, 'active-game not present');
-
+        uint256 gameID = getGameID(msg.sender);
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
         games[gameID].gameTokens[_tokenName] = games[gameID].gameTokens[_tokenName].sub(_amount);
         _token.transfer(_to, _amount);
         return true;
     }
 
-    function gameID(address _gameAddress) public view returns (bool, uint) {
+    function getGameID(address _gameAddress) private view returns (uint) {
+        (bool result, uint gameID) = findGameID(_gameAddress);
+        require(
+            result && games[gameID].isActive,
+            'active-game not present'
+        );
+        return gameID;
+    }
+
+    function findGameID(address _gameAddress) private view returns (bool, uint) {
         for (uint i = 0; i < games.length; i++) {
             if (games[i].gameAddress == _gameAddress) {
                 return (true, i);
@@ -110,21 +110,12 @@ contract Treasury is HashChain, AccessControl {
         games[_gameID].maximumBets[_tokenName] = _maximumBet;
     }
 
-    function selfMaximumBet(string calldata _tokenName)
+    function getMaximumBet(string calldata _tokenName)
         external
         view
         returns (uint256)
     {
-        (bool result, uint _gameID) = gameID(msg.sender);
-        require(result && games[_gameID].isActive, 'active-game not present');
-        return games[_gameID].maximumBets[_tokenName];
-    }
-
-    function getMaximumBet(uint256 _gameID, string calldata _tokenName)
-        external
-        view
-        returns (uint256)
-    {
+        uint256 _gameID = getGameID(msg.sender);
         return games[_gameID].maximumBets[_tokenName];
     }
 
@@ -142,8 +133,8 @@ contract Treasury is HashChain, AccessControl {
         tokens[_tokenName] = _newTokenAddress;
     }
 
-    function checkApproval(address _userAddress, string memory _tokenName)
-        public
+    function checkApproval(address _userAddress, string calldata _tokenName)
+        external
         view
         returns (uint256 approved)
     {
@@ -183,7 +174,7 @@ contract Treasury is HashChain, AccessControl {
 
         require(
             tokens[_tokenName] != address(0x0),
-            'unauthorized token detected'
+            'unauthorized token address'
         );
 
         ERC20Token _token = ERC20Token(tokens[_tokenName]);
@@ -201,11 +192,25 @@ contract Treasury is HashChain, AccessControl {
         emit NewBalance(_gameID, games[_gameID].gameTokens[_tokenName]);
     }
 
+    function checkAllocatedTokens(
+        string calldata _tokenName
+    ) external view returns (uint256) {
+        uint256 _gameID = getGameID(msg.sender);
+        return _checkAllocatedTokens(_gameID, _tokenName);
+    }
+
+    function _checkAllocatedTokens(
+        uint256 _gameID,
+        string memory _tokenName
+    ) internal view returns (uint256) {
+        return games[_gameID].gameTokens[_tokenName];
+    }
+
     function checkAllocatedTokensPerGame(
         uint256 _gameID,
         string calldata _tokenName
-    ) external view returns (uint256 tokensInGame) {
-        tokensInGame = games[_gameID].gameTokens[_tokenName];
+    ) external view returns (uint256) {
+        return _checkAllocatedTokens(_gameID, _tokenName);
     }
 
     function withdrawTokens(
@@ -242,4 +247,17 @@ contract Treasury is HashChain, AccessControl {
         token.transfer(ceoAddress, amount);
     }
 
+    function setTail(bytes32 _tail) external onlyCEO {
+        _setTail(_tail);
+    }
+
+    function consumeHash(bytes32 _localhash) external returns (bool) {
+        (bool result, uint gameID) = findGameID(msg.sender);
+        require(
+            result && games[gameID].isActive,
+            'active-game not present'
+        );
+        _consume(_localhash);
+        return true;
+    }
 }
