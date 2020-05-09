@@ -5,6 +5,7 @@ const Token = artifacts.require("Token");
 
 const Treasury = artifacts.require("Treasury");
 const TreasuryRoulette = artifacts.require("TreasuryRoulette");
+const TreasurySlots = artifacts.require("TreasurySlots");
 
 module.exports = async function(deployer, network, accounts) {
   await deployer.deploy(Token);
@@ -15,7 +16,5 @@ module.exports = async function(deployer, network, accounts) {
 
   await deployer.deploy(Treasury, Token.address, "MANA");
   await deployer.deploy(TreasuryRoulette, Treasury.address, 4000);
-
-  // await deployer.deploy(SlotMachineLogic, MasterParent.address);
-  // await deployer.deploy(RouletteLogic, MasterParent.address, 4000);
+  await deployer.deploy(TreasurySlots, Treasury.address, 250, 15, 8, 4, 100000);
 };

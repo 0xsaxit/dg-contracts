@@ -1,4 +1,5 @@
 const Roulette = artifacts.require("TreasuryRoulette");
+const Treasury = artifacts.require("Treasury");
 const {catchRevert, catchSquareLimit} = require("./exceptionsHelpers.js");
 
 require("./utils");
@@ -11,7 +12,7 @@ const getLastEvent = async (eventName, instance) => {
     return events.pop().returnValues;
 };
 
-contract("Roulette", ([owner, user1, user2, random]) => {
+contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
     let roulette;
 
     describe("Initial Variables", () => {
@@ -28,10 +29,10 @@ contract("Roulette", ([owner, user1, user2, random]) => {
             assert.equal(ts.toNumber(), info.timestamp);
         });
 
-        /* it("correct initial bet amounts", async () => {
+        it("correct initial bet amounts", async () => {
             const amount = await roulette.getAmountBets();
             assert.equal(amount, 0);
-        }); */
+        });
 
         it("correct initial values", async () => {
             let payout;
@@ -554,7 +555,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
             /* ADD MORE TESTS */
         });
 
-        it("should allow to chang worker address", async () => {
+        /* it("should allow to chang worker address", async () => {
             const rouletteA = await Roulette.new(user1, 4000);
 
             await advanceTimeAndBlock(60);
@@ -573,7 +574,7 @@ contract("Roulette", ([owner, user1, user2, random]) => {
             assert.equal(resB, user1);
 
             /* ADD MORE TESTS */
-        });
+        //});
 
         it("should be able to launch game", async () => {
             await advanceTimeAndBlock(60);
