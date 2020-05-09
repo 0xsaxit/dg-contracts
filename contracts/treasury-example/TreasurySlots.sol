@@ -11,8 +11,8 @@ contract TreasurySlots is AccessControl {
     using SafeMath for uint;
 
     uint256 store;
-    uint256 maxPot;
-    uint256 potSize;
+    uint256 public maxBet;
+    uint256 public betSize;
     uint256[] winAmounts;
 
     enum BetType { Single }
@@ -52,7 +52,7 @@ contract TreasurySlots is AccessControl {
         uint256 factor2, // 15
         uint256 factor3, // 8
         uint256 factor4, // 4
-        uint256 _maxPot  // ?
+        uint256 _maxBet  // ?
     ) public {
         treasury = TreasuryInstance(_treasury);
         store = uint256(_treasury);
@@ -60,7 +60,7 @@ contract TreasurySlots is AccessControl {
         store |= factor2<<208;
         store |= factor3<<224;
         store |= factor4<<240;
-        maxPot = _maxPot;
+        maxBet = _maxBet;
     }
 
     function bet(
@@ -74,10 +74,10 @@ contract TreasurySlots is AccessControl {
         require(_player != address(0x0), "player undefined");
         require(_betType == uint(BetType.Single), 'bet undefined');
 
-        potSize = potSize.add(_value);
+        betSize = betSize.add(_value);
 
         require (
-            potSize <= maxPot,
+            betSize <= maxBet,
             "total pot exceeding limit"
         );
 
@@ -161,7 +161,7 @@ contract TreasurySlots is AccessControl {
             "not enough tokens for payout"
         );
 
-        delete potSize;
+        delete betSize;
 
         uint256 number;
         (winAmounts, number) = _launch(
@@ -254,8 +254,8 @@ contract TreasurySlots is AccessControl {
         treasury = TreasuryInstance(_newTreasury);
     }
 
-    function updateMaxPot(uint256 _newMaxPot) external onlyCEO {
-        maxPot = _newMaxPot;
+    function updateMaxPot(uint256 _newMaxBet) external onlyCEO {
+        maxBet = _newMaxBet;
     }
 
     function getPayoutFactor(uint256 _position) external view returns (uint16) {
@@ -271,7 +271,7 @@ contract TreasurySlots is AccessControl {
     }
 
     function getNecessaryBalance() public view returns (uint256) {
-        return potSize.mul(
+        return betSize.mul(
             uint16(store>>192)
         );
     }
