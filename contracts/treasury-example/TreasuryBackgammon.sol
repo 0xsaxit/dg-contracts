@@ -49,7 +49,8 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     //safe factor to check allowance
-    uint256 constant safeFactor = 64;
+    uint256 public safeFactor = 64;
+    uint256 public feePercent = 10;
 
     mapping(uint256 => Game) public currentGames;
     mapping(address => uint256) public wins;
@@ -89,8 +90,8 @@ contract TreasuryBackgammon is AccessControl {
         uint256 _defaultStake,
         address _playerOneAddress,
         address _playerTwoAddress,
-        string memory _tokenName
-    ) public whenNotPaused onlyWorker returns (bool) {
+        string calldata _tokenName
+    ) external whenNotPaused onlyWorker returns (bool) {
 
         //_consume(_localhash); //if needed
 
@@ -155,7 +156,7 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     function raiseDouble(uint256 _gameId, address _playerRaising)
-        public
+        external
         whenNotPaused
         onlyWorker
         onlyOnGoingGame(_gameId)
@@ -190,7 +191,7 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     function callDouble(uint256 _gameId, address _playerCalling)
-        public
+        external
         whenNotPaused
         onlyWorker
         onlyDoublingStage(_gameId)
@@ -215,10 +216,7 @@ contract TreasuryBackgammon is AccessControl {
             currentGames[_gameId].stake
         );
 
-        //multiply for next stake
         currentGames[_gameId].stake = currentGames[_gameId].stake.mul(2);
-
-        //set status to continue game
         currentGames[_gameId].state = GameState.OnGoingGame;
 
         emit StakeDoubled(
@@ -229,7 +227,7 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     function dropGame(uint256 _gameId, address _playerDropping)
-        public
+        external
         whenNotPaused
         onlyWorker
         onlyDoublingStage(_gameId)
@@ -244,7 +242,8 @@ contract TreasuryBackgammon is AccessControl {
             treasury.tokenOutboundTransfer(
                 currentGames[_gameId].tokenName,
                 currentGames[_gameId].lastStaker,
-                currentGames[_gameId].total
+                applyPercent(currentGames[_gameId].total)
+
             ),
             "win amount transfer failed (dropGame)"
         );
@@ -252,11 +251,19 @@ contract TreasuryBackgammon is AccessControl {
         wins[currentGames[_gameId].lastStaker] = wins[currentGames[_gameId].lastStaker].add(1);
         currentGames[_gameId].state = GameState.GameEnded;
 
-        emit PlayerDropped(_gameId, _playerDropping);
+        emit PlayerDropped(
+            _gameId,
+            _playerDropping
+        );
+    }
+
+    function applyPercent(uint256 _value) public view returns (uint256) {
+        uint256 _feePercent = uint256(1000).sub(feePercent.mul(10));
+        return _value.mul(_feePercent).div(1000);
     }
 
     function resolveGame(uint256 _gameId, address _winPlayer)
-        public
+        external
         whenNotPaused
         onlyWorker
         onlyOnGoingGame(_gameId)
@@ -267,7 +274,7 @@ contract TreasuryBackgammon is AccessControl {
             treasury.tokenOutboundTransfer(
                 currentGames[_gameId].tokenName,
                 _winPlayer,
-                currentGames[_gameId].total
+                applyPercent(currentGames[_gameId].total)
             ),
             "win amount transfer failed (resolveGame)"
         );
@@ -300,8 +307,17 @@ contract TreasuryBackgammon is AccessControl {
         ) return true;
     }
 
+    function changeFeePercent(uint256 _newFeePercent) external onlyCEO {
+        require(_newFeePercent < 100, 'must be below 100');
+        feePercent = _newFeePercent;
+    }
+
+    function changeSafeFactor(uint256 _newFactor) external onlyCEO {
+        require(_newFactor > 0, 'must be above zero');
+        safeFactor = _newFactor;
+    }
+
     function changeTreasury(address _newTreasuryAddress) external onlyCEO {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
-
 }

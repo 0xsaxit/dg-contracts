@@ -110,6 +110,15 @@ contract Treasury is HashChain, AccessControl {
         games[_gameID].maximumBets[_tokenName] = _maximumBet;
     }
 
+
+    function gameMaximumBet(uint256 _gameID, string calldata _tokenName)
+        external
+        view
+        returns (uint256)
+    {
+        return games[_gameID].maximumBets[_tokenName];
+    }
+
     function getMaximumBet(string calldata _tokenName)
         external
         view

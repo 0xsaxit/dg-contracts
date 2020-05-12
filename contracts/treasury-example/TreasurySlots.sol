@@ -254,7 +254,7 @@ contract TreasurySlots is AccessControl {
         treasury = TreasuryInstance(_newTreasury);
     }
 
-    function updateMaxPot(uint256 _newMaxBet) external onlyCEO {
+    function updateMaxBet(uint256 _newMaxBet) external onlyCEO {
         maxBet = _newMaxBet;
     }
 
