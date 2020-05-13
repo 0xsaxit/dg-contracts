@@ -22,10 +22,22 @@ contract Treasury is HashChain, AccessControl {
 
     mapping(string => address) public tokens;
     Game[] public games;
+    string[] public tokenNames;
 
-    constructor(address defaultToken, string memory tokenName) public {
-        tokens[tokenName] = defaultToken;
-        defaultTokenName = tokenName;
+    constructor(address _defaultToken, string memory _tokenName, address _migrationAddress) public {
+
+        _migrationAddress == address(0x0)
+            ? setDefaultToken(_defaultToken, _tokenName)
+            : setCEO(_migrationAddress);
+    }
+
+    function setDefaultToken(address _defaultToken, string memory _tokenName) internal {
+        addToken(_defaultToken, _tokenName);
+        defaultTokenName = _tokenName;
+    }
+
+    function updateDefaultToken(string memory _tokenName) public onlyCEO {
+        defaultTokenName = _tokenName;
     }
 
     function tokenAddress(string calldata _tokenName) external view returns (address) {
@@ -110,7 +122,6 @@ contract Treasury is HashChain, AccessControl {
         games[_gameID].maximumBets[_tokenName] = _maximumBet;
     }
 
-
     function gameMaximumBet(uint256 _gameID, string calldata _tokenName)
         external
         view
@@ -128,18 +139,12 @@ contract Treasury is HashChain, AccessControl {
         return games[_gameID].maximumBets[_tokenName];
     }
 
-    function addToken(address _tokenAddress, string calldata _tokenName)
-        external
+    function addToken(address _tokenAddress, string memory _tokenName)
+        public
         onlyCEO
     {
         tokens[_tokenName] = _tokenAddress;
-    }
-
-    function updateToken(address _newTokenAddress, string calldata _tokenName)
-        external
-        onlyCEO
-    {
-        tokens[_tokenName] = _newTokenAddress;
+        tokenNames.push(_tokenName);
     }
 
     function checkApproval(address _userAddress, string calldata _tokenName)
@@ -269,4 +274,89 @@ contract Treasury is HashChain, AccessControl {
         _consume(_localhash);
         return true;
     }
+
+    function migrateTreasury(
+        address _newTreasury
+    ) external onlyCEO returns (bool) {
+
+        TreasuryMigration nt = TreasuryMigration(_newTreasury);
+        nt.updateDefaultToken(defaultTokenName);
+
+        for (uint i = 0; i < games.length; i++) {
+            nt.addGame(
+                games[i].gameAddress,
+                games[i].gameName,
+                games[i].maximumBets[defaultTokenName],
+                games[i].isActive
+            );
+        }
+
+        for (uint i = 0; i < tokenNames.length; i++) {
+            nt.addToken(
+                tokens[tokenNames[i]],
+                tokenNames[i]
+            );
+        }
+
+        for (uint t = 0; t < tokenNames.length; t++) {
+
+            ERC20Token token = ERC20Token(tokens[tokenNames[t]]);
+            uint256 totalAmount = token.balanceOf(address(this));
+
+            token.approve(_newTreasury, totalAmount);
+
+            for (uint256 j = 0; j < games.length; j++) {
+                uint256 amount = games[j].gameTokens[tokenNames[t]];
+                uint256 maxBet = games[j].maximumBets[tokenNames[t]];
+                nt.addFunds(j, amount, tokenNames[t]);
+                nt.updateMaximumBet(j, maxBet, tokenNames[t]);
+                games[j].gameTokens[tokenNames[t]] = 0;
+            }
+        }
+
+        nt.setTail(tail);
+        nt.setCEO(msg.sender);
+
+        selfdestruct(msg.sender);
+    }
+}
+
+interface TreasuryMigration {
+
+    function addGame(
+        address _newGameAddress,
+        string calldata _newGameName,
+        uint256 _maximumBet,
+        bool _isActive
+    ) external;
+
+    function addToken(
+        address _tokenAddress,
+        string calldata _tokenName
+    ) external;
+
+    function addFunds(
+        uint256 _gameID,
+        uint256 _tokenAmount,
+        string calldata _tokenName
+    ) external;
+
+    function setCEO(
+        address _newCEO
+    ) external;
+
+    function setTail(
+        bytes32 _tail
+    ) external;
+
+    function updateDefaultToken(
+        string calldata _tokenName
+    ) external;
+
+    function updateMaximumBet(
+        uint256 _gameID,
+        uint256 _maximumBet,
+        string calldata _tokenName
+    ) external;
+
 }
