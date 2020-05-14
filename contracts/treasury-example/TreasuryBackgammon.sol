@@ -80,6 +80,14 @@ contract TreasuryBackgammon is AccessControl {
         _;
     }
 
+    modifier onlyTreasury() {
+        require(
+            msg.sender == address(treasury),
+            'must be current treasury'
+        );
+        _;
+    }
+
     TreasuryInstance public treasury;
 
     constructor(address _treasuryAddress) public {
@@ -318,6 +326,10 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     function changeTreasury(address _newTreasuryAddress) external onlyCEO {
+        treasury = TreasuryInstance(_newTreasuryAddress);
+    }
+
+    function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 }

@@ -110,6 +110,13 @@ contract Treasury is HashChain, AccessControl {
         games[_gameID].isActive = _isActive;
     }
 
+    function updateGameAddress(
+        uint256 _gameID,
+        address _newGameAddress
+    ) external onlyCEO {
+        games[_gameID].gameAddress = _newGameAddress;
+    }
+
     function removeGame(uint256 _gameID) external onlyCEO {
         delete games[_gameID];
     }
@@ -289,6 +296,8 @@ contract Treasury is HashChain, AccessControl {
                 games[i].maximumBets[defaultTokenName],
                 games[i].isActive
             );
+            GameMigration gm = GameMigration(games[i].gameAddress);
+            gm._changeTreasury(_newTreasury);
         }
 
         for (uint i = 0; i < tokenNames.length; i++) {
@@ -316,9 +325,13 @@ contract Treasury is HashChain, AccessControl {
 
         nt.setTail(tail);
         nt.setCEO(msg.sender);
-
-        selfdestruct(msg.sender);
     }
+}
+
+interface GameMigration {
+    function _changeTreasury(
+        address _newTreasuryAddress
+    ) external;
 }
 
 interface TreasuryMigration {
@@ -358,5 +371,4 @@ interface TreasuryMigration {
         uint256 _maximumBet,
         string calldata _tokenName
     ) external;
-
 }

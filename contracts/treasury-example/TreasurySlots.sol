@@ -44,6 +44,14 @@ contract TreasurySlots is AccessControl {
         uint256[] _winAmounts
     );
 
+    modifier onlyTreasury() {
+        require(
+            msg.sender == address(treasury),
+            'must be current treasury'
+        );
+        _;
+    }
+
     TreasuryInstance treasury;
 
     constructor(
@@ -55,7 +63,6 @@ contract TreasurySlots is AccessControl {
         uint256 _maxBet  // ?
     ) public {
         treasury = TreasuryInstance(_treasury);
-        store = uint256(_treasury);
         store |= factor1<<192;
         store |= factor2<<208;
         store |= factor3<<224;
@@ -78,7 +85,7 @@ contract TreasurySlots is AccessControl {
 
         require (
             betSize <= maxBet,
-            "total pot exceeding limit"
+            "total bet exceeding limit"
         );
 
         Bet memory newBet;
@@ -239,19 +246,16 @@ contract TreasurySlots is AccessControl {
         return (winAmounts, numbers);
     }
 
-    function updateSettings(
-        address _newTreasury,
+    function updateFactors(
         uint256 _factor1,
         uint256 _factor2,
         uint256 _factor3,
         uint256 _factor4
     ) external onlyCEO {
-        store = uint256(_newTreasury);
         store |= _factor1<<192;
         store |= _factor2<<208;
         store |= _factor3<<224;
         store |= _factor4<<240;
-        treasury = TreasuryInstance(_newTreasury);
     }
 
     function updateMaxBet(uint256 _newMaxBet) external onlyCEO {
@@ -263,7 +267,7 @@ contract TreasurySlots is AccessControl {
     }
 
     function getTreasuryAddress() external view returns (address) {
-        return address(store);
+        return address(treasury);
     }
 
     function randomNumber(bytes32 _localhash) private pure returns (uint256 numbers) {
@@ -280,4 +284,11 @@ contract TreasurySlots is AccessControl {
         return bets.length;
     }
 
+    function changeTreasury(address _newTreasuryAddress) external onlyCEO {
+        treasury = TreasuryInstance(_newTreasuryAddress);
+    }
+
+    function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
+        treasury = TreasuryInstance(_newTreasuryAddress);
+    }
 }

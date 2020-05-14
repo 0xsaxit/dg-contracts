@@ -12,11 +12,19 @@ contract TreasuryRoulette is AccessControl {
     using SafeMath for uint;
 
     uint256 public maxSquareBet;
-    uint256 public maximumNumberBets = 36; // contract's maximum amount of bets
+    uint256 public maximumNumberBets = 36;
     uint256 public nextRoundTimestamp;
 
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
     mapping (uint => mapping (uint => uint256)) public currentBets;
+
+    modifier onlyTreasury() {
+        require(
+            msg.sender == address(treasury),
+            'must be current treasury'
+        );
+        _;
+    }
 
     TreasuryInstance public treasury;
 
@@ -406,8 +414,7 @@ contract TreasuryRoulette is AccessControl {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 
-    function getAmountBets() external view returns (uint256) {
-        return bets.length;
+    function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
+        treasury = TreasuryInstance(_newTreasuryAddress);
     }
-
 }
