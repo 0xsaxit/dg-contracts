@@ -32,7 +32,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
     let roulette, slots, token, treasury;
 
-    describe.only("Initial Values", () => {
+    describe("Initial Values", () => {
         before(async () => {
             token = await Token.new();
             treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
@@ -63,7 +63,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Adding Games", () => {
+    describe("Adding Games", () => {
 
         beforeEach(async () => {
             token = await Token.new();
@@ -97,14 +97,14 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Adding Funds to a Game", () => {
+    describe("Adding Funds to a Game", () => {
         beforeEach(async () => {
             token = await Token.new();
             treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
             roulette = await Roulette.new(treasury.address, 4000);
             slots = await Slots.new(treasury.address, 250, 16, 8, 4, 1000000);
-            await treasury.addGame(slots.address, "Slots", 100, { from: owner });
-            await treasury.addGame(roulette.address, "Roulette", 200, { from: owner });
+            await treasury.addGame(slots.address, "Slots", 100, true, { from: owner });
+            await treasury.addGame(roulette.address, "Roulette", 200, true, { from: owner });
         });
 
         it("should revert if token is not approved first", async () => {
@@ -151,7 +151,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Removing Funds", () => {
+    describe("Removing Funds", () => {
         beforeEach(async () => {
             token = await Token.new();
             treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
@@ -234,7 +234,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Play: Roulette", () => {
+    describe("Game Play: Roulette", () => {
         const betTypes = [0, 2, 5];
         const betValues = [20, 1, 1];
         const betAmount = [500, 300, 400];
@@ -491,7 +491,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Results: Roulette", () => {
+    describe("Game Results: Roulette", () => {
         const betTypes = [0, 2, 5, 1, 3];
         const betValues = [31, 0, 2, 1, 1];
         const betAmounts = [500, 300, 400, 100, 200];
@@ -610,7 +610,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Play: Slots", () => {
+    describe("Game Play: Slots", () => {
         const betTypes = [0];
         const betValues = [0];
         const betAmounts = [500];
@@ -687,7 +687,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Results: Slots", () => {
+    describe("Game Results: Slots", () => {
         const betTypes = [0];
         const betValues = [0];
         const betAmounts = [500];
@@ -808,7 +808,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Play: Roulette Special Cases", () => {
+    describe("Game Play: Roulette Special Cases", () => {
         const players = [
             user1,
             user1,
@@ -957,6 +957,117 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 "MANA",
                 { from: owner }
             );
+        });
+    });
+
+    describe("Migrating Treasury", () => {
+        beforeEach(async () => {
+            token = await Token.new();
+            currentTreasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            roulette = await Roulette.new(currentTreasury.address, 4000);
+            slots = await Slots.new(currentTreasury.address, 250, 16, 8, 4, 1000000);
+            await currentTreasury.addGame(slots.address, "Slots", 100, true, { from: owner });
+            await currentTreasury.addGame(roulette.address, "Roulette", 200, true, { from: owner });
+
+            await token.approve(currentTreasury.address, 1000000);
+            await currentTreasury.addFunds(0, 1000, "MANA", { from: owner });
+            await currentTreasury.addFunds(1, 2000, "MANA", { from: owner });
+        });
+
+        it("should allow to create treasury with migration address", async () => {
+            newTreasury = await Treasury.new(token.address, "MANA", currentTreasury.address);
+            const ceo = await newTreasury.ceoAddress();
+            assert.equal(ceo, currentTreasury.address);
+        });
+
+        it("should allow only for CEO to migrate currentTreasury", async () => {
+            newTreasury = await Treasury.new(token.address, "MANA", currentTreasury.address);
+            await catchRevert(
+                currentTreasury.migrateTreasury(newTreasury.address, { from: random })
+            );
+            await currentTreasury.migrateTreasury(newTreasury.address, { from: owner })
+        });
+
+        it("should be able to migrate all tokens", async () => {
+            const currentTreasuryBalance = await token.balanceOf(currentTreasury.address);
+            assert.equal(currentTreasuryBalance, 3000);
+
+            newTreasury = await Treasury.new(token.address, "MANA", currentTreasury.address);
+            const newTreasuryBalanceBefore = await token.balanceOf(newTreasury.address);
+            assert.equal(newTreasuryBalanceBefore, 0);
+
+            currentTreasury.migrateTreasury(newTreasury.address, { from: owner })
+            const newTreasuryBalance = await token.balanceOf(newTreasury.address);
+            const oldTreasuryBalance = await token.balanceOf(currentTreasury.address);
+            assert.equal(newTreasuryBalance.toNumber(), currentTreasuryBalance.toNumber());
+            assert.equal(oldTreasuryBalance, 0);
+        });
+
+        it("should be able to migrate all games and balances", async () => {
+            const slotsInfo = await currentTreasury.games(0);
+            const slotsMaxBet = await currentTreasury.gameMaximumBet(0, "MANA");
+            assert.equal(slotsInfo.gameAddress, slots.address);
+            assert.equal(slotsInfo.gameName, "Slots");
+            assert.equal(slotsMaxBet, 100);
+
+            const allocatedBefore = await currentTreasury.checkAllocatedTokensPerGame(0, "MANA");
+            assert.equal(allocatedBefore, 1000);
+
+            const rouletteInfo = await currentTreasury.games(1);
+            const rouletteMaxBet = await currentTreasury.gameMaximumBet(1, "MANA");
+            assert.equal(rouletteInfo.gameAddress, roulette.address);
+            assert.equal(rouletteInfo.gameName, "Roulette");
+            assert.equal(rouletteMaxBet, 200);
+
+            const allocatedBeforeRLT = await currentTreasury.checkAllocatedTokensPerGame(1, "MANA");
+            assert.equal(allocatedBeforeRLT.toNumber(), 2000);
+
+            // MIGRATION
+            newTreasury = await Treasury.new(token.address, "MANA", currentTreasury.address);
+            currentTreasury.migrateTreasury(newTreasury.address, { from: owner })
+
+            const slotsInfoNew = await newTreasury.games(0);
+            const slotsMaxBetNew = await newTreasury.gameMaximumBet(0, "MANA");
+            assert.equal(slotsInfoNew.gameAddress, slotsInfo.gameAddress);
+            assert.equal(slotsInfoNew.gameName, slotsInfo.gameName);
+            assert.equal(slotsMaxBetNew.toNumber(), slotsMaxBet.toNumber());
+
+            const allocatedAfter = await currentTreasury.checkAllocatedTokensPerGame(0, "MANA");
+            assert.equal(allocatedAfter, 0);
+
+            const allocatedAfterToNew = await newTreasury.checkAllocatedTokensPerGame(0, "MANA");
+            assert.equal(allocatedAfterToNew, 1000);
+            assert.equal(allocatedAfterToNew.toNumber(), allocatedBefore.toNumber());
+
+            const rouletteInfoNew = await newTreasury.games(1);
+            const rouletteMaxBetNew = await newTreasury.gameMaximumBet(1, "MANA");
+            assert.equal(rouletteInfoNew.gameAddress, rouletteInfo.gameAddress);
+            assert.equal(rouletteInfoNew.gameName, rouletteInfo.gameName);
+            assert.equal(rouletteMaxBetNew.toNumber(), rouletteMaxBet.toNumber());
+
+            const allocatedAfterRLT = await currentTreasury.checkAllocatedTokensPerGame(1, "MANA");
+            assert.equal(allocatedAfterRLT, 0);
+
+            const allocatedAfterRLTNew = await newTreasury.checkAllocatedTokensPerGame(1, "MANA");
+            assert.equal(allocatedAfterRLTNew.toNumber(), 2000);
+            assert.equal(allocatedAfterRLTNew.toNumber(), allocatedBeforeRLT.toNumber());
+        });
+
+        it("should be able to migrate hashTail", async () => {
+            const tail = "0x7f7e3e79bc27e06158e71e3d1ad06c358ac9634e29875cd95c3041e0206494d5";
+            await currentTreasury.setTail(
+                tail,
+                { from: owner }
+            );
+            const currentTreasuryTail = await currentTreasury.tail();
+            assert.equal(currentTreasuryTail, tail);
+
+            newTreasury = await Treasury.new(token.address, "MANA", currentTreasury.address);
+            currentTreasury.migrateTreasury(newTreasury.address, { from: owner })
+
+            const newTreasuryTail = await newTreasury.tail();
+            assert.equal(newTreasuryTail, tail);
+            assert.equal(newTreasuryTail, currentTreasuryTail);
         });
     });
 });
