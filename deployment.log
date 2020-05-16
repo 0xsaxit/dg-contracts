@@ -1,0 +1,64 @@
+Deploying 'Treasury'
+ --------------------
+ > transaction hash:    0xcf1fcff473a5c18d1cc607958c89b237a1ed8183acffaf8e74a13c29830abbc2
+ > Blocks: 5            Seconds: 5
+ > contract address:    0xFA3344e30122f8F5eba7Ec1827B2aa872c345498
+ > block number:        10432504
+ > block timestamp:     1589649121
+ > account:             0x1FcdE174C13691ef0C13fcEE042e0951452C0f8A
+ > balance:             1.99680218
+ > gas used:            3977166
+ > gas price:           0 gwei
+ > value sent:          0 ETH
+ > total cost:          0 ETH
+
+ Pausing for 2 confirmations...
+ ------------------------------
+ > confirmation number: 2 (block: 10432512)
+
+ Deploying 'TreasuryRoulette'
+ ----------------------------
+ > transaction hash:    0x7762e56b9031ae5a6a7234128a0b3482d319346874712ac74e0f139523b1ce85
+ > Blocks: 5            Seconds: 5
+ > contract address:    0x29B01125177C3037f9B5504084c6B90f0ff8440f
+ > block number:        10432523
+ > block timestamp:     1589649143
+ > account:             0x1FcdE174C13691ef0C13fcEE042e0951452C0f8A
+ > balance:             1.99680218
+ > gas used:            3431076
+ > gas price:           0 gwei
+ > value sent:          0 ETH
+ > total cost:          0 ETH
+
+ Pausing for 2 confirmations...
+ ------------------------------
+ > confirmation number: 5 (block: 10432534)
+
+ Deploying 'TreasurySlots'
+ -------------------------
+ > transaction hash:    0x837e3fa28e1c95b3e9c6913471387733c798f66e4635da8c9a2fc3ceeada28ff
+ > Blocks: 5            Seconds: 5
+ > contract address:    0xc535BE7f84428Db2c741E6B445eE2Fc99aC005b2
+ > block number:        10432545
+ > block timestamp:     1589649165
+ > account:             0x1FcdE174C13691ef0C13fcEE042e0951452C0f8A
+ > balance:             1.99680218
+ > gas used:            2302617
+ > gas price:           0 gwei
+ > value sent:          0 ETH
+ > total cost:          0 ETH
+
+ Pausing for 2 confirmations...
+ ------------------------------
+ > confirmation number: 5 (block: 10432555)
+
+ > Saving migration to chain.
+ > Saving artifacts
+ -------------------------------------
+ > Total cost:                   0 ETH
+
+
+Summary
+=======
+> Total deployments:   4
+> Final cost:          0 ETH
