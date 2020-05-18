@@ -35,3 +35,6 @@ TreasurySlots.sol:
 
 TreasuryRoulette.sol:
 0x16D3852e4797A42DE36a7c108560B92a5523aAc5
+
+TreasuryBackgammon.sol:
+0x73CC0820626997Aea6612373b3298f6458E63d14
