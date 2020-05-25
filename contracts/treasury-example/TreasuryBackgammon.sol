@@ -307,12 +307,12 @@ contract TreasuryBackgammon is AccessControl {
         ) return true;
     }
 
-    function changeFeePercent(uint256 _newFeePercent) external onlyCEO {
+    function changeFeePercent(uint64 _newFeePercent) external onlyCEO {
         require(_newFeePercent < 20, 'must be below 20');
         data |= _newFeePercent<<192;
     }
 
-    function changeSafeFactor(uint256 _newFactor) external onlyCEO {
+    function changeSafeFactor(uint64 _newFactor) external onlyCEO {
         require(_newFactor > 0, 'must be above zero');
         data |= _newFactor<<128;
     }
