@@ -808,7 +808,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe("Game Play: Roulette Special Cases", () => {
+    describe.only("Game Play: Roulette Special Cases", () => {
         const players = [
             user1,
             user1,
