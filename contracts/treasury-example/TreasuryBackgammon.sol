@@ -39,21 +39,17 @@ contract TreasuryBackgammon is AccessControl {
     );
 
     struct Game {
-        GameState state;
-        address playerOne;
-        address playerTwo;
-        string tokenName;
         uint256 stake;
         uint256 total;
+        address playerOne;
+        address playerTwo;
         address lastStaker;
+        string tokenName;
+        GameState state;
     }
 
-    //safe factor to check allowance
-    uint256 public safeFactor = 64;
-    uint256 public feePercent = 10;
-
+    uint256 private data;
     mapping(uint256 => Game) public currentGames;
-    mapping(address => uint256) public wins;
 
     modifier onlyDoublingStage(uint256 gameId) {
         require(
@@ -92,6 +88,8 @@ contract TreasuryBackgammon is AccessControl {
 
     constructor(address _treasuryAddress) public {
         treasury = TreasuryInstance(_treasuryAddress);
+        data |= 64<<128;
+        data |= 10<<192;
     }
 
     function initializeGame(
@@ -100,8 +98,6 @@ contract TreasuryBackgammon is AccessControl {
         address _playerTwoAddress,
         string calldata _tokenName
     ) external whenNotPaused onlyWorker returns (bool) {
-
-        //_consume(_localhash); //if needed
 
         require(
             address(_playerOneAddress) != address(_playerTwoAddress),
@@ -129,28 +125,26 @@ contract TreasuryBackgammon is AccessControl {
         );
 
         require(
-            _defaultStake.mul(safeFactor) <= treasury.checkApproval(_playerOneAddress, _tokenName),
-            "P1 must approve/allow treasury contract as spender"
+            _defaultStake.mul(uint64(data>>128)) <= treasury.checkApproval(_playerOneAddress, _tokenName),
+            "P1 must approve/allow treasury as spender"
         );
 
         require(
-            _defaultStake.mul(safeFactor) <= treasury.checkApproval(_playerTwoAddress, _tokenName),
-            "P2 must approve/allow treasury contract as spender"
+            _defaultStake.mul(uint64(data>>128)) <= treasury.checkApproval(_playerTwoAddress, _tokenName),
+            "P2 must approve/allow treasury as spender"
         );
 
-        //get original stakes from each player to start the game
         treasury.tokenInboundTransfer(_tokenName, _playerOneAddress, _defaultStake);
         treasury.tokenInboundTransfer(_tokenName, _playerTwoAddress, _defaultStake);
 
-        // set new status of the game
         Game memory _game = Game(
-            GameState.OnGoingGame,
-            _playerOneAddress,
-            _playerTwoAddress,
-            _tokenName,
             _defaultStake,
             _defaultStake.mul(2),
-            address(0)
+            _playerOneAddress,
+            _playerTwoAddress,
+            address(0),
+            _tokenName,
+            GameState.OnGoingGame
         );
 
         currentGames[gameId] = _game;
@@ -256,7 +250,6 @@ contract TreasuryBackgammon is AccessControl {
             "win amount transfer failed (dropGame)"
         );
 
-        wins[currentGames[_gameId].lastStaker] = wins[currentGames[_gameId].lastStaker].add(1);
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit PlayerDropped(
@@ -266,7 +259,7 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     function applyPercent(uint256 _value) public view returns (uint256) {
-        uint256 _feePercent = uint256(1000).sub(feePercent.mul(10));
+        uint256 _feePercent = uint256(1000).sub(uint256(uint64(data>>192)).mul(10));
         return _value.mul(_feePercent).div(1000);
     }
 
@@ -287,7 +280,6 @@ contract TreasuryBackgammon is AccessControl {
             "win amount transfer failed (resolveGame)"
         );
 
-        wins[_winPlayer] = wins[_winPlayer].add(1);
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit GameResolved(
@@ -315,14 +307,14 @@ contract TreasuryBackgammon is AccessControl {
         ) return true;
     }
 
-    function changeFeePercent(uint256 _newFeePercent) external onlyCEO {
-        require(_newFeePercent < 100, 'must be below 100');
-        feePercent = _newFeePercent;
+    function changeFeePercent(uint64 _newFeePercent) external onlyCEO {
+        require(_newFeePercent < 20, 'must be below 20');
+        data |= _newFeePercent<<192;
     }
 
-    function changeSafeFactor(uint256 _newFactor) external onlyCEO {
+    function changeSafeFactor(uint64 _newFactor) external onlyCEO {
         require(_newFactor > 0, 'must be above zero');
-        safeFactor = _newFactor;
+        data |= _newFactor<<128;
     }
 
     function changeTreasury(address _newTreasuryAddress) external onlyCEO {

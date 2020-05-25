@@ -30,7 +30,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("correct initial bet amounts", async () => {
-            const amount = await roulette.getAmountBets();
+            const amount = await roulette.getBetsCount();
             assert.equal(amount, 0);
         });
 
@@ -68,18 +68,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create a single bet", async () => {
-            await roulette.createBet(0, user1, 2, 1000, "MANA");
+            await roulette.createBet(0, user1, 2, 1000);
         });
 
         it("should emit NewSingleBet event", async () => {
-            await roulette.createBet(0, user1, 20, 1000, "MANA");
+            await roulette.createBet(0, user1, 20, 1000);
             const event = await getLastEvent("NewSingleBet", roulette);
 
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(0, user1, 20, 1000, "MANA");
+            await roulette.createBet(0, user1, 20, 1000);
 
             const userBet = await roulette.bets(0);
 
@@ -89,7 +89,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 0);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(0, user1, 20, 1000, "MANA");
+            await roulette.createBet(0, user1, 20, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, number, value } = await getLastEvent(
@@ -113,18 +113,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create an even bet", async () => {
-            await roulette.createBet(1, user1, 0, 1000, "MANA");
+            await roulette.createBet(1, user1, 0, 1000);
         });
 
         it("should emit NewEvenOddBet event", async () => {
-            await roulette.createBet(1, user1, 0, 1000, "MANA");
+            await roulette.createBet(1, user1, 0, 1000);
             const event = await getLastEvent("NewEvenOddBet", roulette);
 
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(1, user1, 0, 1000, "MANA");
+            await roulette.createBet(1, user1, 0, 1000);
 
             const userBet = await roulette.bets(0);
 
@@ -134,7 +134,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 1);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(1, user1, 0, 1000, "MANA");
+            await roulette.createBet(1, user1, 0, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value } = await getLastEvent("NewEvenOddBet", roulette);
@@ -152,18 +152,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create an odd bet", async () => {
-            await roulette.createBet(1, user1, 1, 1000, "MANA");
+            await roulette.createBet(1, user1, 1, 1000);
         });
 
         it("should emit NewEvenOddBet event", async () => {
-            await roulette.createBet(1, user1, 1, 1000, "MANA");
+            await roulette.createBet(1, user1, 1, 1000);
             const event = await getLastEvent("NewEvenOddBet", roulette);
             // check all values of event;
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(1, user1, 1, 1000, "MANA");
+            await roulette.createBet(1, user1, 1, 1000);
 
             const userBet = await roulette.bets(0);
 
@@ -173,7 +173,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 1);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(1, user1, 1, 1000, "MANA");
+            await roulette.createBet(1, user1, 1, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value } = await getLastEvent("NewEvenOddBet", roulette);
@@ -191,18 +191,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create a red bet", async () => {
-            await roulette.createBet(2, user1, 0, 1000, "MANA");
+            await roulette.createBet(2, user1, 0, 1000);
         });
 
         it("should emit NewRedBlackBet event", async () => {
-            await roulette.createBet(2, user1, 0, 1000, "MANA");
+            await roulette.createBet(2, user1, 0, 1000);
             const event = await getLastEvent("NewRedBlackBet", roulette);
 
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(2, user1, 0, 1000, "MANA");
+            await roulette.createBet(2, user1, 0, 1000);
 
             const userBet = await roulette.bets(0);
 
@@ -212,7 +212,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 2);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(2, user1, 0, 1000, "MANA");
+            await roulette.createBet(2, user1, 0, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value } = await getLastEvent("NewRedBlackBet", roulette);
@@ -230,18 +230,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create a black bet", async () => {
-            await roulette.createBet(2, user1, 1, 1000, "MANA");
+            await roulette.createBet(2, user1, 1, 1000);
         });
 
         it("should emit NewRedBlackBet event", async () => {
-            await roulette.createBet(2, user1, 1, 1000, "MANA");
+            await roulette.createBet(2, user1, 1, 1000);
             const event = await getLastEvent("NewRedBlackBet", roulette);
 
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(2, user1, 1, 1000, "MANA");
+            await roulette.createBet(2, user1, 1, 1000);
 
             const userBet = await roulette.bets(0);
 
@@ -251,7 +251,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 2);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(2, user1, 1, 1000, "MANA");
+            await roulette.createBet(2, user1, 1, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value } = await getLastEvent(
@@ -272,18 +272,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create a High bet", async () => {
-            await roulette.createBet(3, user1, 0, 1000, "MANA");
+            await roulette.createBet(3, user1, 0, 1000);
         });
 
         it("should emit NewHighLowBet event", async () => {
-            await roulette.createBet(3, user1, 0, 1000, "MANA");
+            await roulette.createBet(3, user1, 0, 1000);
             const event = await getLastEvent("NewHighLowBet", roulette);
 
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(3, user1, 0, 1000, "MANA");
+            await roulette.createBet(3, user1, 0, 1000);
 
             const userBet = await roulette.bets(0);
 
@@ -293,7 +293,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 3);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(3, user1, 0, 1000, "MANA");
+            await roulette.createBet(3, user1, 0, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value } = await getLastEvent("NewHighLowBet", roulette);
@@ -311,18 +311,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create a Low bet", async () => {
-            await roulette.createBet(3, user1, 1, 1000, "MANA");
+            await roulette.createBet(3, user1, 1, 1000);
         });
 
         it("should emit NewHighLowBet event", async () => {
-            await roulette.createBet(3, user1, 1, 1000, "MANA");
+            await roulette.createBet(3, user1, 1, 1000);
             const event = await getLastEvent("NewHighLowBet", roulette);
 
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(3, user1, 1, 1000, "MANA");
+            await roulette.createBet(3, user1, 1, 1000);
 
             const userBet = await roulette.bets(0);
 
@@ -332,7 +332,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 3);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(3, user1, 1, 1000, "MANA");
+            await roulette.createBet(3, user1, 1, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value } = await getLastEvent("NewHighLowBet", roulette);
@@ -350,19 +350,19 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create a Column bet", async () => {
-            await catchRevert(roulette.createBet(4, user1, 5, 1000, "MANA"));
-            await roulette.createBet(4, user1, 2, 1000, "MANA");
+            await catchRevert(roulette.createBet(4, user1, 5, 1000));
+            await roulette.createBet(4, user1, 2, 1000);
         });
 
         it("should emit NewColumnBet event", async () => {
-            await roulette.createBet(4, user1, 2, 1000, "MANA");
+            await roulette.createBet(4, user1, 2, 1000);
             const event = await getLastEvent("NewColumnBet", roulette);
 
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(4, user1, 2, 1000, "MANA");
+            await roulette.createBet(4, user1, 2, 1000);
             const userBet = await roulette.bets(0);
 
             assert.equal(userBet.player, user1);
@@ -371,7 +371,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 4);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(4, user1, 2, 1000, "MANA");
+            await roulette.createBet(4, user1, 2, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value, column } = await getLastEvent(
@@ -393,18 +393,18 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("should let user create a Dozen bet", async () => {
-            await catchRevert(roulette.createBet(5, user1, 5, 1000, "MANA"));
-            await roulette.createBet(5, user1, 1, 1000, "MANA");
+            await catchRevert(roulette.createBet(5, user1, 5, 1000));
+            await roulette.createBet(5, user1, 1, 1000);
         });
 
         it("should emit NewDozenBet event", async () => {
-            await roulette.createBet(5, user1, 2, 1000, "MANA");
+            await roulette.createBet(5, user1, 2, 1000);
             const event = await getLastEvent("NewDozenBet", roulette);
             assert(event);
         });
 
         it("should store bet in array", async () => {
-            await roulette.createBet(5, user1, 1, 1000, "MANA");
+            await roulette.createBet(5, user1, 1, 1000);
             const userBet = await roulette.bets(0);
 
             assert.equal(userBet.player, user1);
@@ -413,7 +413,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             assert.equal(userBet.betType.toNumber(), 5);
         });
         it("event values should be the same as array", async () => {
-            await roulette.createBet(5, user1, 1, 1000, "MANA");
+            await roulette.createBet(5, user1, 1, 1000);
 
             const userBet = await roulette.bets(0);
             const { bet, player, value, dozen } = await getLastEvent(
@@ -438,7 +438,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             const localHash =
                 "0x2540a8d1ecac31d69ad55354fba8289cfbb61adac332291b1fe0a8c1011f1a2f";
             await catchRevert(
-                roulette.launch(localHash, 1, 2, "MANA"),
+                roulette.launch(localHash),//,// 1, 2, "MANA"),
                 "revert expired round"
             );
         });
@@ -449,21 +449,21 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             const localHash =
                 "0x2540a8d1ecac31d69ad55354fba8289cfbb61adac332291b1fe0a8c1011f1a2f";
             await catchRevert(
-                roulette.launch(localHash, 1, 2, "MANA"),
+                roulette.launch(localHash),//, 1, 2, "MANA"),
                 "revert must have bets"
             );
         });
 
         it("should create different bets", async () => {
-            await roulette.createBet(0, user1, 5, 1000, "MANA");
-            await roulette.createBet(1, user1, 0, 1000, "MANA");
-            await roulette.createBet(1, user1, 1, 1000, "MANA");
-            await roulette.createBet(2, user1, 0, 1000, "MANA");
-            await roulette.createBet(2, user2, 1, 1000, "MANA");
-            await roulette.createBet(3, user2, 0, 1000, "MANA");
-            await roulette.createBet(3, user2, 1, 1000, "MANA");
-            await roulette.createBet(4, user2, 2, 1000, "MANA");
-            await roulette.createBet(5, user2, 1, 1000, "MANA");
+            await roulette.createBet(0, user1, 5, 1000);
+            await roulette.createBet(1, user1, 0, 1000);
+            await roulette.createBet(1, user1, 1, 1000);
+            await roulette.createBet(2, user1, 0, 1000);
+            await roulette.createBet(2, user2, 1, 1000);
+            await roulette.createBet(3, user2, 0, 1000);
+            await roulette.createBet(3, user2, 1, 1000);
+            await roulette.createBet(4, user2, 2, 1000);
+            await roulette.createBet(5, user2, 1, 1000);
         });
 
         it("correct bet amount and value", async () => {
@@ -474,9 +474,9 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
         it("correct bet square values", async () => {
 
-            await roulette.createBet(0, user1, 5, 1000, "MANA");
-            await roulette.createBet(4, user2, 2, 2000, "MANA");
-            await roulette.createBet(5, user2, 1, 3000, "MANA");
+            await roulette.createBet(0, user1, 5, 1000);
+            await roulette.createBet(4, user2, 2, 2000);
+            await roulette.createBet(5, user2, 1, 3000);
 
             const resA = await roulette.currentBets(0, 5);
             assert.equal(resA.toNumber(), 2000);
@@ -487,7 +487,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         });
 
         it("correct bet square values limits", async () => {
-            await roulette.createBet(0, user1, 6, 4000, "MANA");
+            await roulette.createBet(0, user1, 6, 4000);
             const resA = await roulette.currentBets(0, 6);
             assert.equal(resA.toNumber(), 4000);
         });
@@ -495,17 +495,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
         it("should revert if exceeding square limit 4001", async () => {
             await advanceTimeAndBlock(60);
             await catchRevert(
-                roulette.createBet(0, user1, 6, 4001, "MANA"),
+                roulette.createBet(0, user1, 6, 4001),
                 "revert exceeding maximum bet square limit"
             );
         });
 
         it("should revert if exceeding square limit 5000", async () => {
             await advanceTimeAndBlock(60);
-            await roulette.createBet(0, user1, 7, 2000, "MANA");
+            await roulette.createBet(0, user1, 7, 2000);
             await advanceTimeAndBlock(60);
             await catchRevert(
-                roulette.createBet(0, user1, 7, 3000, "MANA"),
+                roulette.createBet(0, user1, 7, 3000),
                 "revert exceeding maximum bet square limit"
             );
         });
@@ -517,9 +517,9 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
                 "0x2540a8d1ecac31d69ad55354fba8289cfbb61adac332291b1fe0a8c1011f1a2f";
 
             //create bets
-            await rouletteB.createBet(0, user2, 5, 1000, "MANA");
-            await rouletteB.createBet(4, user2, 2, 1000, "MANA");
-            await rouletteB.createBet(5, user2, 1, 1000, "MANA");
+            await rouletteB.createBet(0, user2, 5, 1000);
+            await rouletteB.createBet(4, user2, 2, 1000);
+            await rouletteB.createBet(5, user2, 1, 1000);
 
             //check squares before the play
             const resA = await rouletteB.currentBets(0, 5);
@@ -531,7 +531,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
             //launch play
             await advanceTimeAndBlock(60);
-            await rouletteB.launch(localHash, 1, 2, "MANA");
+            await rouletteB.launch(localHash);//, 1, 2, "MANA");
             await advanceTimeAndBlock(60);
 
             //check squares after play
@@ -549,7 +549,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
             const rouletteA = await Roulette.new(user1, 4000);
             await advanceTimeAndBlock(60);
             await catchRevert(
-                rouletteA.createBet(0, user1, 34, 1000, "MANA", { from: user1 }),
+                rouletteA.createBet(0, user1, 34, 1000, { from: user1 }),
                 "revert can only be called by master/parent contract"
             );
             /* ADD MORE TESTS */
@@ -560,13 +560,13 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
             await advanceTimeAndBlock(60);
             await catchRevert(
-                rouletteA.createBet(0, user1, 34, 1000, "MANA", { from: user1 }),
+                rouletteA.createBet(0, user1, 34, 1000, { from: user1 }),
                 "revert can only be called by master/parent contract"
             );
 
             await rouletteA.setWorker(user1);
 
-            await rouletteA.createBet(0, user2, 5, 1000, "MANA", { from: user1 });
+            await rouletteA.createBet(0, user2, 5, 1000, { from: user1 });
             const resA = await rouletteA.currentBets(0, 5);
             const resB = await rouletteA.workerAddress();
 
@@ -581,7 +581,7 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
             const localHash =
                 "0x2540a8d1ecac31d69ad55354fba8289cfbb61adac332291b1fe0a8c1011f1a2f";
-            await roulette.launch(localHash, 1, 2, "MANA");
+            await roulette.launch(localHash);//, 1, 2, "MANA");
 
             const block = await web3.eth.getBlockNumber();
             const info = await web3.eth.getBlock(block);

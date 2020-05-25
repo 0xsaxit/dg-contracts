@@ -8,6 +8,8 @@ const TreasuryFlat = artifacts.require("TreasuryFlat");
 
 const TreasuryRoulette = artifacts.require("TreasuryRoulette");
 const TreasurySlots = artifacts.require("TreasurySlots");
+const TreasuryBackgammon = artifacts.require("TreasuryBackgammon");
+const FAKEMana = artifacts.require("FAKEMana");
 
 module.exports = async function(deployer, network, accounts) {
 
@@ -29,10 +31,11 @@ module.exports = async function(deployer, network, accounts) {
 
     if (network == 'matic') {
 
-        await deployer.deploy(TreasuryFlat);
-        await deployer.deploy(TreasuryRoulette, TreasuryFlat.address, "4000000000000000000000");
-        await deployer.deploy(TreasurySlots, TreasuryFlat.address, 250, 15, 8, 4, "50000000000000000000");
-
+        // await deployer.deploy(TreasuryFlat);
+        // await deployer.deploy(TreasuryRoulette, TreasuryFlat.address, "4000000000000000000000");
+        // await deployer.deploy(FAKEMana);
+        // await deployer.deploy(TreasurySlots, TreasuryFlat.address, 250, 15, 8, 4, "50000000000000000000");
+        // await deployer.deploy(TreasuryBackgammon, TreasuryFlat.address);
         // await treasury.addGame("0x0000000000000000000000000000000000000000", "Empty", 0, true, { from: owner });
         // await treasury.addGame(slots.address, "Slots", "1000000000000000000000", true, { from: owner });
         // await treasury.addGame(roulette.address, "Roulette", "50000000000000000000", true, { from: owner });

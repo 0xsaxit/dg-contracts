@@ -25,7 +25,7 @@ Roulette.sol:
 /////////////////////////////////////////////////////////////////////////////////////////
 // contracts on Matic Network testnet 3
 
-MANA contract: 0x2A3df21E612d30Ac0CD63C3F80E1eB583A4744cC
+FAKEMana contract: 0x2A3df21E612d30Ac0CD63C3F80E1eB583A4744cC
 
 Treasury.sol:
 0x53ff23839cf62D670ad4b6777033Ad01A40591B9
@@ -34,4 +34,7 @@ TreasurySlots.sol:
 0x94BD5D7e80c74BDD735e26eb53D25231028b358d
 
 TreasuryRoulette.sol:
-0x16D3852e4797A42DE36a7c108560B92a5523aAc5
+0x11451a4ADab091F56A2ca3A4ee53baDFE68B380c
+
+TreasuryBackgammon.sol:
+0x73CC0820626997Aea6612373b3298f6458E63d14

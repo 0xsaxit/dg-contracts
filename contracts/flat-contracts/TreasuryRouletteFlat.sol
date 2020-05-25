@@ -223,16 +223,16 @@ contract TreasuryRoulette is AccessControl {
         address player;
         uint256 number;
         uint256 value;
-        string tokenName;
+        // string tokenName;
     }
 
-    event SpinResult(
+    /* event SpinResult(
         string _tokenName,
         uint256 _landID,
         uint256 indexed _number,
         uint256 indexed _machineID,
         uint256[] _amountWins
-    );
+    ); */
 
     event GameResult(
         address[] _players,
@@ -246,13 +246,14 @@ contract TreasuryRoulette is AccessControl {
     uint256[] winAmounts;
     Bet[] public bets;
 
-    event Finished(uint number, uint nextRoundTimestamp);
+    /* event Finished(uint number, uint nextRoundTimestamp);
     event NewSingleBet(uint bet, address player, uint number, uint value);
     event NewEvenOddBet(uint bet, address player, uint number, uint value);
     event NewRedBlackBet(uint bet, address player, uint number, uint value);
     event NewHighLowBet(uint bet, address player, uint number, uint value);
     event NewColumnBet(uint bet, address player, uint column, uint value);
     event NewDozenBet(uint bet, address player, uint dozen, uint value);
+    */
 
     function getNextRoundTimestamp() external view returns(uint) {
         return nextRoundTimestamp;
@@ -262,15 +263,15 @@ contract TreasuryRoulette is AccessControl {
         uint _betType,
         address _player,
         uint _number,
-        uint _value,
-        string calldata _tokenName
+        uint _value
+        // string calldata _tokenName
     ) external whenNotPaused onlyCEO {
         bet(
             _betType,
             _player,
             _number,
-            _value,
-            _tokenName
+            _value
+            // _tokenName
         );
     }
 
@@ -278,9 +279,9 @@ contract TreasuryRoulette is AccessControl {
         uint _betType,
         address _player,
         uint _number,
-        uint _value,
-        string memory _token
-    ) private {
+        uint _value
+        // string memory _token
+    ) internal {
 
         currentBets[_betType][_number] += _value;
 
@@ -289,106 +290,105 @@ contract TreasuryRoulette is AccessControl {
             'exceeding maximum bet limit'
         );
 
-        if (_betType == uint(BetType.Single)) return betSingle(_number, _player, _value, _token);
-        if (_betType == uint(BetType.EvenOdd)) return betEvenOdd(_number, _player, _value, _token);
-        if (_betType == uint(BetType.RedBlack)) return betRedBlack(_number ,_player, _value, _token);
-        if (_betType == uint(BetType.HighLow)) return betHighLow(_number, _player, _value, _token);
-        if (_betType == uint(BetType.Column)) return betColumn(_number, _player, _value, _token);
-        if (_betType == uint(BetType.Dozen)) return betDozen(_number, _player, _value, _token);
-
+        if (_betType == uint(BetType.Single)) return betSingle(_number, _player, _value);
+        if (_betType == uint(BetType.EvenOdd)) return betEvenOdd(_number, _player, _value);
+        if (_betType == uint(BetType.RedBlack)) return betRedBlack(_number ,_player, _value);
+        if (_betType == uint(BetType.HighLow)) return betHighLow(_number, _player, _value);
+        if (_betType == uint(BetType.Column)) return betColumn(_number, _player, _value);
+        if (_betType == uint(BetType.Dozen)) return betDozen(_number, _player, _value);
     }
 
-    function betSingle(uint _number, address _player, uint _value, string memory _token) internal {
+    function betSingle(uint _number, address _player, uint _value) internal {
         require(_number <= 36, 'must be between 0 and 36');
         bets.push(Bet({
             betType: BetType.Single,
             player: _player,
             number: _number,
-            value: _value,
-            tokenName: _token
+            value: _value
+            // tokenName: _token
         }));
-        emit NewSingleBet(bets.length, _player, _number, _value);
+        // emit NewSingleBet(bets.length, _player, _number, _value);
     }
 
-    function betEvenOdd(uint256 _number, address _player, uint _value, string memory _token) internal {
+    function betEvenOdd(uint256 _number, address _player, uint _value) internal {
         require(_number <= 1, 'Even(0) - Odd(1)');
         bets.push(Bet({
             betType: BetType.EvenOdd,
             player: _player,
             number: _number,
-            value: _value,
-            tokenName: _token
+            value: _value
+            // tokenName: _token
         }));
-        emit NewEvenOddBet(bets.length, _player, _number, _value);
+        // emit NewEvenOddBet(bets.length, _player, _number, _value);
     }
 
-    function betRedBlack(uint256 _number, address _player, uint _value, string memory _token) internal {
+    function betRedBlack(uint256 _number, address _player, uint _value) internal {
         require(_number <= 1, 'Red(0) - Black(1)');
         bets.push(Bet({
             betType: BetType.RedBlack,
             player: _player,
             number: _number,
-            value: _value,
-            tokenName: _token
+            value: _value
+            // tokenName: _token
         }));
-        emit NewRedBlackBet(bets.length, _player, _number, _value);
+        // emit NewRedBlackBet(bets.length, _player, _number, _value);
     }
 
-    function betHighLow(uint256 _number, address _player, uint _value, string memory _token) internal {
+    function betHighLow(uint256 _number, address _player, uint _value) internal {
         require(_number <= 1, 'High(0) - Low(1)');
         bets.push(Bet({
             betType: BetType.HighLow,
             player: _player,
             number: _number,
-            value: _value,
-            tokenName: _token
+            value: _value
+            // tokenName: _token
         }));
-        emit NewHighLowBet(bets.length, _player, _number, _value);
+        // emit NewHighLowBet(bets.length, _player, _number, _value);
     }
 
-    function betColumn(uint _column, address _player, uint _value, string memory _token) internal {
+    function betColumn(uint _column, address _player, uint _value) internal {
         require(_column <= 2, 'column must be in region between 0 and 2');
         bets.push(Bet({
             betType: BetType.Column,
             player: _player,
             number: _column,
-            value: _value,
-            tokenName: _token
+            value: _value
+            // tokenName: _token
         }));
-        emit NewColumnBet(bets.length, _player, _column, _value);
+        // emit NewColumnBet(bets.length, _player, _column, _value);
     }
 
-    function betDozen(uint _dozen, address _player, uint _value, string memory _token) internal {
+    function betDozen(uint _dozen, address _player, uint _value) internal {
         require(_dozen <= 2, 'dozen must be in region between 0 and 2');
         bets.push(Bet({
             betType: BetType.Dozen,
             player: _player,
             number: _dozen,
-            value: _value,
-            tokenName: _token
+            value: _value
+            // tokenName: _token
         }));
-        emit NewDozenBet(bets.length, _player, _dozen, _value);
+        // emit NewDozenBet(bets.length, _player, _dozen, _value);
     }
 
     function launch(
-        bytes32 _localhash,
-        uint256 _machineID,
-        uint256 _landID,
-        string calldata _tokenName
+        bytes32 _localhash
+        // uint256 _machineID,
+        // uint256 _landID,
+        // string calldata _tokenName
     ) external whenNotPaused onlyCEO returns(uint256[] memory, uint256 number) {
         return _launch(
-            _localhash,
-            _machineID,
-            _landID,
-            _tokenName
+            _localhash
+            // _machineID,
+            // _landID,
+            // _tokenName
         );
     }
 
     function _launch(
-        bytes32 _localhash,
-        uint256 _machineID,
-        uint256 _landID,
-        string memory _tokenName
+        bytes32 _localhash
+        // uint256 _machineID,
+        // uint256 _landID,
+        // string memory _tokenName
     ) private returns(uint256[] memory, uint256 number) {
 
         require(now > nextRoundTimestamp, 'expired round');
@@ -431,13 +431,13 @@ contract TreasuryRoulette is AccessControl {
                     won = true;
                 }
             } else if (b.betType == BetType.Column) {
-                if (b.number == 1) won = (number % 3 == 1);
-                if (b.number == 2) won = (number % 3 == 2);
-                if (b.number == 3) won = (number % 3 == 0);
+                if (b.number == 0) won = (number % 3 == 1);
+                if (b.number == 1) won = (number % 3 == 2);
+                if (b.number == 2) won = (number % 3 == 0);
             } else if (b.betType == BetType.Dozen) {
-                if (b.number == 1) won = (number <= 12);
-                if (b.number == 2) won = (number > 12 && number <= 24);
-                if (b.number == 3) won = (number > 24);
+                if (b.number == 0) won = (number <= 12);
+                if (b.number == 1) won = (number > 12 && number <= 24);
+                if (b.number == 2) won = (number > 24);
             }
 
             if (won) {
@@ -452,7 +452,7 @@ contract TreasuryRoulette is AccessControl {
 
         // reset bets
         bets.length = 0;
-        emit SpinResult(_tokenName, _landID, number, _machineID, winAmounts);
+        // emit SpinResult(_tokenName, _landID, number, _machineID, winAmounts);
 
         // return wins
         return(winAmounts, number);
@@ -484,7 +484,6 @@ contract TreasuryRoulette is AccessControl {
 
         treasury.consumeHash(_localhash);
 
-        // set bets for the game
         for (uint256 i = 0; i < _betIDs.length; i++) {
 
             require(
@@ -506,8 +505,8 @@ contract TreasuryRoulette is AccessControl {
                 _betIDs[i],
                 _players[i],
                 _betValues[i],
-                _betAmount[i],
-                _tokenName
+                _betAmount[i]
+                // _tokenName
             );
         }
 
@@ -518,10 +517,10 @@ contract TreasuryRoulette is AccessControl {
 
         uint256 number;
         (winAmounts, number) = _launch(
-            _localhash,
-            _machineID,
-            _landID,
-            _tokenName
+            _localhash
+            // _machineID,
+            // _landID,
+            // _tokenName
         );
 
         for (uint256 i = 0; i < winAmounts.length; i++) {

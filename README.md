@@ -111,3 +111,16 @@ npm install -g ganache-cli@latest
 start ganachi
 
 npm run test-master
+
+
+## For deployment:
+
+truffle migrate --network matic
+
+
+## For verification:
+
+truffle-flattener TreasuryBackgammon.sol > TreasuryBackgammonFlat.sol  (flat the file for verification)
+
+
+
