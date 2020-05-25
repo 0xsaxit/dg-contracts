@@ -1,5 +1,6 @@
 const Roulette = artifacts.require("TreasuryRoulette");
 const Slots = artifacts.require("TreasurySlots");
+const Backgammon = artifacts.require("TreasuryBackgammon");
 const Treasury = artifacts.require("Treasury");
 const Token = artifacts.require("Token");
 
@@ -7,6 +8,8 @@ const catchRevert = require("./exceptionsHelpers.js").catchRevert;
 
 require("./utils");
 require("colors");
+
+const BN = web3.utils.BN;
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -808,7 +811,312 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Play: Roulette Special Cases", () => {
+    describe("Game Play: Backgammon", () => {
+
+        beforeEach(async () => {
+            token = await Token.new();
+            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            backgammon = await Backgammon.new(treasury.address);
+            await treasury.addGame(backgammon.address, "Backgammon", 1000, true, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, web3.utils.toWei("100"), "MANA", {
+                from: owner
+            });
+            await token.transfer(user1, 10000);
+            await token.transfer(user2, 10000);
+            // await token.approve(treasury.address, 5000, { from: user1 });
+
+            await treasury.setTail(HASH_CHAIN[0], { from: owner });
+        });
+
+        it("should revert if player1 == player2", async () => {
+            await token.approve(treasury.address, 5000, { from: user1 });
+            await catchRevert(
+                backgammon.initializeGame(
+                    0,
+                    user1,
+                    user1,
+                    "MANA",
+                    { from: owner }
+                ),
+                "revert must be two different players"
+            );
+        });
+
+        it("should revert if users didnt approve treasury", async () => {
+            await catchRevert(
+                backgammon.initializeGame(
+                    10,
+                    user1,
+                    user2,
+                    "MANA",
+                    { from: owner }
+                ),
+                "revert P1 must approve/allow treasury as spender"
+            );
+
+            await token.approve(treasury.address, 5000, { from: user1 });
+
+            await catchRevert(
+                backgammon.initializeGame(
+                    10,
+                    user1,
+                    user2,
+                    "MANA",
+                    { from: owner }
+                ),
+                "revert P2 must approve/allow treasury as spender"
+            );
+
+            await token.approve(treasury.address, 5000, { from: user2 });
+            await backgammon.initializeGame(
+                10,
+                user1,
+                user2,
+                "MANA",
+                { from: owner }
+            );
+
+            const { gameId, playerOne, playerTwo, tokenName } = await getLastEvent(
+                "GameStarted",
+                backgammon
+            );
+
+            assert.equal(playerOne, user1);
+            assert.equal(playerTwo, user2);
+            assert.equal(tokenName, "MANA");
+
+        });
+
+
+        it("should revert if game already started", async () => {
+            await token.approve(treasury.address, 5000, { from: user1 });
+            await token.approve(treasury.address, 5000, { from: user2 });
+            backgammon.initializeGame(
+                0,
+                user1,
+                user2,
+                "MANA",
+                { from: owner }
+            )
+
+            await catchRevert(
+                backgammon.initializeGame(
+                    0,
+                    user1,
+                    user2,
+                    "MANA",
+                    { from: owner }
+                ),
+                "revert cannot initialize running game"
+            );
+        });
+
+        it("should revert if unknown token provided", async () => {
+            await catchRevert(
+                backgammon.initializeGame(
+                    0,
+                    user1,
+                    user2,
+                    "ANAM",
+                    { from: owner }
+                ),
+                "revert cannot initialize running game"
+            );
+        });
+
+        it("should be able to initialize game", async () => {
+            await token.approve(treasury.address, 5000, { from: user1 });
+            await token.approve(treasury.address, 5000, { from: user2 });
+            await backgammon.initializeGame(
+                0,
+                user1,
+                user2,
+                "MANA",
+                { from: owner }
+            );
+
+            const { gameId, playerOne, playerTwo, tokenName } = await getLastEvent(
+                "GameStarted",
+                backgammon
+            );
+
+            assert.equal(playerOne, user1);
+            assert.equal(playerTwo, user2);
+            assert.equal(tokenName, "MANA");
+
+        });
+
+        it("should be able to raise double (only on initialized game)", async () => {
+
+            const staked = 10
+
+            await token.approve(treasury.address, 5000, { from: user1 });
+            await token.approve(treasury.address, 5000, { from: user2 });
+            await backgammon.initializeGame(
+                staked,
+                user1,
+                user2,
+                "MANA",
+                { from: owner }
+            );
+
+            const _gameID = await backgammon.getGameIdOfPlayers(user1, user2);
+
+            await backgammon.raiseDouble(
+                _gameID,
+                user1,
+                { from: owner }
+            );
+
+            const { gameId, player, stake } = await getLastEvent(
+                "StakeRaised",
+                backgammon
+            );
+
+            assert.equal(gameId, _gameID);
+            assert.equal(player, user1);
+            assert.equal(stake, staked * 3);
+
+            await catchRevert(
+                backgammon.raiseDouble(
+                    gameId,
+                    user1,
+                    { from: owner }
+                ),
+                "revert must be ongoing game"
+            );
+        });
+
+        it("should be able to callDouble (only in doubling-stage)", async () => {
+            const staked = 10
+            await token.approve(treasury.address, 5000, { from: user1 });
+            await token.approve(treasury.address, 5000, { from: user2 });
+            await backgammon.initializeGame(
+                staked,
+                user1,
+                user2,
+                "MANA",
+                { from: owner }
+            );
+
+            const _gameID = await backgammon.getGameIdOfPlayers(user1, user2);
+
+            await backgammon.raiseDouble(
+                _gameID,
+                user1,
+                { from: owner }
+            );
+
+            await catchRevert(
+                backgammon.callDouble(
+                    _gameID,
+                    user1,
+                    { from: owner }
+                ),
+                "revert call must come from opposite player who doubled"
+            );
+
+            await catchRevert(
+                backgammon.callDouble(
+                    _gameID,
+                    user3,
+                    { from: owner }
+                ),
+                "revert must be one of the players"
+            );
+
+            await backgammon.callDouble(
+                _gameID,
+                user2,
+                { from: owner }
+            );
+
+            const { gameId, player, totalStaked } = await getLastEvent(
+                "StakeDoubled",
+                backgammon
+            );
+
+            assert.equal(gameId, _gameID);
+            assert.equal(player, user2);
+            assert.equal(totalStaked, staked * 4);
+
+        });
+
+        it("should be able to drop game (only in doubling-stage)", async () => {
+            const staked = 10
+            await token.approve(treasury.address, 5000, { from: user1 });
+            await token.approve(treasury.address, 5000, { from: user2 });
+
+            const treasuryBalanceBefore = await token.balanceOf(treasury.address);
+
+            await backgammon.initializeGame(
+                staked,
+                user1,
+                user2,
+                "MANA",
+                { from: owner }
+            );
+
+            const _gameID = await backgammon.getGameIdOfPlayers(user1, user2);
+
+            await backgammon.raiseDouble(
+                _gameID,
+                user1,
+                { from: owner }
+            );
+
+            await catchRevert(
+                backgammon.dropGame(
+                    _gameID,
+                    user1,
+                    { from: owner }
+                ),
+                "revert call must come from opposite player who doubled"
+            );
+
+            await catchRevert(
+                backgammon.dropGame(
+                    _gameID,
+                    user3,
+                    { from: owner }
+                ),
+                "revert must be one of the players"
+            );
+
+            await backgammon.dropGame(
+                _gameID,
+                user2,
+                { from: owner }
+            );
+
+            const treasuryBalanceAfter = await token.balanceOf(treasury.address);
+
+            const { gameId, player} = await getLastEvent(
+                "PlayerDropped",
+                backgammon
+            );
+
+            assert.equal(gameId, _gameID);
+            assert.equal(player, user2);
+
+            const { value } = await getLastEvent(
+                "Transfer",
+                token
+            );
+
+            const fee = staked * 3 - value;
+
+            assert.equal(value, staked * 3 * 0.90);
+            assert.equal(
+                web3.utils.toBN(treasuryBalanceBefore).add(web3.utils.toBN(fee)).toString(),
+                treasuryBalanceAfter.toString()
+            );
+        });
+    });
+
+
+    describe("Game Play: Roulette Special Cases", () => {
         const players = [
             user1,
             user1,
