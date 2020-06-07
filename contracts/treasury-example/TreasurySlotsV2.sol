@@ -29,14 +29,6 @@ contract TreasurySlotsV2 is AccessControl {
         uint256 _winAmount
     );
 
-    modifier onlyTreasury() {
-        require(
-            msg.sender == address(treasury),
-            'Slots: un-authorized call detected'
-        );
-        _;
-    }
-
     TreasuryInstance public treasury;
 
     constructor(
