@@ -12,12 +12,6 @@ contract TreasurySlotsV2 is AccessControl {
 
     using SafeMath for uint128;
 
-    struct Play {
-        address player;
-        uint128 value;
-        uint128 token;
-    }
-
     uint256 factors;
 
     event GameResult(
@@ -39,6 +33,12 @@ contract TreasurySlotsV2 is AccessControl {
         uint16 factor4
     ) public {
         treasury = TreasuryInstance(_treasury);
+
+        require(
+            factor1 > factor2 + factor3 + factor4,
+            'Slots: incorrect ratio'
+        );
+
         factors |= factor1<<192;
         factors |= factor2<<208;
         factors |= factor3<<224;
@@ -136,24 +136,14 @@ contract TreasurySlotsV2 is AccessControl {
         );
     }
 
-    function updateFactors(
-        uint16 _factor1,
-        uint16 _factor2,
-        uint16 _factor3,
-        uint16 _factor4
-    ) external onlyCEO {
-        factors |= _factor1<<192;
-        factors |= _factor2<<208;
-        factors |= _factor3<<224;
-        factors |= _factor4<<240;
-    }
-
     function getRandomNumber(
         bytes32 _localhash
     ) private pure returns (uint256) {
         return uint256(
             keccak256(
-                abi.encodePacked(_localhash)
+                abi.encodePacked(
+                    _localhash
+                )
             )
         );
     }
@@ -174,6 +164,24 @@ contract TreasurySlotsV2 is AccessControl {
                 factors>>192
             )
         );
+    }
+
+    function updateFactors(
+        uint16 factor1,
+        uint16 factor2,
+        uint16 factor3,
+        uint16 factor4
+    ) external onlyCEO {
+
+        require(
+            factor1 > factor2 + factor3 + factor4,
+            'Slots: incorrect ratio'
+        );
+
+        factors |= factor1<<192;
+        factors |= factor2<<208;
+        factors |= factor3<<224;
+        factors |= factor4<<240;
     }
 
     function updateTreasury(
