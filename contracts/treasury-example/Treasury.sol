@@ -348,7 +348,7 @@ contract Treasury is GameController, TokenController, HashChain {
                 token.balanceOf(address(this))
             );
 
-           for (uint8 j = 0; j < treasuryGames.length; j++) {
+            for (uint8 j = 0; j < treasuryGames.length; j++) {
                 uint256 amount = treasuryGames[j].gameTokens[t];
                 uint128 maxBet = treasuryGames[j].maximumBet[t];
                 nt.addFunds(j, amount, t);
