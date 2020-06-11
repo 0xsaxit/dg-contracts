@@ -1,37 +1,41 @@
-pragma solidity ^0.5.14;
+pragma solidity ^0.5.17;
 
 interface TreasuryInstance {
 
     function tokenAddress(
-        string calldata _tokenName
+        uint8 _tokenIndexadd
     ) external view returns (address);
 
     function tokenInboundTransfer(
-        string calldata _tokenName,
+        uint8 _tokenIndex,
         address _from,
         uint256 _amount
     )  external returns (bool);
 
     function tokenOutboundTransfer(
-        string calldata _tokenName,
+        uint8 _tokenIndex,
         address _to,
         uint256 _amount
     ) external returns (bool);
 
     function checkAllocatedTokens(
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external view returns (uint256);
 
     function checkApproval(
         address _userAddress,
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external view returns (uint256 approved);
 
     function getMaximumBet(
-        string calldata _tokenName
-    ) external view returns (uint256);
+        uint8 _tokenIndex
+    ) external view returns (uint128);
 
     function consumeHash(
         bytes32 _localhash
     ) external returns (bool);
+
+    function tokenNames(
+        uint256 _tokenIndex
+    ) external returns (string memory);
 }

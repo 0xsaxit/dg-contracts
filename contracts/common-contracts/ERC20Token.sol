@@ -1,6 +1,5 @@
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
-//contract ERC20Token {
 interface ERC20Token {
     function totalSupply() external view returns (uint256);
     function balanceOf(address account) external view returns (uint256);

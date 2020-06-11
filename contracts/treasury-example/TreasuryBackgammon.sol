@@ -1,10 +1,10 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.5.17;
 
 import "../common-contracts/SafeMath.sol";
-import "../common-contracts/AccessControl.sol";
+import "../common-contracts/AccessController.sol";
 import "../common-contracts/TreasuryInstance.sol";
 
-contract TreasuryBackgammon is AccessControl {
+contract TreasuryBackgammon is AccessController {
 
     using SafeMath for uint256;
     enum GameState {NewGame, OnGoingGame, DoublingStage, GameEnded}
@@ -13,7 +13,7 @@ contract TreasuryBackgammon is AccessControl {
         uint256 gameId,
         address indexed playerOne,
         address indexed playerTwo,
-        string tokenName
+        uint8 tokenIndex
     );
 
     event StakeRaised(
@@ -44,7 +44,7 @@ contract TreasuryBackgammon is AccessControl {
         address playerOne;
         address playerTwo;
         address lastStaker;
-        string tokenName;
+        uint8 tokenIndex;
         GameState state;
     }
 
@@ -54,7 +54,7 @@ contract TreasuryBackgammon is AccessControl {
     modifier onlyDoublingStage(uint256 gameId) {
         require(
             currentGames[gameId].state == GameState.DoublingStage,
-            "must be proposed to double first by one of the players"
+            'must be proposed to double first by one of the players'
         );
         _;
     }
@@ -62,7 +62,7 @@ contract TreasuryBackgammon is AccessControl {
     modifier onlyOnGoingGame(uint256 gameId) {
         require(
             currentGames[gameId].state == GameState.OnGoingGame,
-            "must be ongoing game"
+            'must be ongoing game'
         );
         _;
     }
@@ -71,7 +71,7 @@ contract TreasuryBackgammon is AccessControl {
         require(
             player == currentGames[gameId].playerOne ||
             player == currentGames[gameId].playerTwo,
-            "must be one of the players"
+            'must be one of the players'
         );
         _;
     }
@@ -96,12 +96,12 @@ contract TreasuryBackgammon is AccessControl {
         uint256 _defaultStake,
         address _playerOneAddress,
         address _playerTwoAddress,
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external whenNotPaused onlyWorker returns (bool) {
 
         require(
             address(_playerOneAddress) != address(_playerTwoAddress),
-            "must be two different players"
+            'must be two different players'
         );
 
         uint256 gameId = uint256(
@@ -111,31 +111,31 @@ contract TreasuryBackgammon is AccessControl {
         require(
             currentGames[gameId].state == GameState.NewGame ||
             currentGames[gameId].state == GameState.GameEnded,
-            "cannot initialize running game"
+            'cannot initialize running game'
         );
 
         require(
-            treasury.tokenAddress(_tokenName) != address(0x0),
-            "token is not delcared in treasury!"
+            treasury.tokenAddress(_tokenIndex) != address(0x0),
+            'token is not delcared in treasury!'
         );
 
         require(
-            _defaultStake <= treasury.getMaximumBet(_tokenName),
-            "exceeding maximum bet defined in treasury"
+            _defaultStake <= treasury.getMaximumBet(_tokenIndex),
+            'exceeding maximum bet defined in treasury'
         );
 
         require(
-            _defaultStake.mul(uint64(data>>128)) <= treasury.checkApproval(_playerOneAddress, _tokenName),
-            "P1 must approve/allow treasury as spender"
+            _defaultStake.mul(uint64(data>>128)) <= treasury.checkApproval(_playerOneAddress, _tokenIndex),
+            'P1 must approve/allow treasury as spender'
         );
 
         require(
-            _defaultStake.mul(uint64(data>>128)) <= treasury.checkApproval(_playerTwoAddress, _tokenName),
-            "P2 must approve/allow treasury as spender"
+            _defaultStake.mul(uint64(data>>128)) <= treasury.checkApproval(_playerTwoAddress, _tokenIndex),
+            'P2 must approve/allow treasury as spender'
         );
 
-        treasury.tokenInboundTransfer(_tokenName, _playerOneAddress, _defaultStake);
-        treasury.tokenInboundTransfer(_tokenName, _playerTwoAddress, _defaultStake);
+        treasury.tokenInboundTransfer(_tokenIndex, _playerOneAddress, _defaultStake);
+        treasury.tokenInboundTransfer(_tokenIndex, _playerTwoAddress, _defaultStake);
 
         Game memory _game = Game(
             _defaultStake,
@@ -143,7 +143,7 @@ contract TreasuryBackgammon is AccessControl {
             _playerOneAddress,
             _playerTwoAddress,
             address(0),
-            _tokenName,
+            _tokenIndex,
             GameState.OnGoingGame
         );
 
@@ -153,7 +153,7 @@ contract TreasuryBackgammon is AccessControl {
             gameId,
             _playerOneAddress,
             _playerTwoAddress,
-            _tokenName
+            _tokenIndex
         );
     }
 
@@ -167,16 +167,16 @@ contract TreasuryBackgammon is AccessControl {
         require(
             address(_playerRaising) !=
             address(currentGames[_gameId].lastStaker),
-            "same player cannot raise double again"
+            'same player cannot raise double again'
         );
 
         require(
             treasury.tokenInboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 _playerRaising,
                 currentGames[_gameId].stake
             ),
-            "raising double transfer failed"
+            'raising double transfer failed'
         );
 
         currentGames[_gameId].state = GameState.DoublingStage;
@@ -202,16 +202,16 @@ contract TreasuryBackgammon is AccessControl {
         require(
             address(_playerCalling) !=
             address(currentGames[_gameId].lastStaker),
-            "call must come from opposite player who doubled"
+            'call must come from opposite player who doubled'
         );
 
         require(
             treasury.tokenInboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 _playerCalling,
                 currentGames[_gameId].stake
             ),
-            "calling double transfer failed"
+            'calling double transfer failed'
         );
 
         currentGames[_gameId].total = currentGames[_gameId].total.add(
@@ -237,17 +237,17 @@ contract TreasuryBackgammon is AccessControl {
     {
         require(
             _playerDropping != currentGames[_gameId].lastStaker,
-            "drop must come from opposite player who doubled"
+            'drop must come from opposite player who doubled'
         );
 
         require(
             treasury.tokenOutboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 currentGames[_gameId].lastStaker,
                 applyPercent(currentGames[_gameId].total)
 
             ),
-            "win amount transfer failed (dropGame)"
+            'win amount transfer failed (dropGame)'
         );
 
         currentGames[_gameId].state = GameState.GameEnded;
@@ -273,11 +273,11 @@ contract TreasuryBackgammon is AccessControl {
 
         require(
             treasury.tokenOutboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 _winPlayer,
                 applyPercent(currentGames[_gameId].total)
             ),
-            "win amount transfer failed (resolveGame)"
+            'win amount transfer failed (resolveGame)'
         );
 
         currentGames[_gameId].state = GameState.GameEnded;
