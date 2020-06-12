@@ -324,4 +324,13 @@ contract TreasuryBackgammon is AccessController {
     function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
+
+    function migrateTreasury(address _newTreasuryAddress) external {
+        require(
+            msg.sender == address(treasury),
+            'wrong current treasury address'
+        );
+        treasury = TreasuryInstance(_newTreasuryAddress);
+    }
+
 }

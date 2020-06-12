@@ -2,7 +2,7 @@ pragma solidity ^0.5.17;
 
 // Slot Machine Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
-// Single Play - Simple Slots - Token Index
+// Single Play - Simple Slots
 
 import "../common-contracts/SafeMath.sol";
 import "../common-contracts/AccessController.sol";
@@ -188,5 +188,15 @@ contract TreasurySlots is AccessController {
         treasury = TreasuryInstance(
             _newTreasuryAddress
         );
+    }
+
+    function migrateTreasury(
+        address _newTreasuryAddress
+    ) external {
+        require(
+            msg.sender == address(treasury),
+            'Slots: wrong treasury address'
+        );
+        treasury = TreasuryInstance(_newTreasuryAddress);
     }
 }

@@ -34,9 +34,9 @@ contract GameController is AccessController {
     function getGameIndex(
         address _gameAddress
     ) internal view returns (bool, uint8) {
-        for (uint i = 0; i < treasuryGames.length; i++) {
+        for (uint8 i = 0; i < treasuryGames.length; i++) {
             if (treasuryGames[i].gameAddress == _gameAddress) {
-                return (true, uint8(i));
+                return (true, i);
             }
         }
         return (false, 0);
@@ -189,8 +189,8 @@ contract Treasury is GameController, TokenController, HashChain {
 
     function setMaximumBet(
         uint8 _gameIndex,
-        uint128 _maximumBet,
-        uint8 _tokenIndex
+        uint8 _tokenIndex,
+        uint128 _maximumBet
     ) external onlyCEO {
         treasuryGames[_gameIndex].maximumBet[_tokenIndex] = _maximumBet;
     }
@@ -230,18 +230,17 @@ contract Treasury is GameController, TokenController, HashChain {
     ) external {
 
         require(
-            treasuryGames[_gameIndex].gameAddress != address(0x0),
+            _gameIndex < treasuryGames.length,
             'Treasury: unregistered gameIndex'
         );
 
         require(
-            treasuryTokens[_tokenIndex].tokenAddress != address(0x0),
+            _tokenIndex < treasuryTokens.length,
             'Treasury: unregistered tokenIndex'
         );
 
-        Game storage game = getGameInstance(msg.sender);
         ERC20Token token = getTokenInstance(_tokenIndex);
-        addGameTokens(game, _tokenIndex, _tokenAmount);
+        addGameTokens(treasuryGames[_gameIndex], _tokenIndex, _tokenAmount);
         token.transferFrom(msg.sender, address(this), _tokenAmount);
     }
 
@@ -269,8 +268,8 @@ contract Treasury is GameController, TokenController, HashChain {
 
     function withdrawGameTokens(
         uint8 _gameIndex,
-        uint256 _amount,
-        uint8 _tokenIndex
+        uint8 _tokenIndex,
+        uint256 _amount
     ) external onlyCEO {
         Game storage _game = treasuryGames[_gameIndex];
         ERC20Token token = getTokenInstance(_tokenIndex);
@@ -312,11 +311,15 @@ contract Treasury is GameController, TokenController, HashChain {
         return true;
     }
 
-    function tokenAddress(uint256 _tokenIndex) external view returns (address) {
+    function tokenAddress(
+        uint256 _tokenIndex
+    ) external view returns (address) {
         return treasuryTokens[_tokenIndex].tokenAddress;
     }
 
-    function tokenName(uint256 _tokenIndex) external view returns (string memory) {
+    function tokenName(
+        uint256 _tokenIndex
+    ) external view returns (string memory) {
         return treasuryTokens[_tokenIndex].tokenName;
     }
 
@@ -333,7 +336,7 @@ contract Treasury is GameController, TokenController, HashChain {
                 treasuryGames[g].isActive
             );
             GameMigration gm = GameMigration(treasuryGames[g].gameAddress);
-            gm._changeTreasury(_newTreasury);
+            gm.migrateTreasury(_newTreasury);
         }
 
         for (uint8 t = 0; t < treasuryTokens.length; t++) {
@@ -351,8 +354,8 @@ contract Treasury is GameController, TokenController, HashChain {
             for (uint8 j = 0; j < treasuryGames.length; j++) {
                 uint256 amount = treasuryGames[j].gameTokens[t];
                 uint128 maxBet = treasuryGames[j].maximumBet[t];
-                nt.addFunds(j, amount, t);
-                nt.updateMaximumBet(j, maxBet, t);
+                nt.addFunds(j, t, amount);
+                nt.setMaximumBet(j, t, maxBet);
                 treasuryGames[j].gameTokens[t] = 0;
             }
         }
@@ -363,7 +366,7 @@ contract Treasury is GameController, TokenController, HashChain {
 }
 
 interface GameMigration {
-    function _changeTreasury(
+    function migrateTreasury(
         address _newTreasuryAddress
     ) external;
 }
@@ -382,21 +385,21 @@ interface TreasuryMigration {
 
     function addFunds(
         uint8 _gameIndex,
-        uint256 _tokenAmount,
-        uint8 _tokenIndex
+        uint8 _tokenIndex,
+        uint256 _tokenAmount
     ) external;
 
     function setCEO(
         address _newCEO
     ) external;
 
-    function setTail(
-        bytes32 _tail
+    function setMaximumBet(
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint128 _maximumBet
     ) external;
 
-    function updateMaximumBet(
-        uint8 _gameIndex,
-        uint128 _maximumBet,
-        uint8 _tokenIndex
+    function setTail(
+        bytes32 _tail
     ) external;
 }

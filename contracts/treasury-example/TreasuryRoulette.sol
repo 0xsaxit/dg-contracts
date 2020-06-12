@@ -240,14 +240,14 @@ contract TreasuryRoulette is AccessController {
                 _tokenIndex[i]
             );
 
-            uint256 tokenFunds = treasury.checkAllocatedTokens(
+            /* uint256 tokenFunds = treasury.checkAllocatedTokens(
                 _tokenIndex[i]
             );
 
             require(
                 getNecessaryBalance(_tokenIndex[i]) <= tokenFunds,
                 'Roulette: not enough tokens for payout'
-            );
+            );*/
         }
 
         uint256 _spinResult;
@@ -356,6 +356,16 @@ contract TreasuryRoulette is AccessController {
     function changeTreasury(
         address _newTreasuryAddress
     ) external onlyCEO {
+        treasury = TreasuryInstance(_newTreasuryAddress);
+    }
+
+    function migrateTreasury(
+        address _newTreasuryAddress
+    ) external {
+        require(
+            msg.sender == address(treasury),
+            'Roulette: wrong treasury address'
+        );
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 }
