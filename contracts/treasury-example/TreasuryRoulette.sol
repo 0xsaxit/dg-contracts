@@ -115,7 +115,7 @@ contract TreasuryRoulette is AccessController {
 
         winAmounts.length = 0;
         store ^= uint64(store>>136)<<136;
-        store |= uint256(now)<<136;
+        store |= uint64(now)<<136;
 
         uint diff = block.difficulty;
         bytes32 hash = _localhash;
