@@ -114,6 +114,18 @@ contract TokenController is AccessController {
         return ERC20Token(treasuryTokens[_tokenIndex].tokenAddress);
     }
 
+    function getTokenAddress(
+        uint256 _tokenIndex
+    ) external view returns (address) {
+        return treasuryTokens[_tokenIndex].tokenAddress;
+    }
+
+    function getTokenName(
+        uint256 _tokenIndex
+    ) external view returns (string memory) {
+        return treasuryTokens[_tokenIndex].tokenName;
+    }
+
     function updateTokenAddress(
         uint8 _tokenIndex,
         address _newTokenAddress
@@ -309,18 +321,6 @@ contract Treasury is GameController, TokenController, HashChain {
         );
         _consume(_localhash);
         return true;
-    }
-
-    function tokenAddress(
-        uint256 _tokenIndex
-    ) external view returns (address) {
-        return treasuryTokens[_tokenIndex].tokenAddress;
-    }
-
-    function tokenName(
-        uint256 _tokenIndex
-    ) external view returns (string memory) {
-        return treasuryTokens[_tokenIndex].tokenName;
     }
 
     function migrateTreasury(

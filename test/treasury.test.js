@@ -402,7 +402,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 tokenIndex,
                 { from: owner }
             );
-            const { _players, _tokenName, _landID, _machineID } = await getLastEvent(
+            const { _players, _tokenIndex, _landID, _machineID } = await getLastEvent(
                 "GameResult",
                 roulette
             );
@@ -411,7 +411,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 JSON.stringify(_players),
                 JSON.stringify([user1, user2, user3])
             );
-            assert.equal(_tokenName, "0x4605d046b0132734b6fc45e75049e1422f8ec9d9cdeec93f928bdb57662cecdc");
+            assert.equal(JSON.stringify(_tokenIndex), JSON.stringify(["0","0","0"]));
             assert.equal(_landID, 1);
             assert.equal(_machineID, 2);
         });
@@ -467,6 +467,9 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             );
 
             await advanceTimeAndBlock(60);
+            await token.approve(treasury.address, 5000, { from: user3 });
+            await advanceTimeAndBlock(60);
+
             await roulette.play(
                 [user1, user2, user3],
                 1,
@@ -481,7 +484,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Results: Roulette", () => {
+    describe("Game Results: Roulette", () => {
         const betTypes = [0, 2, 5, 1, 3];
         const betValues = [31, 0, 2, 1, 1];
         const betAmounts = [500, 300, 400, 100, 200];
@@ -614,7 +617,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             await treasury.addGame(slots.address, "Slots", true, { from: owner });
             await treasury.setMaximumBet(0, 0, 1000, { from: owner });
             await token.approve(treasury.address, web3.utils.toWei("100"));
-            await treasury.addFunds(0, web3.utils.toWei("100"), "MANA", {
+            await treasury.addFunds(0, web3.utils.toWei("100"), 0, {
                 from: owner
             });
             await token.transfer(user1, 10000);
@@ -629,11 +632,9 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     user1,
                     1,
                     2,
-                    [0],
-                    [0],
-                    [2000],
+                    2000,
                     HASH_CHAIN[1],
-                    [0],
+                    0,
                     { from: owner }
                 ),
                 "revert bet amount is more than maximum"
@@ -644,8 +645,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             await advanceTimeAndBlock(60);
             await slots.play(
                 user1,
-                0,
-                100,
+                1,
+                2,
                 100,
                 HASH_CHAIN[1],
                 0,
@@ -665,32 +666,31 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 0,
                 { from: owner }
             );
-            const { _players, _tokenName, _landID, _machineID } = await getLastEvent(
+            const { _player, _tokenIndex, _landID, _machineID } = await getLastEvent(
                 "GameResult",
                 slots
             );
-            assert.equal(JSON.stringify(_players), JSON.stringify(user1));
-            assert.equal(_tokenName, "0x4605d046b0132734b6fc45e75049e1422f8ec9d9cdeec93f928bdb57662cecdc");
+            assert.equal(JSON.stringify(_player), JSON.stringify(user1));
+            assert.equal(_tokenIndex, 0);
             assert.equal(_landID, 1);
             assert.equal(_machineID, 2);
         });
     });
 
     describe("Game Results: Slots", () => {
-        const betTypes = [0];
-        const betValues = [0];
-        const betAmounts = [500];
+        const betAmounts = 500;
 
         beforeEach(async () => {
             // Deploy contracts
             token = await Token.new();
             treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
-            slots = await Slots.new(treasury.address, 250, 16, 8, 4, 1000000000000000);
+            slots = await Slots.new(treasury.address, 250, 16, 8, 4);
 
             // Add game and fund it
-            await treasury.addGame(slots.address, "Slots", 2000, true, { from: owner });
+            await treasury.addGame(slots.address, "Slots", { from: owner });
+            await treasury.setMaximumBet(0, 0, 10000, { from: owner });
             await token.approve(treasury.address, 1e7);
-            await treasury.addFunds(0, 1e7, "MANA", {
+            await treasury.addFunds(0, 0, 1e7, {
                 from: owner
             });
 
@@ -718,27 +718,23 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 totalBet += 500;
                 await advanceTimeAndBlock(60);
                 await slots.play(
-                    [user1],
-                    0,
-                    100,
-                    betTypes,
-                    betValues,
+                    user1,
+                    1,
+                    12,
                     betAmounts,
                     HASH_CHAIN[i + 1],
-                    "MANA",
+                    0,
                     { from: owner }
                 );
 
-                const { _winAmounts } = await getLastEvent("GameResult", slots);
+                const { _winAmount } = await getLastEvent("GameResult", slots);
 
                 console.log(
-                    `     Play ${i + 1}: WinAmounts:[${_winAmounts}]`.cyan.inverse
+                    `     Play ${i + 1}: WinAmount:[${_winAmount}]`.cyan.inverse
                 );
 
-                winTotal = _winAmounts.reduce((a, b) => Number(a) + Number(b));
-                // If there is a win stop
-                if (winTotal > 0) {
-                    winAmounts = _winAmounts;
+                if (_winAmount > 0) {
+                    winTotal = _winAmount;
                     break;
                 }
             }
@@ -759,31 +755,27 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
             beforeBetGame = await treasury.checkGameTokens(0, 0);
 
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 5; i++) {
                 totalBet += 500;
                 await advanceTimeAndBlock(60);
                 await slots.play(
-                    [user1],
-                    0,
+                    user1,
+                    1,
                     2,
-                    betTypes,
-                    betValues,
                     betAmounts,
                     HASH_CHAIN[i + 1],
-                    "MANA",
+                    0,
                     { from: owner }
                 );
 
-                const { _winAmounts } = await getLastEvent("GameResult", slots);
+                const { _winAmount } = await getLastEvent("GameResult", slots);
 
                 console.log(
-                    `    Play ${i + 1}: WinAmounts:[${_winAmounts}]`.cyan.inverse
+                    `     Play ${i + 1}: WinAmounts:[${_winAmount}]`.cyan.inverse
                 );
 
-                winTotal = _winAmounts.reduce((a, b) => Number(a) + Number(b));
-                // If there is a win stop
-                if (winTotal > 0) {
-                    winAmounts = _winAmounts;
+                if (_winAmount > 0) {
+                    winTotal = _winAmount;
                     break;
                 }
             }
@@ -802,10 +794,11 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             token = await Token.new();
             treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
-            backgammon = await Backgammon.new(treasury.address);
-            await treasury.addGame(backgammon.address, "Backgammon", 1000, true, { from: owner });
-            await token.approve(treasury.address, web3.utils.toWei("100"));
-            await treasury.addFunds(0, web3.utils.toWei("100"), "MANA", {
+            backgammon = await Backgammon.new(treasury.address, 64, 10);
+            await treasury.addGame(backgammon.address, "Backgammon", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, web3.utils.toWei("100"), { from: owner });
+            await token.approve(treasury.address, 1000);
+            await treasury.addFunds(0, web3.utils.toWei("100"), 0, {
                 from: owner
             });
             await token.transfer(user1, 10000);
@@ -822,7 +815,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     0,
                     user1,
                     user1,
-                    "MANA",
+                    0,
                     { from: owner }
                 ),
                 "revert must be two different players"
@@ -830,25 +823,25 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
 
         it("should revert if users didnt approve treasury", async () => {
+
             await catchRevert(
                 backgammon.initializeGame(
                     10,
                     user1,
                     user2,
-                    "MANA",
+                    0,
                     { from: owner }
                 ),
                 "revert P1 must approve/allow treasury as spender"
             );
 
             await token.approve(treasury.address, 5000, { from: user1 });
-
             await catchRevert(
                 backgammon.initializeGame(
                     10,
                     user1,
                     user2,
-                    "MANA",
+                    0,
                     { from: owner }
                 ),
                 "revert P2 must approve/allow treasury as spender"
@@ -859,18 +852,18 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 10,
                 user1,
                 user2,
-                "MANA",
+                0,
                 { from: owner }
             );
 
-            const { gameId, playerOne, playerTwo, tokenName } = await getLastEvent(
+            const { gameId, playerOne, playerTwo, tokenIndex } = await getLastEvent(
                 "GameStarted",
                 backgammon
             );
 
             assert.equal(playerOne, user1);
             assert.equal(playerTwo, user2);
-            assert.equal(tokenName, "MANA");
+            assert.equal(tokenIndex, 0);
 
         });
 
@@ -882,7 +875,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 0,
                 user1,
                 user2,
-                "MANA",
+                0,
                 { from: owner }
             )
 
@@ -891,7 +884,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     0,
                     user1,
                     user2,
-                    "MANA",
+                    0,
                     { from: owner }
                 ),
                 "revert cannot initialize running game"
@@ -904,7 +897,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     0,
                     user1,
                     user2,
-                    "ANAM",
+                    1,
                     { from: owner }
                 ),
                 "revert cannot initialize running game"
@@ -918,18 +911,18 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 0,
                 user1,
                 user2,
-                "MANA",
+                0,
                 { from: owner }
             );
 
-            const { gameId, playerOne, playerTwo, tokenName } = await getLastEvent(
+            const { gameId, playerOne, playerTwo, tokenIndex } = await getLastEvent(
                 "GameStarted",
                 backgammon
             );
 
             assert.equal(playerOne, user1);
             assert.equal(playerTwo, user2);
-            assert.equal(tokenName, "MANA");
+            assert.equal(tokenIndex, 0);
 
         });
 
@@ -943,7 +936,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 staked,
                 user1,
                 user2,
-                "MANA",
+                0,
                 { from: owner }
             );
 
@@ -982,7 +975,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 staked,
                 user1,
                 user2,
-                "MANA",
+                0,
                 { from: owner }
             );
 
@@ -1040,7 +1033,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 staked,
                 user1,
                 user2,
-                "MANA",
+                0,
                 { from: owner }
             );
 
@@ -1175,10 +1168,11 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             token = await Token.new();
             treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
-            roulette = await Roulette.new(treasury.address, web3.utils.toWei("400000"));
-            await treasury.addGame(roulette.address, "Roulette", web3.utils.toWei("4000"), true, { from: owner });
+            roulette = await Roulette.new(treasury.address, web3.utils.toWei("400000"), 50);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, web3.utils.toWei("1000000000"), { from: owner });
             await token.approve(treasury.address, web3.utils.toWei("100000000"));
-            await treasury.addFunds(0, web3.utils.toWei("1000000"), "MANA", {
+            await treasury.addFunds(0, 0, web3.utils.toWei("100000000"), {
                 from: owner
             });
             await token.transfer(user1, web3.utils.toWei("1000000000"));
@@ -1222,7 +1216,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
-                "MANA",
+                new Array(30).fill(0),
                 { from: owner }
             );
         });
@@ -1247,7 +1241,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 ],
                 new Array(31).fill('50000000000000000000'),
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
-                "MANA",
+                new Array(31).fill(0),
                 { from: owner }
             );
         });
@@ -1257,10 +1251,13 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             token = await Token.new();
             currentTreasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
-            roulette = await Roulette.new(currentTreasury.address, 4000);
-            slots = await Slots.new(currentTreasury.address, 250, 16, 8, 4, 1000000);
-            await currentTreasury.addGame(slots.address, "Slots", 100, true, { from: owner });
-            await currentTreasury.addGame(roulette.address, "Roulette", 200, true, { from: owner });
+            roulette = await Roulette.new(currentTreasury.address, 4000, 36);
+            slots = await Slots.new(currentTreasury.address, 250, 16, 8, 4);
+            await currentTreasury.addGame(slots.address, "Slots", true, { from: owner });
+            await currentTreasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await currentTreasury.setMaximumBet(0, 0, 100, { from: owner });
+            await currentTreasury.setMaximumBet(1, 0, 200, { from: owner });
+
 
             await token.approve(currentTreasury.address, 1000000);
             await currentTreasury.addFunds(0, 0, 1000, { from: owner });
@@ -1297,7 +1294,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
 
         it("should be able to migrate all games and balances", async () => {
-            const slotsInfo = await currentTreasury.games(0);
+            const slotsInfo = await currentTreasury.treasuryGames(0);
             const slotsMaxBet = await currentTreasury.gameMaximumBet(0, 0);
             assert.equal(slotsInfo.gameAddress, slots.address);
             assert.equal(slotsInfo.gameName, "Slots");
@@ -1306,7 +1303,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             const allocatedBefore = await currentTreasury.checkGameTokens(0, 0);
             assert.equal(allocatedBefore, 1000);
 
-            const rouletteInfo = await currentTreasury.games(1);
+            const rouletteInfo = await currentTreasury.treasuryGames(1);
             const rouletteMaxBet = await currentTreasury.gameMaximumBet(1, 0);
             assert.equal(rouletteInfo.gameAddress, roulette.address);
             assert.equal(rouletteInfo.gameName, "Roulette");
@@ -1319,7 +1316,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             newTreasury = await Treasury.new(token.address, "MANA", currentTreasury.address);
             currentTreasury.migrateTreasury(newTreasury.address, { from: owner })
 
-            const slotsInfoNew = await newTreasury.games(0);
+            const slotsInfoNew = await newTreasury.treasuryGames(0);
             const slotsMaxBetNew = await newTreasury.gameMaximumBet(0, 0);
             assert.equal(slotsInfoNew.gameAddress, slotsInfo.gameAddress);
             assert.equal(slotsInfoNew.gameName, slotsInfo.gameName);
@@ -1332,7 +1329,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             assert.equal(allocatedAfterToNew, 1000);
             assert.equal(allocatedAfterToNew.toNumber(), allocatedBefore.toNumber());
 
-            const rouletteInfoNew = await newTreasury.games(1);
+            const rouletteInfoNew = await newTreasury.treasuryGames(1);
             const rouletteMaxBetNew = await newTreasury.gameMaximumBet(1, 0);
             assert.equal(rouletteInfoNew.gameAddress, rouletteInfo.gameAddress);
             assert.equal(rouletteInfoNew.gameName, rouletteInfo.gameName);

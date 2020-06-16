@@ -38,4 +38,18 @@ module.exports = async function(deployer, network, accounts) {
         // await treasury.addGame(roulette.address, "Roulette", "50000000000000000000", true, { from: owner });
 
     }
+
+    if (network == 'mumbai') {
+
+        // await deployer.deploy(TreasuryFlat);
+        // await deployer.deploy(TreasuryRoulette, TreasuryFlat.address, "4000000000000000000000");
+        // await deployer.deploy(FAKEMana);
+        // await deployer.deploy(TreasurySlots, TreasuryFlat.address, 250, 15, 8, 4, "50000000000000000000");
+        // await deployer.deploy(TreasuryBackgammon, TreasuryFlat.address, 64, 10);
+        // await treasury.addGame("0x0000000000000000000000000000000000000000", "Empty", 0, true, { from: owner });
+        // await treasury.addGame(slots.address, "Slots", "1000000000000000000000", true, { from: owner });
+        // await treasury.addGame(roulette.address, "Roulette", "50000000000000000000", true, { from: owner });
+
+    }
+
 };
