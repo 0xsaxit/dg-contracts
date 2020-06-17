@@ -481,6 +481,19 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 [0, 0, 0],
                 { from: owner }
             );
+
+            await roulette.play(
+                [user1, user2, user3],
+                1,
+                2,
+                betTypes,
+                betValues,
+                betAmount,
+                "0x28ecea1ba1f63e6973e214182b87fce258a89705e40360fddcf00cad0f905730",
+                [0, 0, 0],
+                { from: owner }
+            );
+
         });
     });
 

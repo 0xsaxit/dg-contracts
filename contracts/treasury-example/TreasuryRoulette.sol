@@ -50,7 +50,11 @@ contract TreasuryRoulette is AccessController {
         treasury = TreasuryInstance(_treasuryAddress);
         store |= _maxNumberBets<<0;
         store |= _maxSquareBetDefault<<8;
-        store |= uint256(now)<<136;
+        store |= now<<136;
+    }
+
+    function checknow64() public view returns (uint64) {
+        return uint64(now);
     }
 
     function createBet(
@@ -114,8 +118,9 @@ contract TreasuryRoulette is AccessController {
         require(bets.length > 0, 'Roulette: must have bets');
 
         winAmounts.length = 0;
-        store ^= uint64(store>>136)<<136;
-        store |= uint64(now)<<136;
+
+        store ^= (store>>136)<<136;
+        store |= now<<136;
 
         uint diff = block.difficulty;
         bytes32 hash = _localhash;
