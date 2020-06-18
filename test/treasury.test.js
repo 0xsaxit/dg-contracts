@@ -482,6 +482,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 { from: owner }
             );
 
+            await advanceTimeAndBlock(1);
             await roulette.play(
                 [user1, user2, user3],
                 1,
@@ -630,7 +631,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             await treasury.addGame(slots.address, "Slots", true, { from: owner });
             await treasury.setMaximumBet(0, 0, 1000, { from: owner });
             await token.approve(treasury.address, web3.utils.toWei("100"));
-            await treasury.addFunds(0, web3.utils.toWei("100"), 0, {
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
                 from: owner
             });
             await token.transfer(user1, 10000);
@@ -810,8 +811,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             backgammon = await Backgammon.new(treasury.address, 64, 10);
             await treasury.addGame(backgammon.address, "Backgammon", true, { from: owner });
             await treasury.setMaximumBet(0, 0, web3.utils.toWei("100"), { from: owner });
-            await token.approve(treasury.address, 1000);
-            await treasury.addFunds(0, web3.utils.toWei("100"), 0, {
+            await token.approve(treasury.address, 10000);
+            await treasury.addFunds(0, 0, 10000, {
                 from: owner
             });
             await token.transfer(user1, 10000);

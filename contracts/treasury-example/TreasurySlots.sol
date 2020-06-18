@@ -2,7 +2,7 @@ pragma solidity ^0.5.17;
 
 // Slot Machine Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
-// Single Play - Simple Slots
+// Single Play - Simple Slots - TokenIndex
 
 import "../common-contracts/SafeMath.sol";
 import "../common-contracts/AccessController.sol";
@@ -12,7 +12,8 @@ contract TreasurySlots is AccessController {
 
     using SafeMath for uint128;
 
-    uint256 factors;
+    uint256 private factors;
+    TreasuryInstance public treasury;
 
     event GameResult(
         address _player,
@@ -22,8 +23,6 @@ contract TreasurySlots is AccessController {
         uint128 indexed _machineID,
         uint256 _winAmount
     );
-
-    TreasuryInstance public treasury;
 
     constructor(
         address _treasury,
@@ -39,10 +38,10 @@ contract TreasurySlots is AccessController {
             'Slots: incorrect ratio'
         );
 
-        factors |= factor1<<192;
-        factors |= factor2<<208;
-        factors |= factor3<<224;
-        factors |= factor4<<240;
+        factors |= uint256(factor1)<<0;
+        factors |= uint256(factor2)<<16;
+        factors |= uint256(factor3)<<32;
+        factors |= uint256(factor4)<<48;
     }
 
     function play(
@@ -112,7 +111,7 @@ contract TreasurySlots is AccessController {
         number = getRandomNumber(_localhash) % 1000;
         uint256 _numbers = number;
 
-        uint8[5] memory _positions = [255, 192, 208, 224, 240];
+        uint8[5] memory _positions = [255, 0, 16, 32, 48];
         uint8[10] memory _symbols = [4, 4, 4, 4, 3, 3, 3, 2, 2, 1];
         uint256 _winner = _symbols[_numbers % 10];
 
@@ -159,7 +158,7 @@ contract TreasurySlots is AccessController {
     ) public view returns (uint256) {
         return _betSize.mul(
             uint16(
-                factors>>192
+                factors>>0
             )
         );
     }
@@ -176,10 +175,12 @@ contract TreasurySlots is AccessController {
             'Slots: incorrect ratio'
         );
 
-        factors |= factor1<<192;
-        factors |= factor2<<208;
-        factors |= factor3<<224;
-        factors |= factor4<<240;
+        factors = uint256(0);
+
+        factors |= uint256(factor1)<<0;
+        factors |= uint256(factor2)<<16;
+        factors |= uint256(factor3)<<32;
+        factors |= uint256(factor4)<<48;
     }
 
     function updateTreasury(

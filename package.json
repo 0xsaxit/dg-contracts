@@ -9,12 +9,8 @@
   "scripts": {
     "chain": "ganache-cli -p 7545 -i 5777",
     "deploy": "truffle migrate --reset",
-    "test-treasury-roulette": "truffle test test/treasury-roulette.test.js",
     "test-roulette": "truffle test test/roulette.test.js",
-    "test-treasury-slots": "truffle test test/treasury-slots.test.js",
-    "test-treasury-backgammon": "truffle test test/treasury-backgammon.test.js",
     "test-slots": "truffle test test/slots.test.js",
-    "test-master": "truffle test test/master.test.js",
     "test-treasury": "truffle test test/treasury.test.js",
     "flatten": "cd contracts && truffle-flattener NFT.sol > ../NFT-Flattened.sol"
   },

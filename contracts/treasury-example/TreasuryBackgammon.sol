@@ -50,7 +50,7 @@ contract TreasuryBackgammon is AccessController {
         GameState state;
     }
 
-    uint256 public store;
+    uint256 private store;
     mapping(uint256 => Game) public currentGames;
 
     modifier onlyDoublingStage(uint256 gameId) {
@@ -317,8 +317,16 @@ contract TreasuryBackgammon is AccessController {
 
     function changeFeePercent(uint8 _newFeePercent) external onlyCEO {
         require(_newFeePercent < 20, 'must be below 20');
-        store ^= uint8(store>>8)<<8;
+        store ^= (store>>8)<<8;
         store |= uint256(_newFeePercent)<<8;
+    }
+
+    function checkFeePercent() public view returns (uint8) {
+        return uint8(store>>8);
+    }
+
+    function checkSafFactor() public view returns (uint8) {
+        return uint8(store>>0);
     }
 
     function changeTreasury(address _newTreasuryAddress) external onlyCEO {
