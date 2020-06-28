@@ -1,19 +1,19 @@
 
 // File: contracts/common-contracts/SafeMath.sol
 
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
 library SafeMath {
 
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
+        require(c >= a, 'SafeMath: addition overflow');
 
         return c;
     }
 
     function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
+        return sub(a, b, 'SafeMath: subtraction overflow');
     }
 
     function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -24,25 +24,21 @@ library SafeMath {
     }
 
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
         if (a == 0) {
             return 0;
         }
 
         uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
+        require(c / a == b, 'SafeMath: multiplication overflow');
 
         return c;
     }
 
     function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
+        return div(a, b, 'SafeMath: division by zero');
     }
 
     function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        // Solidity only automatically asserts when dividing by 0
         require(b > 0, errorMessage);
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
@@ -51,7 +47,7 @@ library SafeMath {
     }
 
     function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
+        return mod(a, b, 'SafeMath: modulo by zero');
     }
 
     function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -60,95 +56,10 @@ library SafeMath {
     }
 }
 
-// File: contracts/common-contracts/AccessControl.sol
-
-pragma solidity ^0.5.11;
-
-contract AccessControl {
-    address public ceoAddress; // contract's owner and manager address
-    address public workerAddress; // contract's owner and manager address
-
-    bool public paused = false; // keeps track of whether or not contract is paused
-
-    /**
-    @notice fired when a new address is set as CEO
-    */
-    event CEOSet(address newCEO);
-    event WorkerSet(address newWorker);
-
-    /**
-    @notice fired when the contract is paused
-     */
-    event Paused();
-
-    /**
-    @notice fired when the contract is unpaused
-     */
-    event Unpaused();
-
-    // AccessControl constructor - sets default executive roles of contract to the sender account
-    constructor() public {
-        ceoAddress = msg.sender;
-        workerAddress = msg.sender;
-        emit CEOSet(ceoAddress);
-    }
-
-    // access modifier for CEO-only functionality
-    modifier onlyCEO() {
-        require(msg.sender == ceoAddress);
-        _;
-    }
-
-    // access modifier for Worker-only functionality
-    modifier onlyWorker() {
-        require(msg.sender == workerAddress);
-        _;
-    }
-
-    // assigns new CEO address - only available to the current CEO
-    function setCEO(address _newCEO) public onlyCEO {
-        require(_newCEO != address(0));
-        ceoAddress = _newCEO;
-        emit CEOSet(ceoAddress);
-    }
-
-    // assigns new Worker address - only available to the current CEO
-    function setWorker(address _newWorker) public onlyCEO {
-        require(_newWorker != address(0));
-        workerAddress = _newWorker;
-        emit WorkerSet(workerAddress);
-    }
-
-    // modifier to allow actions only when the contract IS NOT paused
-    modifier whenNotPaused() {
-        require(!paused);
-        _;
-    }
-
-    // modifier to allow actions only when the contract IS paused
-    modifier whenPaused {
-        require(paused);
-        _;
-    }
-
-    // pauses the smart contract - can only be called by the CEO
-    function pause() public onlyCEO whenNotPaused {
-        paused = true;
-        emit Paused();
-    }
-
-    // unpauses the smart contract - can only be called by the CEO
-    function unpause() public onlyCEO whenPaused {
-        paused = false;
-        emit Unpaused();
-    }
-}
-
 // File: contracts/common-contracts/ERC20Token.sol
 
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
-//contract ERC20Token {
 interface ERC20Token {
     function totalSupply() external view returns (uint256);
     function balanceOf(address account) external view returns (uint256);
@@ -172,7 +83,7 @@ interface ERC20Token {
 
 // File: contracts/common-contracts/HashChain.sol
 
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
 contract HashChain {
     bytes32 public tail;
@@ -182,191 +93,324 @@ contract HashChain {
     }
 
     function _consume(bytes32 _parent) internal {
-        require(keccak256(abi.encodePacked(_parent)) == tail, "hash-chain: wrong parent");
+        require(keccak256(abi.encodePacked(_parent)) == tail, 'hash-chain: wrong parent');
         tail = _parent;
     }
+}
 
+// File: contracts/common-contracts/AccessController.sol
+
+pragma solidity ^0.5.17;
+
+contract AccessController {
+
+    address public ceoAddress;
+    address public workerAddress;
+
+    bool public paused = false;
+
+    event CEOSet(address newCEO);
+    event WorkerSet(address newWorker);
+
+    event Paused();
+    event Unpaused();
+
+    constructor() public {
+        ceoAddress = msg.sender;
+        workerAddress = msg.sender;
+        emit CEOSet(ceoAddress);
+    }
+
+    modifier onlyCEO() {
+        require(
+            msg.sender == ceoAddress,
+            'AccessControl: CEO access denied'
+        );
+        _;
+    }
+
+    modifier onlyWorker() {
+        require(
+            msg.sender == workerAddress,
+            'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier whenNotPaused() {
+        require(
+            !paused,
+            'AccessControl: currently paused'
+        );
+        _;
+    }
+
+    modifier whenPaused {
+        require(
+            paused,
+            'AccessControl: currenlty not paused'
+        );
+        _;
+    }
+
+    function setCEO(address _newCEO) public onlyCEO {
+        require(
+            _newCEO != address(0x0),
+            'AccessControl: invalid CEO address'
+        );
+        ceoAddress = _newCEO;
+        emit CEOSet(ceoAddress);
+    }
+
+    function setWorker(address _newWorker) public onlyWorker {
+        require(
+            _newWorker != address(0x0),
+            'AccessControl: invalid worker address'
+        );
+        workerAddress = _newWorker;
+        emit WorkerSet(workerAddress);
+    }
+
+    function pause() public onlyCEO whenNotPaused {
+        paused = true;
+        emit Paused();
+    }
+
+    function unpause() public onlyCEO whenPaused {
+        paused = false;
+        emit Unpaused();
+    }
 }
 
 // File: contracts/treasury-example/Treasury.sol
 
-pragma solidity ^0.5.14;
+pragma solidity ^0.5.17;
 
-contract TreasuryFlat is HashChain, AccessControl {
 
-    using SafeMath for uint256;
-
-    event NewBalance(uint256 _gameID, uint256 _balance);
-    string public defaultTokenName;
+contract GameController is AccessController {
 
     struct Game {
         address gameAddress;
         string gameName;
+        mapping(uint8 => uint256) gameTokens;
+        mapping(uint8 => uint128) maximumBet;
         bool isActive;
-        mapping(string => uint256) gameTokens;
-        mapping(string => uint256) maximumBets;
     }
 
-    mapping(string => address) public tokens;
-    Game[] public games;
-    string[] public tokenNames;
+    Game[] public treasuryGames;
 
-    constructor() public {
-        defaultTokenName = "MANA";
-        tokens[defaultTokenName] = 0x2A3df21E612d30Ac0CD63C3F80E1eB583A4744cC;
-        tokenNames.push(defaultTokenName);
-    }
-
-    function setDefaultToken(address _defaultToken, string memory _tokenName) internal {
-        addToken(_defaultToken, _tokenName);
-        defaultTokenName = _tokenName;
-    }
-
-    function updateDefaultToken(string memory _tokenName) public onlyCEO {
-        defaultTokenName = _tokenName;
-    }
-
-    function tokenAddress(string calldata _tokenName) external view returns (address) {
-        return tokens[_tokenName];
-    }
-
-    function tokenInboundTransfer(string calldata _tokenName, address _from, uint256 _amount)
-        external
-        returns (bool)
-    {
-        uint256 _gameID = getGameID(msg.sender);
-        ERC20Token _token = ERC20Token(tokens[_tokenName]);
-        games[_gameID].gameTokens[_tokenName] = games[_gameID].gameTokens[_tokenName].add(_amount);
-        _token.transferFrom(_from, address(this), _amount);
-        return true;
-    }
-
-    function tokenOutboundTransfer(string calldata _tokenName, address _to, uint256 _amount)
-        external
-        returns (bool)
-    {
-        uint256 gameID = getGameID(msg.sender);
-        ERC20Token _token = ERC20Token(tokens[_tokenName]);
-        games[gameID].gameTokens[_tokenName] = games[gameID].gameTokens[_tokenName].sub(_amount);
-        _token.transfer(_to, _amount);
-        return true;
-    }
-
-    function getGameID(address _gameAddress) private view returns (uint) {
-        (bool result, uint gameID) = findGameID(_gameAddress);
-        require(
-            result && games[gameID].isActive,
-            'active-game not present'
-        );
-        return gameID;
-    }
-
-    function findGameID(address _gameAddress) private view returns (bool, uint) {
-        for (uint i = 0; i < games.length; i++) {
-            if (games[i].gameAddress == _gameAddress) {
-                return (true, i);
-            }
-        }
-        return (false, 0);
-    }
-
-    function addGame(
+   function addGame(
         address _newGameAddress,
         string calldata _newGameName,
-        uint256 _maximumBet,
         bool _isActive
     ) external onlyCEO {
-        Game memory newGame;
-        newGame.gameAddress = _newGameAddress;
-        newGame.gameName = _newGameName;
-        newGame.isActive = _isActive;
-        uint256 _gameID = games.push(newGame);
-        games[_gameID - 1].gameTokens[defaultTokenName] = 0;
-        games[_gameID - 1].maximumBets[defaultTokenName] = _maximumBet;
+        treasuryGames.push(
+            Game({
+                gameAddress: _newGameAddress,
+                gameName: _newGameName,
+                isActive: _isActive
+            })
+        );
     }
 
-    function updateGame(
-        uint256 _gameID,
-        address _newGame,
-        bool _isActive,
-        string calldata _newGameName
+    function getGameIndex(
+        address _gameAddress
+    ) internal view returns (uint8) {
+        for (uint8 i = 1; i < treasuryGames.length; i++) {
+            if (treasuryGames[i].gameAddress == _gameAddress) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    function getGameInstance(
+        address _gameAddress
+    ) internal view returns (Game storage) {
+        uint8 gameIndex = getGameIndex(_gameAddress);
+        require(
+            treasuryGames[gameIndex].isActive,
+            'Treasury: active-game not present'
+        );
+        return treasuryGames[gameIndex];
+    }
+
+    function deleteGame(
+        uint8 _gameIndex
+    ) public onlyCEO {
+        delete treasuryGames[_gameIndex];
+    }
+
+    function moveGame(
+        uint8 _gameIndex,
+        uint8 _newGameIndex
     ) external onlyCEO {
-        games[_gameID].gameAddress = _newGame;
-        games[_gameID].gameName = _newGameName;
-        games[_gameID].isActive = _isActive;
+        treasuryGames[_newGameIndex] = treasuryGames[_gameIndex];
+        deleteGame(_gameIndex);
     }
 
     function updateGameAddress(
-        uint256 _gameID,
+        uint8 _gameIndex,
         address _newGameAddress
     ) external onlyCEO {
-        games[_gameID].gameAddress = _newGameAddress;
+        treasuryGames[_gameIndex].gameAddress = _newGameAddress;
     }
 
-    function removeGame(uint256 _gameID) external onlyCEO {
-        delete games[_gameID];
-    }
-
-    function updateMaximumBet(
-        uint256 _gameID,
-        uint256 _maximumBet,
-        string calldata _tokenName
+    function updateGameName(
+        uint8 _gameIndex,
+        string calldata _newGameName
     ) external onlyCEO {
-        games[_gameID].maximumBets[_tokenName] = _maximumBet;
+        treasuryGames[_gameIndex].gameName = _newGameName;
     }
 
-    function gameMaximumBet(uint256 _gameID, string calldata _tokenName)
-        external
-        view
-        returns (uint256)
-    {
-        return games[_gameID].maximumBets[_tokenName];
+    function updateGameStatus(
+        uint8 _gameIndex,
+        bool _newGameStatus
+    ) external onlyCEO {
+        treasuryGames[_gameIndex].isActive = _newGameStatus;
+    }
+}
+
+contract TokenController is AccessController {
+
+    struct Token {
+        address tokenAddress;
+        string tokenName;
     }
 
-    function getMaximumBet(string calldata _tokenName)
-        external
-        view
-        returns (uint256)
-    {
-        uint256 _gameID = getGameID(msg.sender);
-        return games[_gameID].maximumBets[_tokenName];
+    Token[] public treasuryTokens;
+
+    function addToken(
+        address _tokenAddress,
+        string memory _tokenName
+    ) public onlyCEO {
+        treasuryTokens.push(Token({
+            tokenAddress: _tokenAddress,
+            tokenName: _tokenName
+        }));
     }
 
-    function addToken(address _tokenAddress, string memory _tokenName)
-        public
-        onlyCEO
-    {
-        tokens[_tokenName] = _tokenAddress;
-        tokenNames.push(_tokenName);
+    function getTokenInstance(
+        uint8 _tokenIndex
+    ) internal view returns (ERC20Token) {
+        return ERC20Token(treasuryTokens[_tokenIndex].tokenAddress);
     }
 
-    function checkApproval(address _userAddress, string calldata _tokenName)
-        external
-        view
-        returns (uint256 approved)
-    {
-        approved = ERC20Token(tokens[_tokenName]).allowance(
+    function getTokenAddress(
+        uint256 _tokenIndex
+    ) external view returns (address) {
+        return treasuryTokens[_tokenIndex].tokenAddress;
+    }
+
+    function getTokenName(
+        uint256 _tokenIndex
+    ) external view returns (string memory) {
+        return treasuryTokens[_tokenIndex].tokenName;
+    }
+
+    function updateTokenAddress(
+        uint8 _tokenIndex,
+        address _newTokenAddress
+    ) public onlyCEO {
+        treasuryTokens[_tokenIndex].tokenAddress = _newTokenAddress;
+    }
+
+    function updateTokenName(
+        uint8 _tokenIndex,
+        address _newTokenAddress
+    ) public onlyCEO {
+        treasuryTokens[_tokenIndex].tokenAddress = _newTokenAddress;
+    }
+
+    function deleteToken(
+        uint8 _tokenIndex
+    ) public onlyCEO {
+        ERC20Token token = getTokenInstance(_tokenIndex);
+        require(
+            token.balanceOf(address(this)) == 0,
+            'TokenController: balance detected'
+        );
+        delete treasuryTokens[_tokenIndex];
+    }
+
+}
+
+contract Treasury is GameController, TokenController, HashChain {
+
+    using SafeMath for uint256;
+
+    constructor(
+        address _defaultTokenAddress,
+        string memory _defaultTokenName,
+        address _migrationAddress
+    ) public {
+        _migrationAddress == address(0x0)
+            ? addToken(_defaultTokenAddress, _defaultTokenName)
+            : setCEO(_migrationAddress);
+    }
+
+    function tokenInboundTransfer(
+        uint8 _tokenIndex,
+        address _from,
+        uint256 _amount
+    ) external returns (bool) {
+        Game storage game = getGameInstance(msg.sender);
+        ERC20Token token = getTokenInstance(_tokenIndex);
+        addGameTokens(game, _tokenIndex, _amount);
+        token.transferFrom(_from, address(this), _amount);
+        return true;
+    }
+
+    function addGameTokens(Game storage _game, uint8 _tokenIndex, uint256 _amount) private {
+        _game.gameTokens[_tokenIndex] = _game.gameTokens[_tokenIndex].add(_amount);
+    }
+
+    function tokenOutboundTransfer(
+        uint8 _tokenIndex,
+        address _to,
+        uint256 _amount
+    ) external returns (bool) {
+        Game storage game = getGameInstance(msg.sender);
+        ERC20Token token = getTokenInstance(_tokenIndex);
+        subGameTokens(game, _tokenIndex, _amount);
+        token.transfer(_to, _amount);
+        return true;
+    }
+
+    function subGameTokens(Game storage _game, uint8 _tokenIndex, uint256 _amount) private {
+        _game.gameTokens[_tokenIndex] = _game.gameTokens[_tokenIndex].sub(_amount);
+    }
+
+    function setMaximumBet(
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint128 _maximumBet
+    ) external onlyCEO {
+        treasuryGames[_gameIndex].maximumBet[_tokenIndex] = _maximumBet;
+    }
+
+    function gameMaximumBet(
+        uint8 _gameIndex,
+        uint8 _tokenIndex
+    ) external view returns (uint256) {
+        return treasuryGames[_gameIndex].maximumBet[_tokenIndex];
+    }
+
+    function getMaximumBet(
+        uint8 _tokenIndex
+    ) external view returns (uint128) {
+        Game storage _game = getGameInstance(msg.sender);
+        return _game.maximumBet[_tokenIndex];
+    }
+
+    function checkApproval(
+        address _userAddress,
+        uint8 _tokenIndex
+    ) external view returns (uint256) {
+        return getTokenInstance(_tokenIndex).allowance(
             _userAddress,
             address(this)
         );
-    }
-
-    function getBalanceByTokenName(string calldata _tokenName)
-        external
-        view
-        returns (uint256)
-    {
-        ERC20Token _token = ERC20Token(tokens[_tokenName]);
-        return _token.balanceOf(address(this));
-    }
-
-    function getBalanceByTokenAddress(address _tokenAddress)
-        external
-        view
-        returns (uint256)
-    {
-        ERC20Token _token = ERC20Token(_tokenAddress);
-        return _token.balanceOf(address(this));
     }
 
     function() external payable {
@@ -374,95 +418,88 @@ contract TreasuryFlat is HashChain, AccessControl {
     }
 
     function addFunds(
-        uint256 _gameID,
-        uint256 _tokenAmount,
-        string calldata _tokenName
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint256 _tokenAmount
     ) external {
 
         require(
-            tokens[_tokenName] != address(0x0),
-            'unauthorized token address'
+            _gameIndex < treasuryGames.length,
+            'Treasury: unregistered gameIndex'
         );
-
-        ERC20Token _token = ERC20Token(tokens[_tokenName]);
 
         require(
-            _token.allowance(msg.sender, address(this)) >= _tokenAmount,
-            'must allow to transfer'
+            _tokenIndex < treasuryTokens.length,
+            'Treasury: unregistered tokenIndex'
         );
 
-        _token.transferFrom(msg.sender, address(this), _tokenAmount);
-        games[_gameID].gameTokens[_tokenName] = games[_gameID]
-            .gameTokens[_tokenName]
-            .add(_tokenAmount);
-
-        emit NewBalance(_gameID, games[_gameID].gameTokens[_tokenName]);
+        ERC20Token token = getTokenInstance(_tokenIndex);
+        addGameTokens(treasuryGames[_gameIndex], _tokenIndex, _tokenAmount);
+        token.transferFrom(msg.sender, address(this), _tokenAmount);
     }
 
     function checkAllocatedTokens(
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external view returns (uint256) {
-        uint256 _gameID = getGameID(msg.sender);
-        return _checkAllocatedTokens(_gameID, _tokenName);
+        Game storage _game = getGameInstance(msg.sender);
+        return _checkAllocatedTokens(_game, _tokenIndex);
     }
 
     function _checkAllocatedTokens(
-        uint256 _gameID,
-        string memory _tokenName
+        Game storage _game,
+        uint8 _tokenIndex
     ) internal view returns (uint256) {
-        return games[_gameID].gameTokens[_tokenName];
+        return _game.gameTokens[_tokenIndex];
     }
 
-    function checkAllocatedTokensPerGame(
-        uint256 _gameID,
-        string calldata _tokenName
+    function checkGameTokens(
+        uint8 _gameIndex,
+        uint8 _tokenIndex
     ) external view returns (uint256) {
-        return _checkAllocatedTokens(_gameID, _tokenName);
+        Game storage _game = treasuryGames[_gameIndex];
+        return _checkAllocatedTokens(_game, _tokenIndex);
     }
 
-    function withdrawTokens(
-        uint256 _gameID,
-        uint256 _amount,
-        string calldata _tokenName
+    function withdrawGameTokens(
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint256 _amount
     ) external onlyCEO {
-        require(
-            _amount <= games[_gameID].gameTokens[_tokenName],
-            'not enough tokens'
+        Game storage _game = treasuryGames[_gameIndex];
+        ERC20Token token = getTokenInstance(_tokenIndex);
+        subGameTokens(_game, _tokenIndex, _amount);
+        token.transfer(ceoAddress, _amount);
+    }
+
+    function withdrawTreasuryTokens(
+        uint8 _tokenIndex
+    ) public onlyCEO {
+
+        ERC20Token token = getTokenInstance(_tokenIndex);
+
+        uint256 amount = token.balanceOf(
+            address(this)
         );
 
-        ERC20Token token = ERC20Token(tokens[_tokenName]);
-
-        games[_gameID].gameTokens[_tokenName] = games[_gameID]
-            .gameTokens[_tokenName]
-            .sub(_amount);
-        token.transfer(ceoAddress, _amount);
-
-        emit NewBalance(_gameID, games[_gameID].gameTokens[_tokenName]);
-    }
-
-    function withdrawMaxTokens(string calldata _tokenName)
-        external
-        onlyCEO
-    {
-        ERC20Token token = ERC20Token(tokens[_tokenName]);
-        uint256 amount = token.balanceOf(address(this));
-
-        for (uint256 i = 0; i < games.length; i++) {
-            games[i].gameTokens[_tokenName] = 0;
+        for (uint256 i = 0; i < treasuryGames.length; i++) {
+            treasuryGames[i].gameTokens[_tokenIndex] = 0;
         }
-
         token.transfer(ceoAddress, amount);
     }
 
-    function setTail(bytes32 _tail) external onlyCEO {
+    function setTail(
+        bytes32 _tail
+    ) external onlyCEO {
         _setTail(_tail);
     }
 
-    function consumeHash(bytes32 _localhash) external returns (bool) {
-        (bool result, uint gameID) = findGameID(msg.sender);
+    function consumeHash(
+        bytes32 _localhash
+    ) external returns (bool) {
+        uint8 gameIndex = getGameIndex(msg.sender);
         require(
-            result && games[gameID].isActive,
-            'active-game not present'
+            treasuryGames[gameIndex].isActive,
+            'Treasury: active-game not present'
         );
         _consume(_localhash);
         return true;
@@ -473,39 +510,35 @@ contract TreasuryFlat is HashChain, AccessControl {
     ) external onlyCEO returns (bool) {
 
         TreasuryMigration nt = TreasuryMigration(_newTreasury);
-        nt.updateDefaultToken(defaultTokenName);
 
-        for (uint i = 0; i < games.length; i++) {
+        for (uint8 g = 0; g < treasuryGames.length; g++) {
             nt.addGame(
-                games[i].gameAddress,
-                games[i].gameName,
-                games[i].maximumBets[defaultTokenName],
-                games[i].isActive
+                treasuryGames[g].gameAddress,
+                treasuryGames[g].gameName,
+                treasuryGames[g].isActive
             );
-            GameMigration gm = GameMigration(games[i].gameAddress);
-            gm._changeTreasury(_newTreasury);
+            GameMigration gm = GameMigration(treasuryGames[g].gameAddress);
+            gm.migrateTreasury(_newTreasury);
         }
 
-        for (uint i = 0; i < tokenNames.length; i++) {
+        for (uint8 t = 0; t < treasuryTokens.length; t++) {
             nt.addToken(
-                tokens[tokenNames[i]],
-                tokenNames[i]
+                treasuryTokens[t].tokenAddress,
+                treasuryTokens[t].tokenName
             );
-        }
 
-        for (uint t = 0; t < tokenNames.length; t++) {
+            ERC20Token token = getTokenInstance(t);
+            token.approve(
+                _newTreasury,
+                token.balanceOf(address(this))
+            );
 
-            ERC20Token token = ERC20Token(tokens[tokenNames[t]]);
-            uint256 totalAmount = token.balanceOf(address(this));
-
-            token.approve(_newTreasury, totalAmount);
-
-            for (uint256 j = 0; j < games.length; j++) {
-                uint256 amount = games[j].gameTokens[tokenNames[t]];
-                uint256 maxBet = games[j].maximumBets[tokenNames[t]];
-                nt.addFunds(j, amount, tokenNames[t]);
-                nt.updateMaximumBet(j, maxBet, tokenNames[t]);
-                games[j].gameTokens[tokenNames[t]] = 0;
+            for (uint8 j = 0; j < treasuryGames.length; j++) {
+                uint256 amount = treasuryGames[j].gameTokens[t];
+                uint128 maxBet = treasuryGames[j].maximumBet[t];
+                nt.addFunds(j, t, amount);
+                nt.setMaximumBet(j, t, maxBet);
+                treasuryGames[j].gameTokens[t] = 0;
             }
         }
 
@@ -515,17 +548,15 @@ contract TreasuryFlat is HashChain, AccessControl {
 }
 
 interface GameMigration {
-    function _changeTreasury(
+    function migrateTreasury(
         address _newTreasuryAddress
     ) external;
 }
 
 interface TreasuryMigration {
-
     function addGame(
         address _newGameAddress,
         string calldata _newGameName,
-        uint256 _maximumBet,
         bool _isActive
     ) external;
 
@@ -535,26 +566,22 @@ interface TreasuryMigration {
     ) external;
 
     function addFunds(
-        uint256 _gameID,
-        uint256 _tokenAmount,
-        string calldata _tokenName
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint256 _tokenAmount
     ) external;
 
     function setCEO(
         address _newCEO
     ) external;
 
+    function setMaximumBet(
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint128 _maximumBet
+    ) external;
+
     function setTail(
         bytes32 _tail
-    ) external;
-
-    function updateDefaultToken(
-        string calldata _tokenName
-    ) external;
-
-    function updateMaximumBet(
-        uint256 _gameID,
-        uint256 _maximumBet,
-        string calldata _tokenName
     ) external;
 }

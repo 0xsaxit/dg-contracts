@@ -33,21 +33,21 @@ contract GameController is AccessController {
 
     function getGameIndex(
         address _gameAddress
-    ) internal view returns (bool, uint8) {
+    ) internal view returns (uint8) {
         for (uint8 i = 0; i < treasuryGames.length; i++) {
             if (treasuryGames[i].gameAddress == _gameAddress) {
-                return (true, i);
+                return i;
             }
         }
-        return (false, 0);
+        return 0;
     }
 
     function getGameInstance(
         address _gameAddress
     ) internal view returns (Game storage) {
-        (bool result, uint gameIndex) = getGameIndex(_gameAddress);
+        uint8 gameIndex = getGameIndex(_gameAddress);
         require(
-            result && treasuryGames[gameIndex].isActive,
+            treasuryGames[gameIndex].isActive,
             'Treasury: active-game not present'
         );
         return treasuryGames[gameIndex];
@@ -314,9 +314,9 @@ contract Treasury is GameController, TokenController, HashChain {
     function consumeHash(
         bytes32 _localhash
     ) external returns (bool) {
-        (bool result, uint gameIndex) = getGameIndex(msg.sender);
+        uint8 gameIndex = getGameIndex(msg.sender);
         require(
-            result && treasuryGames[gameIndex].isActive,
+            treasuryGames[gameIndex].isActive,
             'Treasury: active-game not present'
         );
         _consume(_localhash);
@@ -325,7 +325,7 @@ contract Treasury is GameController, TokenController, HashChain {
 
     function migrateTreasury(
         address _newTreasury
-    ) external onlyCEO returns (bool) {
+    ) external onlyCEO {
 
         TreasuryMigration nt = TreasuryMigration(_newTreasury);
 

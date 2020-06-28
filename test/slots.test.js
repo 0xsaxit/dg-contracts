@@ -140,7 +140,6 @@ contract("TreasurySlots", ([owner, newCEO, user1, user2, random]) => {
     });
 
     describe("Game Play", () => {
-
         it("correct necessary balance calculation", async () => {
             const betA = 100;
             let factor = await slots.getPayoutFactor(positions[0]);

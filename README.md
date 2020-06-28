@@ -116,6 +116,7 @@ npm run test-master
 ## For deployment:
 
 truffle migrate --network matic
+truffle migrate --network mumbai
 
 
 ## For verification:
