@@ -803,7 +803,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe.only("Game Play: Backgammon", () => {
+    describe("Game Play: Backgammon", () => {
 
         beforeEach(async () => {
             token = await Token.new();

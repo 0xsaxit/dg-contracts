@@ -61,21 +61,25 @@ contract AccessController {
         emit CEOSet(ceoAddress);
     }
 
-    function setWorker(address _newWorker) public onlyWorker {
+    function setWorker(address _newWorker) external {
         require(
             _newWorker != address(0x0),
+            'AccessControl: invalid worker address'
+        );
+        require(
+            msg.sender == ceoAddress || msg.sender == workerAddress,
             'AccessControl: invalid worker address'
         );
         workerAddress = _newWorker;
         emit WorkerSet(workerAddress);
     }
 
-    function pause() public onlyCEO whenNotPaused {
+    function pause() external onlyCEO whenNotPaused {
         paused = true;
         emit Paused();
     }
 
-    function unpause() public onlyCEO whenPaused {
+    function unpause() external onlyCEO whenPaused {
         paused = false;
         emit Unpaused();
     }
