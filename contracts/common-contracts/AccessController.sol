@@ -17,6 +17,7 @@ contract AccessController {
         ceoAddress = msg.sender;
         workerAddress = msg.sender;
         emit CEOSet(ceoAddress);
+        emit WorkerSet(workerAddress);
     }
 
     modifier onlyCEO() {

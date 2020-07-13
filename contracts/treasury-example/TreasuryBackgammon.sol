@@ -111,12 +111,16 @@ contract TreasuryBackgammon is AccessController {
         );
 
         require(
-            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(_playerOneAddress, _tokenIndex),
+            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(
+                _playerOneAddress, _tokenIndex
+            ),
             'P1 must approve/allow treasury as spender'
         );
 
         require(
-            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(_playerTwoAddress, _tokenIndex),
+            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(
+                _playerTwoAddress, _tokenIndex
+            ),
             'P2 must approve/allow treasury as spender'
         );
 
@@ -321,11 +325,11 @@ contract TreasuryBackgammon is AccessController {
         store |= uint256(_newFeePercent)<<8;
     }
 
-    function checkFeePercent() public view returns (uint8) {
+    function checkFeePercent() external view returns (uint8) {
         return uint8(store>>8);
     }
 
-    function checkSafFactor() public view returns (uint8) {
+    function checkSafFactor() external view returns (uint8) {
         return uint8(store>>0);
     }
 

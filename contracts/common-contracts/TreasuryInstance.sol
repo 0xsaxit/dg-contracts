@@ -3,7 +3,7 @@ pragma solidity ^0.5.17;
 interface TreasuryInstance {
 
     function getTokenAddress(
-        uint256 _tokenIndex
+        uint8 _tokenIndex
     ) external view returns (address);
 
     function tokenInboundTransfer(
