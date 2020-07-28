@@ -5,7 +5,81 @@ import "../common-contracts/ERC20Token.sol";
 import "../common-contracts/HashChain.sol";
 import "../common-contracts/AccessController.sol";
 
+contract TransferHelper {
+
+    bytes4 private constant TRANSFER = bytes4(
+        keccak256(
+            bytes(
+                'transfer(address,uint256)' // 0xa9059cbb
+            )
+        )
+    );
+
+    bytes4 private constant TRANSFER_FROM = bytes4(
+        keccak256(
+            bytes(
+                'transferFrom(address,address,uint256)' // 0x23b872dd
+            )
+        )
+    );
+
+    function safeTransfer(
+        address _token,
+        address _to,
+        uint256 _value
+    )
+        internal
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                TRANSFER, // 0xa9059cbb
+                _to,
+                _value
+            )
+        );
+
+        require(
+            success && (
+                data.length == 0 || abi.decode(
+                    data, (bool)
+                )
+            ),
+            'TransferHelper: TRANSFER_FAILED'
+        );
+    }
+
+    function safeTransferFrom(
+        address _token,
+        address _from,
+        address _to,
+        uint _value
+    )
+        internal
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                TRANSFER_FROM,
+                _from,
+                _to,
+                _value
+            )
+        );
+
+        require(
+            success && (
+                data.length == 0 || abi.decode(
+                    data, (bool)
+                )
+            ),
+            'TransferHelper: TRANSFER_FROM_FAILED'
+        );
+    }
+
+}
+
 contract GameController is AccessController {
+
+    using SafeMath for uint256;
 
     enum GameStatus { Empty, Enabled, Disabled }
 
@@ -122,6 +196,15 @@ contract GameController is AccessController {
             treasuryGames[_gameIndex].gameAddress
         ].status = GameStatus.Disabled;
     }
+
+    function addGameTokens(uint8 _gameIndex, uint8 _tokenIndex, uint256 _amount) internal {
+        gameTokens[_gameIndex][_tokenIndex] = gameTokens[_gameIndex][_tokenIndex].add(_amount);
+    }
+
+    function subGameTokens(uint8 _gameIndex, uint8 _tokenIndex, uint256 _amount) internal {
+        gameTokens[_gameIndex][_tokenIndex] = gameTokens[_gameIndex][_tokenIndex].sub(_amount);
+    }
+
 }
 
 contract TokenController is AccessController {
@@ -151,7 +234,7 @@ contract TokenController is AccessController {
 
     function getTokenAddress(
         uint8 _tokenIndex
-    ) external view returns (address) {
+    ) public view returns (address) {
         return treasuryTokens[_tokenIndex].tokenAddress;
     }
 
@@ -187,7 +270,7 @@ contract TokenController is AccessController {
     }
 }
 
-contract Treasury is GameController, TokenController, HashChain {
+contract Treasury is GameController, TokenController, HashChain, TransferHelper {
 
     using SafeMath for uint256;
 
@@ -207,14 +290,10 @@ contract Treasury is GameController, TokenController, HashChain {
         uint256 _amount
     ) external returns (bool) {
         uint8 _gameIndex = getGameIndex(msg.sender);
-        ERC20Token token = getTokenInstance(_tokenIndex);
+        address _token = getTokenAddress(_tokenIndex);
         addGameTokens(_gameIndex, _tokenIndex, _amount);
-        token.transferFrom(_from, address(this), _amount);
+        safeTransferFrom(_token, _from, address(this), _amount);
         return true;
-    }
-
-    function addGameTokens(uint8 _gameIndex, uint8 _tokenIndex, uint256 _amount) private {
-        gameTokens[_gameIndex][_tokenIndex] = gameTokens[_gameIndex][_tokenIndex].add(_amount);
     }
 
     function tokenOutboundTransfer(
@@ -223,14 +302,10 @@ contract Treasury is GameController, TokenController, HashChain {
         uint256 _amount
     ) external returns (bool) {
         uint8 _gameIndex = getGameIndex(msg.sender);
-        ERC20Token token = getTokenInstance(_tokenIndex);
+        address _token = getTokenAddress(_tokenIndex);
         subGameTokens(_gameIndex, _tokenIndex, _amount);
-        token.transfer(_to, _amount);
+        safeTransfer(_token, _to, _amount);
         return true;
-    }
-
-    function subGameTokens(uint8 _gameIndex, uint8 _tokenIndex, uint256 _amount) private {
-        gameTokens[_gameIndex][_tokenIndex] = gameTokens[_gameIndex][_tokenIndex].sub(_amount);
     }
 
     function setMaximumBet(

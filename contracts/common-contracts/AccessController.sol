@@ -74,7 +74,7 @@ contract AccessController {
         emit WorkerSet(workerAddress);
     }
 
-    function pause() external onlyCEO whenNotPaused {
+    function pause() external onlyWorker whenNotPaused {
         paused = true;
         emit Paused();
     }

@@ -1,8 +1,8 @@
 pragma solidity ^0.5.17;
 
-import "./common-contracts/SafeMath.sol";
-import "./common-contracts/AccessController.sol";
-import "./common-contracts/TreasuryInstance.sol";
+import "../common-contracts/SafeMath.sol";
+import "../common-contracts/AccessController.sol";
+import "../common-contracts/TreasuryInstance.sol";
 
 contract BlackJackHelper {
 
