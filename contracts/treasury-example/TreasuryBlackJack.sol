@@ -6,8 +6,6 @@ import "../common-contracts/TreasuryInstance.sol";
 
 contract BlackJackHelper {
 
-    bytes13 cardsPower = "\x0B\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0A\x0A\x0A";
-
     function getCardsRawData(uint8 _card) public pure returns (uint8, uint8) {
         return (_card / 13, _card % 13);
     }
@@ -21,10 +19,7 @@ contract BlackJackHelper {
         return (Suits[_suit], Vals[_val]);
     }
 
-    function getRandomCardIndex(
-        bytes32 _localhash,
-        uint256 _length
-    ) internal pure returns (uint256) {
+    function getRandomCardIndex(bytes32 _localhash, uint256 _length) internal pure returns (uint256) {
         return uint256(
             keccak256(
                 abi.encodePacked(
@@ -34,11 +29,14 @@ contract BlackJackHelper {
         ) % _length;
     }
 
-    function getHandsPower(uint[] memory cards) public view returns (uint8 powerMax) {
+    function getHandsPower(uint8[] memory _cards) public pure returns (uint8 powerMax) {
+
+        bytes13 cardsPower = "\x0B\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0A\x0A\x0A";
+
         uint8 aces;
         uint8 power;
-        for (uint8 i = 0; i < cards.length; i++) {
-            power = uint8(cardsPower[(cards[i] + 12) % 12]);
+        for (uint8 i = 0; i < _cards.length; i++) {
+            power = uint8(cardsPower[(_cards[i] + 12) % 12]);
             powerMax += power;
             if (power == 11) {
                 aces += 1;
@@ -55,6 +53,10 @@ contract BlackJackHelper {
         return powerMax;
     }
 
+    function isBlackJack(uint8[] memory _cards) public pure returns (bool) {
+        return getHandsPower(_cards) == 21 && _cards.length == 2 ? true : false;
+    }
+
 }
 
 contract TreasuryBlackJack is AccessController, BlackJackHelper {
@@ -62,8 +64,9 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     using SafeMath for uint128;
     using SafeMath for uint256;
 
-    enum GameState {NewGame, OnGoingGame, EndedGame}
-    // enum PlayerState {Busted, Double, Insured, BlackJack, Win}
+    enum GameState { NewGame, OnGoingGame, EndedGame }
+    enum PlayerState { notDetected, notBusted, isSettled, isBusted, BlackJack }
+    // enum PlayerState {Busted, Double, Insured, Split, Win}
 
     struct Game {
         address[] players;
@@ -82,34 +85,52 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     }
 
     mapping(bytes16 => Game) public Games;
-    mapping(bytes16 => Card[]) public DealersHandHidden;
-    mapping(bytes16 => uint8[]) public DealersHandVisible;
+    mapping(bytes16 => Card[]) public DealersHidden;
+    mapping(bytes16 => uint8[]) public DealersVisible;
     // mapping(address => mapping(bytes16 => Card[])) public PlayersHand;
     mapping(address => mapping(bytes16 => uint8[])) public PlayersHand;
+    mapping(address => mapping(bytes16 => PlayerState)) public playersState;
 
     modifier onlyOnGoingGame(bytes16 gameId) {
         require(
             Games[gameId].state == GameState.OnGoingGame,
-            'must be ongoing game'
+            'BlackJack: must be ongoing game'
         );
         _;
     }
 
-    modifier isPlayerInGame(bytes16 gameId, address player) {
+    modifier isPlayerInGame(bytes16 _gameId, address _player) {
         require(
-            1 == 1,
-            // player == Games[gameId].playerOne ||
-            // player == Games[gameId].playerTwo,
-            'must be one of the players'
+            playersState[_player][_gameId] != PlayerState.notDetected,
+            "BlackJack: given player is not in the current game"
         );
         _;
     }
 
-    modifier onlyTreasury() {
+    modifier onlyNonBusted(bytes16 _gameId, address _player) {
         require(
-            msg.sender == address(treasury),
-            'must be current treasury'
+            playersState[_player][_gameId] == PlayerState.notBusted,
+            "BlackJack: given player already busted in this game"
         );
+        _;
+    }
+
+    modifier onlyNotSettled(bytes16 _gameId, address _player) {
+        require(
+            playersState[_player][_gameId] != PlayerState.isSettled,
+            "BlackJack: given player already settled in this game"
+        );
+        _;
+    }
+
+    modifier whenTableSettled(bytes16 gameId) {
+        address[] memory _players = Games[gameId].players;
+        for (uint8 i = 0; i < _players.length; i++) {
+            require(
+                uint8(playersState[_players[i]][gameId]) > 1,
+                'BlackJack: not all players finished their turn'
+            );
+        }
         _;
     }
 
@@ -125,6 +146,12 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
         uint8[] tokens,
         uint256 landId,
         uint256 tableId
+    );
+
+    event DealersMove(
+        bytes16 gameId,
+        bytes32 firsthash,
+        bytes32 localhash
     );
 
     constructor(address _treasuryAddress, uint8 _maxPlayers) public {
@@ -143,9 +170,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
         external
         whenNotPaused
         onlyWorker
-    returns (
-        bytes16 gameId
-    )
+        returns (bytes16 gameId)
     {
         require(
             _bets.length == _tokens.length &&
@@ -179,7 +204,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
         Games[gameId] = _game;
 
         // first card drawn to each player + take bets
-        for (uint8 i = 0; i < _players.length; i++){
+        for (uint8 i = 0; i < _players.length; i++) {
 
             /* treasury.tokenInboundTransfer(
                 _tokens[i], _players[i], _bets[i]
@@ -191,9 +216,17 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
                     )
                 )
             );
+
+            playersState[_players[i]][gameId] = PlayerState.notBusted;
         }
 
         // first card drawn to dealer (visible)
+        DealersVisible[gameId].push(
+            drawCard(gameId, getRandomCardIndex(
+                    _localhash, _deck.length
+                )
+            )
+        );
 
         // second card drawn to each player
         for (uint8 i = 0; i < _players.length; i++) {
@@ -203,6 +236,9 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
                     )
                 )
             );
+            if (isBlackJack(PlayersHand[_players[i]][gameId])) {
+                playersState[_players[i]][gameId] = PlayerState.BlackJack;
+            }
         }
 
         // second card drawn to dealer (hidden)
@@ -251,9 +287,27 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     )
         external
         onlyWorker
-        // onlyNonBusted(_player)
-        onlyOnGoingGame(_gameId) {
+        onlyNonBusted(_gameId, _player)
+        onlyOnGoingGame(_gameId)
+    {
+        PlayersHand[_player][_gameId].push(
+            drawCard(_gameId, getRandomCardIndex(
+                    _localhash, Games[_gameId].deck.length
+                )
+            )
+        );
 
+        uint8 playersPower = getHandsPower(
+            PlayersHand[_player][_gameId]
+        );
+
+        if (playersPower > 21) {
+            playersState[_player][_gameId] = PlayerState.isBusted;
+        }
+
+        if (playersPower == 21) {
+            playersState[_player][_gameId] = PlayerState.isSettled;
+        }
     }
 
     function stayMove(
@@ -262,11 +316,38 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     )
         external
         onlyWorker
-        // onlyNonBusted(_player)
         onlyOnGoingGame(_gameId)
+        onlyNonBusted(_gameId, _player)
     {
-
+        playersState[_player][_gameId] = PlayerState.isSettled;
     }
+
+    function dealersTurn(
+        bytes16 _gameId,
+        bytes32 _firsthash,
+        bytes32 _localhash
+    )
+        external
+        onlyWorker
+        onlyOnGoingGame(_gameId)
+        whenTableSettled(_gameId)
+    {
+        // reveal dealers card with _firsthash
+
+        // draw cards for dealer with _localhash
+
+        // calculate any winnings and payout
+
+        Games[_gameId].state = GameState.EndedGame;
+
+        emit DealersMove (
+            _gameId,
+            _firsthash,
+            _localhash
+        );
+    }
+
+    /* TO-DO:
 
     function insuranceMove(
         bytes16 _gameId,
@@ -274,8 +355,8 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     )
         external
         onlyWorker
-        // onlyNonBusted(_player)
         onlyOnGoingGame(_gameId)
+        onlyNonBusted(_gameId, _player)
     {
 
     }
@@ -286,8 +367,8 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     )
         external
         onlyWorker
-        // onlyNonBusted(_player)
         onlyOnGoingGame(_gameId)
+        onlyNonBusted(_gameId, _player)
     {
 
     }
@@ -298,29 +379,14 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     )
         external
         onlyWorker
-        // onlyNonBusted(_player)
         onlyOnGoingGame(_gameId)
+        isPlayerInGame(_gameId, _player)
+        onlyNonBusted(_gameId, _player)
     {
 
     }
 
-    function dealersTurn(
-        bytes16 _gameId,
-        bytes32 _localhash
-    )
-        external
-        onlyWorker
-        onlyOnGoingGame(_gameId)
-        // whenTableSettled
-    {
-
-    }
-
-    function applyPercent(uint256 _value) public view returns (uint256) {
-        return _value.mul(
-            100 - uint256(uint8(store>>8))
-        ).div(100);
-    }
+    */
 
     function checkDeck(bytes16 _gameId) public view returns (uint8[] memory _deck) {
         return Games[_gameId].deck;
@@ -343,99 +409,22 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     }
 
     function checkPlayerInGame(
-        uint256 gameId,
-        address player
+        bytes16 _gameId,
+        address _player
     )
         external
         view
         returns (bool)
     {
-        //if (
-          //  player == Games[gameId].playerOne ||
-        //    player == Games[gameId].playerTwo
-        //) return true;
+        return playersState[_player][_gameId] == PlayerState.notDetected ? false : true;
     }
 
-    function changeSafeFactor(uint8 _newFactor) external onlyCEO {
-        require(_newFactor > 0, 'must be above zero');
-        store ^= uint8(store)<<0;
-        store |= _newFactor<<0;
-    }
-
-    function changeFeePercent(uint8 _newFeePercent) external onlyCEO {
-        require(_newFeePercent < 20, 'must be below 20');
-        store ^= (store>>8)<<8;
-        store |= uint256(_newFeePercent)<<8;
-    }
-
-
-    function changeTreasury(address _newTreasuryAddress) external onlyCEO {
-        treasury = TreasuryInstance(_newTreasuryAddress);
-    }
-
-    function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
-        treasury = TreasuryInstance(_newTreasuryAddress);
-    }
-
-    function subBytes(bytes1 a, bytes1 b) internal pure returns (bytes1 x) {
-        assembly {
-            x := sub(a, b)
-        }
-    }
-
-    function addBytes(bytes1 a, bytes1 b) internal pure returns (bytes1 x) {
-        assembly {
-            x := add(a, b)
-        }
-    }
-
-    function getCardsPower2(uint[] memory cards) public view returns (uint8 powerMax) {
-        uint8 aces;
-        uint8 power;
-        for (uint8 i = 0; i < cards.length; i++) {
-            power = uint8(cardsPower[(cards[i] + 12) % 12]);
-            powerMax += power;
-            if (power == 11) {
-                aces += 1;
-            }
-        }
-        if (powerMax > 21) {
-            for (uint8 i = 0; i < aces; i++) {
-                powerMax -= 10;
-                if (powerMax <= 21) {
-                    break;
-                }
-            }
-        }
-        return powerMax;
-    }
-
-    function getCardsPower(uint8[] memory cards) public view returns (bytes1 powerMax) {
-        bytes1 aces;
-        bytes1 power;
-        for (uint8 i = 0; i < cards.length; i++) {
-            power = cardsPower[(cards[i] + 12) % 12];
-            powerMax = addBytes(powerMax, power);
-            if (power == cardsPower[0]) {
-                aces = addBytes(aces, '\x01');
-            }
-        }
-        if (powerMax > '\x15') {
-            for (uint8 i = 0; i < uint8(aces); i++) {
-                powerMax = subBytes(powerMax, '\x0A');
-                if (powerMax <= '\x15') {
-                    break;
-                }
-            }
-        }
-        return powerMax;
-    }
-
-    function migrateTreasury(address _newTreasuryAddress) external {
-        require(
-            msg.sender == address(treasury),
-            'wrong current treasury address'
-        );
+    function changeTreasury(
+        address _newTreasuryAddress
+    )
+        external
+        onlyCEO
+    {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 }
