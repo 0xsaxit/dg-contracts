@@ -1,6 +1,7 @@
 pragma solidity ^0.5.17;
 
 import "../common-contracts/SafeMath.sol";
+import "../common-contracts/HashChain.sol";
 import "../common-contracts/AccessController.sol";
 import "../common-contracts/TreasuryInstance.sol";
 
@@ -35,8 +36,9 @@ contract BlackJackHelper {
 
         uint8 aces;
         uint8 power;
+
         for (uint8 i = 0; i < _cards.length; i++) {
-            power = uint8(cardsPower[(_cards[i] + 12) % 12]);
+            power = uint8(cardsPower[_cards[i] % 13]);
             powerMax += power;
             if (power == 11) {
                 aces += 1;
@@ -56,10 +58,9 @@ contract BlackJackHelper {
     function isBlackJack(uint8[] memory _cards) public pure returns (bool) {
         return getHandsPower(_cards) == 21 && _cards.length == 2 ? true : false;
     }
-
 }
 
-contract TreasuryBlackJack is AccessController, BlackJackHelper {
+contract TreasuryBlackJack is AccessController, BlackJackHelper, HashChain {
 
     using SafeMath for uint128;
     using SafeMath for uint256;
@@ -78,16 +79,15 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
         GameState state;
     }
 
-    struct Card {
+    struct HiddenCard {
         bytes32 hashChild;
         bytes32 hashParent;
         uint8 index;
     }
 
     mapping(bytes16 => Game) public Games;
-    mapping(bytes16 => Card[]) public DealersHidden;
+    mapping(bytes16 => HiddenCard) public DealersHidden;
     mapping(bytes16 => uint8[]) public DealersVisible;
-    // mapping(address => mapping(bytes16 => Card[])) public PlayersHand;
     mapping(address => mapping(bytes16 => uint8[])) public PlayersHand;
     mapping(address => mapping(bytes16 => PlayerState)) public playersState;
 
@@ -136,8 +136,11 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
 
     TreasuryInstance public treasury;
 
-    uint256 private store;
-    uint8 maxPlayers; // consider moving to store
+    uint8 maxPlayers;
+
+    event GameInitializing(
+        bytes16 gameId
+    );
 
     event GameInitialized(
         bytes16 gameId,
@@ -148,15 +151,75 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
         uint256 tableId
     );
 
+    event PlayerCardDrawn(
+        bytes16 gameId,
+        address player,
+        uint8 playerIndex,
+        uint8 cardsIndex,
+        string cardSuit,
+        string cardVal
+    );
+
     event DealersMove(
         bytes16 gameId,
-        bytes32 firsthash,
-        bytes32 localhash
+        bytes32 localhashB
     );
 
     constructor(address _treasuryAddress, uint8 _maxPlayers) public {
+        require(_maxPlayers < 10);
         treasury = TreasuryInstance(_treasuryAddress);
         maxPlayers = _maxPlayers;
+    }
+
+    function takePlayersBet(bytes16 _gameId, uint8 _index) private {
+        treasury.tokenInboundTransfer(
+            Games[_gameId].tokens[_index],
+            Games[_gameId].players[_index],
+            Games[_gameId].bets[_index]
+        );
+    }
+
+    function initializePlayer(bytes16 _gameId, address _player) private {
+        playersState[_player][_gameId] = PlayerState.notBusted;
+
+    }
+
+    function checkForBlackJack(bytes16 _gameId, address _player) private {
+        if (isBlackJack(PlayersHand[_player][_gameId])) {
+            playersState[_player][_gameId] = PlayerState.BlackJack;
+        }
+    }
+
+    function drawPlayersCard(
+        bytes16 _gameId,
+        uint8 _pIndex,
+        bytes32 _localhashA,
+        uint256 _deckLength
+    )
+        private
+    {
+        address _player = Games[_gameId].players[_pIndex];
+
+        uint8 _card = drawCard(_gameId, getRandomCardIndex(
+                _localhashA, _deckLength
+            )
+        );
+
+        (
+            string memory _cardsSuit,
+            string memory _cardsVal
+        ) = getCardsDetails(_card);
+
+        PlayersHand[_player][_gameId].push(_card);
+
+        emit PlayerCardDrawn(
+            _gameId,
+            _player,
+            _pIndex,
+            _card,
+            _cardsSuit,
+            _cardsVal
+        );
     }
 
     function initializeGame(
@@ -165,7 +228,8 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
         uint8[] calldata _tokens,
         uint256 _landId,
         uint256 _tableId,
-        bytes32 _localhash
+        bytes32 _localhashA,
+        bytes32 _localhashB
     )
         external
         whenNotPaused
@@ -191,6 +255,9 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
             'BlackJack: cannot initialize running game'
         );
 
+        // starting to initialize game
+        emit GameInitializing(gameId);
+
         uint8[] storage _deck = prepareDeck(gameId);
 
         Game memory _game = Game(
@@ -203,46 +270,55 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
 
         Games[gameId] = _game;
 
+        uint8 pIndex; // playersIndex
+
         // first card drawn to each player + take bets
-        for (uint8 i = 0; i < _players.length; i++) {
+        for (pIndex = 0; pIndex < _players.length; pIndex++) {
 
-            /* treasury.tokenInboundTransfer(
-                _tokens[i], _players[i], _bets[i]
-            );*/
-
-            PlayersHand[_players[i]][gameId].push(
-                drawCard(gameId, getRandomCardIndex(
-                        _localhash, _deck.length
-                    )
-                )
+            initializePlayer(
+                gameId, _players[pIndex]
             );
 
-            playersState[_players[i]][gameId] = PlayerState.notBusted;
+            takePlayersBet(
+                gameId, pIndex
+            );
+
+            drawPlayersCard(
+                gameId, pIndex, _localhashA, _deck.length
+            );
         }
 
-        // first card drawn to dealer (visible)
+        // dealers first card (visible)
         DealersVisible[gameId].push(
             drawCard(gameId, getRandomCardIndex(
-                    _localhash, _deck.length
+                    _localhashA, _deck.length
                 )
             )
         );
 
-        // second card drawn to each player
-        for (uint8 i = 0; i < _players.length; i++) {
-            PlayersHand[_players[i]][gameId].push(
-                drawCard(gameId, getRandomCardIndex(
-                        _localhash, _deck.length
-                    )
-                )
+        // players second cards (visible)
+        for (pIndex = 0; pIndex < _players.length; pIndex++) {
+
+            drawPlayersCard(
+                gameId, pIndex, _localhashA, _deck.length
             );
-            if (isBlackJack(PlayersHand[_players[i]][gameId])) {
-                playersState[_players[i]][gameId] = PlayerState.BlackJack;
-            }
+
+            checkForBlackJack(
+                gameId, _players[pIndex]
+            );
         }
 
-        // second card drawn to dealer (hidden)
+        delete pIndex;
 
+        // dealers second card (hidden)
+        DealersHidden[gameId] =
+            HiddenCard({
+                hashChild: _localhashB,
+                hashParent: 0x0,
+                index: 0
+            });
+
+        // game initialized
         emit GameInitialized(
             gameId,
             _players,
@@ -253,16 +329,25 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
         );
     }
 
-    function verifyCard(
+    function verifyHiddenCard(
         bytes32 _hashChild,
         bytes32 _hashParent
-    ) public pure returns (bool) {
-        keccak256(
+    )
+        public
+        pure
+        returns (bool)
+    {
+        return keccak256(
             abi.encodePacked(_hashParent)
         ) == _hashChild ? true : false;
     }
 
-    function prepareDeck(bytes16 _gameId) internal returns (uint8[] storage _deck) {
+    function prepareDeck(
+        bytes16 _gameId
+    )
+        internal
+        returns (uint8[] storage _deck)
+    {
         _deck = Games[_gameId].deck;
 		for (uint8 i = 0; i < 52; i++) {
 			_deck.push(i);
@@ -283,18 +368,21 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
     function hitMove(
         bytes16 _gameId,
         address _player,
-        bytes32 _localhash
+        uint8 _pIndex,
+        bytes32 _localhashA
     )
         external
         onlyWorker
-        onlyNonBusted(_gameId, _player)
         onlyOnGoingGame(_gameId)
+        onlyNonBusted(_gameId, _player)
     {
-        PlayersHand[_player][_gameId].push(
-            drawCard(_gameId, getRandomCardIndex(
-                    _localhash, Games[_gameId].deck.length
-                )
-            )
+        require(
+            Games[_gameId].players[_pIndex] == _player,
+            'BlackJack: wrong player arguments supplied'
+        );
+
+        drawPlayersCard(
+           _gameId, _pIndex, _localhashA, Games[_gameId].deck.length
         );
 
         uint8 playersPower = getHandsPower(
@@ -312,38 +400,61 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
 
     function stayMove(
         bytes16 _gameId,
-        address _player
+        address _player,
+        uint8 _pIndex
     )
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
         onlyNonBusted(_gameId, _player)
     {
+
+        require(
+            Games[_gameId].players[_pIndex] == _player,
+            'BlackJack: wrong player arguments supplied'
+        );
+
         playersState[_player][_gameId] = PlayerState.isSettled;
     }
 
     function dealersTurn(
         bytes16 _gameId,
-        bytes32 _firsthash,
-        bytes32 _localhash
+        bytes32 _localhashA,
+        bytes32 _localhashB
     )
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
         whenTableSettled(_gameId)
     {
-        // reveal dealers card with _firsthash
+        // reveal dealers card with _localhashB
+        bytes32 _hiddenCard = DealersHidden[_gameId].hashChild;
+        require(
+            verifyHiddenCard(
+                _hiddenCard,
+                _localhashB
+            ) == true
+        );
 
-        // draw cards for dealer with _localhash
+        uint8 revealed = drawCard(_gameId, getRandomCardIndex(
+            _localhashB, Games[_gameId].deck.length
+            )
+        );
+
+        DealersHidden[_gameId].index = revealed;
+        DealersVisible[_gameId].push(revealed);
+
+        // check if dealer needs more cards
+
+        // draw cards for dealer with _localhashA
 
         // calculate any winnings and payout
 
         Games[_gameId].state = GameState.EndedGame;
 
-        emit DealersMove (
+        emit DealersMove(
             _gameId,
-            _firsthash,
-            _localhash
+            _localhashB
         );
     }
 
@@ -388,7 +499,13 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper {
 
     */
 
-    function checkDeck(bytes16 _gameId) public view returns (uint8[] memory _deck) {
+    function checkDeck(
+        bytes16 _gameId
+    )
+        public
+        view
+        returns (uint8[] memory _deck)
+    {
         return Games[_gameId].deck;
     }
 
