@@ -30,15 +30,18 @@ contract BlackJackHelper {
         ) % _length;
     }
 
-    function getHandsPower(uint8[] memory _cards) public pure returns (uint8 powerMax) {
-
+    function getCardsPower(uint8 _card) public pure returns (uint8 power) {
         bytes13 cardsPower = "\x0B\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0A\x0A\x0A";
+        return uint8(cardsPower[_card % 13]);
+    }
+
+    function getHandsPower(uint8[] memory _cards) public pure returns (uint8 powerMax) {
 
         uint8 aces;
         uint8 power;
 
         for (uint8 i = 0; i < _cards.length; i++) {
-            power = uint8(cardsPower[_cards[i] % 13]);
+            power = getCardsPower(_cards[i]);
             powerMax += power;
             if (power == 11) {
                 aces += 1;
@@ -56,7 +59,11 @@ contract BlackJackHelper {
     }
 
     function isBlackJack(uint8[] memory _cards) public pure returns (bool) {
-        return getHandsPower(_cards) == 21 && _cards.length == 2 ? true : false;
+        return getHandsPower(_cards) == 21 && _cards.length == 2;
+    }
+
+    function canSplitCards(uint8[] memory _cards) public pure returns (bool) {
+        return getCardsPower(_cards[0]) == getCardsPower(_cards[1]) && _cards.length == 2;
     }
 
     function verifyHiddenCard(bytes32 _hashChild, bytes32 _hashParent) public pure returns (bool) {
@@ -64,6 +71,7 @@ contract BlackJackHelper {
             abi.encodePacked(_hashParent)
         ) == _hashChild ? true : false;
     }
+
 }
 
 contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain {
@@ -71,8 +79,9 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
     using SafeMath for uint128;
     using SafeMath for uint256;
 
+    enum inGameState { notJoined, Playing, EndedPlay }
     enum GameState { NewGame, OnGoingGame, EndedGame }
-    enum PlayerState { notDetected, notBusted, isSettled, isBusted, hasBlackJack }
+    enum PlayerState { notBusted, hasSplit, isSettled, isBusted, hasBlackJack }
 
     // enum PlayerState {Busted, Double, Insured, Split, Win}
 
@@ -81,6 +90,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         uint128[] bets;
         uint8[] tokens;
         uint8[] deck;
+        PlayerState[] pState;
         GameState state;
     }
 
@@ -96,7 +106,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
     mapping(address => mapping(bytes16 => uint8[])) PlayersHand;
     mapping(address => mapping(bytes16 => uint8[])) public PlayersSplit;
     mapping(address => mapping(bytes16 => bool)) public PlayersInsurance;
-    mapping(address => mapping(bytes16 => PlayerState)) public playersState;
+    mapping(address => mapping(bytes16 => inGameState)) public inGame;
 
     modifier onlyOnGoingGame(bytes16 _gameId) {
         require(
@@ -106,26 +116,18 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         _;
     }
 
-    modifier isPlayerInGame(bytes16 _gameId, address _player) {
+    modifier ifPlayerInGame(bytes16 _gameId, address _player) {
         require(
-            playersState[_player][_gameId] != PlayerState.notDetected,
+            inGame[_player][_gameId] == inGameState.Playing,
             "BlackJack: given player is not in the current game"
         );
         _;
     }
 
-    modifier onlyNonBusted(bytes16 _gameId, address _player) {
+    modifier onlyNonBusted(bytes16 _gameId, uint8 _pIndex) {
         require(
-            playersState[_player][_gameId] == PlayerState.notBusted,
+            Games[_gameId].pState[_pIndex] == PlayerState.notBusted,
             "BlackJack: given player already busted in this game"
-        );
-        _;
-    }
-
-    modifier onlyNotSettled(bytes16 _gameId, address _player) {
-        require(
-            playersState[_player][_gameId] != PlayerState.isSettled,
-            "BlackJack: given player already settled in this game"
         );
         _;
     }
@@ -134,7 +136,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         address[] memory _players = Games[_gameId].players;
         for (uint256 i = 0; i < _players.length; i++) {
             require(
-                uint8(playersState[_players[i]][_gameId]) > uint8(PlayerState.notBusted),
+                uint8(Games[_gameId].pState[i]) > uint8(PlayerState.notBusted),
                 'BlackJack: not all players finished their turn'
             );
         }
@@ -196,6 +198,14 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         maxPlayers = _maxPlayers;
     }
 
+    function checkPlayer(bytes16 _gameId, address _player) private {
+        require(
+            inGame[_player][_gameId] == inGameState.notJoined ||
+            inGame[_player][_gameId] == inGameState.EndedPlay
+        );
+        inGame[_player][_gameId] = inGameState.Playing;
+    }
+
     function takePlayersBet(bytes16 _gameId, uint8 _playerIndex) private {
 
         uint8 tokenIndex = Games[_gameId].tokens[_playerIndex];
@@ -216,14 +226,14 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         );
     }
 
-    function initializePlayer(bytes16 _gameId, address _player) private {
-        playersState[_player][_gameId] = PlayerState.notBusted;
+    function initializePlayer(bytes16 _gameId, uint8 _playerIndex) private {
+        Games[_gameId].pState[_playerIndex] = PlayerState.notBusted;
     }
 
     function checkForBlackJack(bytes16 _gameId, address _player, uint8 _playerIndex) private {
         if (isBlackJack(PlayersHand[_player][_gameId])) {
             NonBustedPlayers[_gameId].push(_playerIndex);
-            playersState[_player][_gameId] = PlayerState.hasBlackJack;
+            Games[_gameId].pState[_playerIndex] = PlayerState.hasBlackJack;
         }
     }
 
@@ -332,6 +342,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             _bets,
             _tokens,
             _deck,
+            new PlayerState[](_players.length),
             GameState.OnGoingGame
         );
 
@@ -342,8 +353,12 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         // first card drawn to each player + take bets
         for (pIndex = 0; pIndex < _players.length; pIndex++) {
 
-            initializePlayer(
+            checkPlayer(
                 gameId, _players[pIndex]
+            );
+
+            initializePlayer(
+                gameId, pIndex
             );
 
             takePlayersBet(
@@ -426,7 +441,8 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
-        onlyNonBusted(_gameId, _player)
+        onlyNonBusted(_gameId, _pIndex)
+        ifPlayerInGame(_gameId, _player)
     {
         require(
             Games[_gameId].players[_pIndex] == _player,
@@ -444,12 +460,12 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         );
 
         if (playersPower > 21) {
-            playersState[_player][_gameId] = PlayerState.isBusted;
+            Games[_gameId].pState[_pIndex] = PlayerState.isBusted;
         }
 
         if (playersPower == 21) {
             NonBustedPlayers[_gameId].push(_pIndex);
-            playersState[_player][_gameId] = PlayerState.isSettled;
+            Games[_gameId].pState[_pIndex] = PlayerState.isSettled;
         }
     }
 
@@ -461,7 +477,8 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
-        onlyNonBusted(_gameId, _player)
+        onlyNonBusted(_gameId, _pIndex)
+        ifPlayerInGame(_gameId, _player)
     {
 
         require(
@@ -470,7 +487,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         );
 
         NonBustedPlayers[_gameId].push(_pIndex);
-        playersState[_player][_gameId] = PlayerState.isSettled;
+        Games[_gameId].pState[_pIndex] = PlayerState.isSettled;
     }
 
     function dealersMove(
@@ -546,6 +563,13 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             }
         }
 
+        // mark all players finishing the game
+        address[] memory _players = Games[_gameId].players;
+        for (uint256 i = 0; i < _players.length; i++) {
+            inGame[_players[i]][_gameId] = inGameState.EndedPlay;
+        }
+
+        // set game status to ended
         Games[_gameId].state = GameState.EndedGame;
 
         emit FinishedGame(
@@ -559,7 +583,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
 
             address player = Games[_gameId].players[_leftPlayers[i]];
 
-            if (playersState[player][_gameId] == PlayerState.hasBlackJack) {
+            if (Games[_gameId].pState[i] == PlayerState.hasBlackJack) {
 
                 uint128 amount = Games[_gameId].bets[_leftPlayers[i]];
 
@@ -584,7 +608,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             uint8 playersPower = getHandsPower(PlayersHand[player][_gameId]);
             uint128 payout;
 
-            if (playersState[player][_gameId] == PlayerState.hasBlackJack) {
+            if (Games[_gameId].pState[pi] == PlayerState.hasBlackJack) {
                 payout = Games[_gameId].bets[pi] * 250 / 100;
             }
             else if (playersPower > _dealersPower) {
@@ -618,6 +642,41 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         );
     }
 
+    function splitCards(
+        bytes16 _gameId,
+        address _player,
+        uint8 _pIndex
+    )
+        external
+        onlyWorker
+        onlyOnGoingGame(_gameId)
+        onlyNonBusted(_gameId, _pIndex)
+        ifPlayerInGame(_gameId, _player)
+    {
+        require(
+            canSplitCards(PlayersHand[_player][_gameId]),
+            'BlackJack: must be same power cards to split'
+        );
+
+        uint8 tokenIndex = Games[_gameId].tokens[_pIndex];
+        uint128 betAmount = Games[_gameId].bets[_pIndex];
+
+        Games[_gameId].players.push(_player);
+        Games[_gameId].tokens.push(tokenIndex);
+        Games[_gameId].bets.push(betAmount);
+
+        takePlayersBet(
+            _gameId, _pIndex
+        );
+
+
+        // playersState[_player][_gameId] = PlayerState.hasSplit;
+        // split based on cardsPower
+        // create another hand
+        // takePlayersBet()
+        //PlayersSplit
+    }
+
     /* TO-DO:
 
     function insuranceMove(
@@ -639,21 +698,6 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         // takePlayersBet() +0.5bet (buying insurance)
         PlayersInsurance[_gameId] = true;
         //
-    }
-
-    function splittingPairs(
-        bytes16 _gameId,
-        address _player
-    )
-        external
-        onlyWorker
-        onlyOnGoingGame(_gameId)
-        onlyNonBusted(_gameId, _player)
-    {
-        // split based on cardsPower
-        // create another hand
-        // takePlayersBet()
-        PlayersSplit
     }
 
     function doublingDown(
@@ -706,7 +750,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         view
         returns (bool)
     {
-        return playersState[_player][_gameId] == PlayerState.notDetected ? false : true;
+        return inGame[_player][_gameId] == inGameState.notJoined ? false : true;
     }
 
     function checkMyHand(
