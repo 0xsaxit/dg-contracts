@@ -274,6 +274,29 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper 
 
     using SafeMath for uint256;
 
+    uint256 constant defaultTimeFrame = 12 hours;
+
+    mapping(address => uint256) public enabledTill;
+    mapping(address => uint256) public timeFrame;
+
+
+    modifier onlyEnabledOrNewAccount(address _account) {
+        require(
+            enabledTill[_account] > now ||
+            enabledTill[_account] == 0,
+            'Treasury: disabled account'
+        );
+        _;
+    }
+
+    modifier onlyEnabledAccountStrict(address _account) {
+        require(
+            enabledTill[_account] > now,
+            'Treasury: disabled account'
+        );
+        _;
+    }
+
     constructor(
         address _defaultTokenAddress,
         string memory _defaultTokenName,
@@ -284,15 +307,43 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper 
             : setCEO(_migrationAddress);
     }
 
+    function disableAccount(
+        address _account
+    )
+        external
+        onlyWorker
+    {
+        enabledTill[_account] = now;
+    }
+
+    function enableAccount() external {
+        enabledTill[msg.sender] = now.add(
+            getTimeFrame(msg.sender)
+        );
+    }
+
+    function getTimeFrame(address _account) internal view returns (uint256) {
+        return timeFrame[_account] > 0 ? timeFrame[_account] : defaultTimeFrame;
+    }
+
+    function setTimeFrame(uint256 _timeFrame) external {
+        timeFrame[msg.sender] = _timeFrame;
+    }
+
     function tokenInboundTransfer(
         uint8 _tokenIndex,
         address _from,
         uint256 _amount
-    ) external returns (bool) {
+    )
+        external
+        onlyEnabledOrNewAccount(_from)
+        returns (bool)
+    {
         uint8 _gameIndex = getGameIndex(msg.sender);
         address _token = getTokenAddress(_tokenIndex);
         addGameTokens(_gameIndex, _tokenIndex, _amount);
         safeTransferFrom(_token, _from, address(this), _amount);
+        enabledTill[_from] = now.add(getTimeFrame(msg.sender));
         return true;
     }
 
@@ -300,7 +351,11 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper 
         uint8 _tokenIndex,
         address _to,
         uint256 _amount
-    ) external returns (bool) {
+    )
+        external
+        onlyEnabledAccountStrict(_to)
+        returns (bool)
+    {
         uint8 _gameIndex = getGameIndex(msg.sender);
         address _token = getTokenAddress(_tokenIndex);
         subGameTokens(_gameIndex, _tokenIndex, _amount);
