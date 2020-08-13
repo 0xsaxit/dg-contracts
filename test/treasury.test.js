@@ -808,15 +808,15 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             token = await Token.new();
             treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
-            backgammon = await Backgammon.new(treasury.address, 64, 10);
+            backgammon = await Backgammon.new(treasury.address, 4, 10);
             await treasury.addGame(backgammon.address, "Backgammon", true, { from: owner });
-            await treasury.setMaximumBet(0, 0, web3.utils.toWei("100"), { from: owner });
-            await token.approve(treasury.address, 10000);
-            await treasury.addFunds(0, 0, 10000, {
+            await treasury.setMaximumBet(0, 0, web3.utils.toWei("10000"), { from: owner });
+            await token.approve(treasury.address, 10000000000);
+            await treasury.addFunds(0, 0, 10000000, {
                 from: owner
             });
-            await token.transfer(user1, 10000);
-            await token.transfer(user2, 10000);
+            await token.transfer(user1, 100000);
+            await token.transfer(user2, 100000);
             // await token.approve(treasury.address, 5000, { from: user1 });
 
             await treasury.setTail(HASH_CHAIN[0], { from: owner });
@@ -849,10 +849,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 "revert P1 must approve/allow treasury as spender"
             );
 
-            await token.approve(treasury.address, 5000, { from: user1 });
+            await token.approve(treasury.address, 5000000, { from: user1 });
             await catchRevert(
                 backgammon.initializeGame(
-                    10,
+                    1,
                     user1,
                     user2,
                     0,
@@ -861,9 +861,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 "revert P2 must approve/allow treasury as spender"
             );
 
-            await token.approve(treasury.address, 5000, { from: user2 });
+            await token.approve(treasury.address, 5000000, { from: user2 });
+
             await backgammon.initializeGame(
-                10,
+                1,
                 user1,
                 user2,
                 0,

@@ -334,6 +334,10 @@ contract TreasuryRoulette is AccessController {
         }
     }
 
+    function getNextRoundTimestamp() external view returns(uint) {
+        return store>>136;
+    }
+
     function getBetsCountAndValue() external view returns(uint value, uint) {
         for (uint i = 0; i < bets.length; i++) {
             value += bets[i].value;
@@ -359,11 +363,19 @@ contract TreasuryRoulette is AccessController {
         store |= _newMaxSquareBetDefault<<8;
     }
 
+    function checkMaxSquareBetDefault() public view returns (uint128) {
+        return uint128(store>>8);
+    }
+
     function changeMaximumBetAmount(
         uint8 _newMaximumBetAmount
     ) external onlyCEO {
         store ^= uint8(store)<<0;
         store |= _newMaximumBetAmount<<0;
+    }
+
+    function checkMaximumBetAmount() public view returns (uint8) {
+        return uint8(store>>0);
     }
 
     function changeTreasury(

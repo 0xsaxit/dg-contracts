@@ -1,19 +1,19 @@
 
 // File: contracts/common-contracts/SafeMath.sol
 
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
 library SafeMath {
 
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
+        require(c >= a, 'SafeMath: addition overflow');
 
         return c;
     }
 
     function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
+        return sub(a, b, 'SafeMath: subtraction overflow');
     }
 
     function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -24,25 +24,21 @@ library SafeMath {
     }
 
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
         if (a == 0) {
             return 0;
         }
 
         uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
+        require(c / a == b, 'SafeMath: multiplication overflow');
 
         return c;
     }
 
     function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
+        return div(a, b, 'SafeMath: division by zero');
     }
 
     function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        // Solidity only automatically asserts when dividing by 0
         require(b > 0, errorMessage);
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
@@ -51,7 +47,7 @@ library SafeMath {
     }
 
     function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
+        return mod(a, b, 'SafeMath: modulo by zero');
     }
 
     function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -60,84 +56,84 @@ library SafeMath {
     }
 }
 
-// File: contracts/common-contracts/AccessControl.sol
+// File: contracts/common-contracts/AccessController.sol
 
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
-contract AccessControl {
-    address public ceoAddress; // contract's owner and manager address
-    address public workerAddress; // contract's owner and manager address
+contract AccessController {
 
-    bool public paused = false; // keeps track of whether or not contract is paused
+    address public ceoAddress;
+    address public workerAddress;
 
-    /**
-    @notice fired when a new address is set as CEO
-    */
+    bool public paused = false;
+
     event CEOSet(address newCEO);
     event WorkerSet(address newWorker);
 
-    /**
-    @notice fired when the contract is paused
-     */
     event Paused();
-
-    /**
-    @notice fired when the contract is unpaused
-     */
     event Unpaused();
 
-    // AccessControl constructor - sets default executive roles of contract to the sender account
     constructor() public {
         ceoAddress = msg.sender;
         workerAddress = msg.sender;
         emit CEOSet(ceoAddress);
     }
 
-    // access modifier for CEO-only functionality
     modifier onlyCEO() {
-        require(msg.sender == ceoAddress);
+        require(
+            msg.sender == ceoAddress,
+            'AccessControl: CEO access denied'
+        );
         _;
     }
 
-    // access modifier for Worker-only functionality
     modifier onlyWorker() {
-        require(msg.sender == workerAddress);
+        require(
+            msg.sender == workerAddress,
+            'AccessControl: worker access denied'
+        );
         _;
     }
 
-    // assigns new CEO address - only available to the current CEO
+    modifier whenNotPaused() {
+        require(
+            !paused,
+            'AccessControl: currently paused'
+        );
+        _;
+    }
+
+    modifier whenPaused {
+        require(
+            paused,
+            'AccessControl: currenlty not paused'
+        );
+        _;
+    }
+
     function setCEO(address _newCEO) public onlyCEO {
-        require(_newCEO != address(0));
+        require(
+            _newCEO != address(0x0),
+            'AccessControl: invalid CEO address'
+        );
         ceoAddress = _newCEO;
         emit CEOSet(ceoAddress);
     }
 
-    // assigns new Worker address - only available to the current CEO
-    function setWorker(address _newWorker) public onlyCEO {
-        require(_newWorker != address(0));
+    function setWorker(address _newWorker) public onlyWorker {
+        require(
+            _newWorker != address(0x0),
+            'AccessControl: invalid worker address'
+        );
         workerAddress = _newWorker;
         emit WorkerSet(workerAddress);
     }
 
-    // modifier to allow actions only when the contract IS NOT paused
-    modifier whenNotPaused() {
-        require(!paused);
-        _;
-    }
-
-    // modifier to allow actions only when the contract IS paused
-    modifier whenPaused {
-        require(paused);
-        _;
-    }
-
-    // pauses the smart contract - can only be called by the CEO
     function pause() public onlyCEO whenNotPaused {
         paused = true;
         emit Paused();
     }
 
-    // unpauses the smart contract - can only be called by the CEO
     function unpause() public onlyCEO whenPaused {
         paused = false;
         emit Unpaused();
@@ -146,38 +142,38 @@ contract AccessControl {
 
 // File: contracts/common-contracts/TreasuryInstance.sol
 
-pragma solidity ^0.5.14;
+pragma solidity ^0.5.17;
 
 interface TreasuryInstance {
 
-    function tokenAddress(
-        string calldata _tokenName
+    function getTokenAddress(
+        uint256 _tokenIndex
     ) external view returns (address);
 
     function tokenInboundTransfer(
-        string calldata _tokenName,
+        uint8 _tokenIndex,
         address _from,
         uint256 _amount
     )  external returns (bool);
 
     function tokenOutboundTransfer(
-        string calldata _tokenName,
+        uint8 _tokenIndex,
         address _to,
         uint256 _amount
     ) external returns (bool);
 
     function checkAllocatedTokens(
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external view returns (uint256);
 
     function checkApproval(
         address _userAddress,
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external view returns (uint256 approved);
 
     function getMaximumBet(
-        string calldata _tokenName
-    ) external view returns (uint256);
+        uint8 _tokenIndex
+    ) external view returns (uint128);
 
     function consumeHash(
         bytes32 _localhash
@@ -186,275 +182,188 @@ interface TreasuryInstance {
 
 // File: contracts/treasury-example/TreasuryRoulette.sol
 
-pragma solidity ^0.5.14;
+pragma solidity ^0.5.17;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
-// Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
+// Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
+// Roulette - MultiPlayer - TokenIndex 2.0
 
-contract TreasuryRoulette is AccessControl {
+contract TreasuryRoulette is AccessController {
 
-    using SafeMath for uint;
+    using SafeMath for uint128;
+    using SafeMath for uint256;
 
-    uint256 public maxSquareBet;
-    uint256 public maximumNumberBets = 36;
-    uint256 public nextRoundTimestamp;
+    uint256 private store;
 
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
-    mapping (uint => mapping (uint => uint256)) public currentBets;
 
-    modifier onlyTreasury() {
-        require(
-            msg.sender == address(treasury),
-            'must be current treasury'
-        );
-        _;
-    }
+    mapping (uint => uint) public maxSquareBets;
+    mapping (uint => mapping (uint => mapping (uint => uint))) public currentBets;
 
-    TreasuryInstance public treasury;
-
-    constructor(address _treasuryAddress, uint256 _maxSquareBet) public {
-        treasury = TreasuryInstance(_treasuryAddress);
-        maxSquareBet = _maxSquareBet;
-        nextRoundTimestamp = now;
-    }
+    Bet[] public bets;
+    uint256[] winAmounts;
 
     struct Bet {
-        BetType betType;
         address player;
-        uint256 number;
-        uint256 value;
-        // string tokenName;
+        uint8 betType;
+        uint8 number;
+        uint8 tokenIndex;
+        uint128 value;
     }
-
-    /* event SpinResult(
-        string _tokenName,
-        uint256 _landID,
-        uint256 indexed _number,
-        uint256 indexed _machineID,
-        uint256[] _amountWins
-    ); */
 
     event GameResult(
         address[] _players,
-        string indexed _tokenName,
-        uint256 _landID,
+        uint8[] _tokenIndex,
+        uint256 indexed _landID,
         uint256 indexed _number,
         uint256 indexed _machineID,
         uint256[] _winAmounts
     );
 
-    uint256[] winAmounts;
-    Bet[] public bets;
+    TreasuryInstance public treasury;
 
-    /* event Finished(uint number, uint nextRoundTimestamp);
-    event NewSingleBet(uint bet, address player, uint number, uint value);
-    event NewEvenOddBet(uint bet, address player, uint number, uint value);
-    event NewRedBlackBet(uint bet, address player, uint number, uint value);
-    event NewHighLowBet(uint bet, address player, uint number, uint value);
-    event NewColumnBet(uint bet, address player, uint column, uint value);
-    event NewDozenBet(uint bet, address player, uint dozen, uint value);
-    */
+    constructor(
+        address _treasuryAddress,
+        uint128 _maxSquareBetDefault,
+        uint8 _maxNumberBets
+    ) public {
+        treasury = TreasuryInstance(_treasuryAddress);
+        store |= _maxNumberBets<<0;
+        store |= _maxSquareBetDefault<<8;
+        store |= now<<136;
+    }
 
-    function getNextRoundTimestamp() external view returns(uint) {
-        return nextRoundTimestamp;
+    function checknow64() public view returns (uint64) {
+        return uint64(now);
     }
 
     function createBet(
-        uint _betType,
         address _player,
-        uint _number,
-        uint _value
-        // string calldata _tokenName
+        uint8 _betType,
+        uint8 _number,
+        uint8 _tokenIndex,
+        uint128 _value
     ) external whenNotPaused onlyCEO {
         bet(
-            _betType,
             _player,
+            _betType,
             _number,
+            _tokenIndex,
             _value
-            // _tokenName
         );
     }
 
     function bet(
-        uint _betType,
         address _player,
-        uint _number,
-        uint _value
-        // string memory _token
+        uint8 _betType,
+        uint8 _number,
+        uint8 _tokenIndex,
+        uint128 _value
     ) internal {
 
-        currentBets[_betType][_number] += _value;
+        currentBets[_tokenIndex][_betType][_number] += _value;
+
+        uint256 _maxSquareBet = maxSquareBets[_tokenIndex] == 0
+            ? uint128(store>>8)
+            : maxSquareBets[_tokenIndex];
 
         require(
-            currentBets[_betType][_number] <= maxSquareBet,
-            'exceeding maximum bet limit'
+            currentBets[_tokenIndex][_betType][_number] <= _maxSquareBet,
+            'Roulette: exceeding maximum bet limit'
         );
 
-        if (_betType == uint(BetType.Single)) return betSingle(_number, _player, _value);
-        if (_betType == uint(BetType.EvenOdd)) return betEvenOdd(_number, _player, _value);
-        if (_betType == uint(BetType.RedBlack)) return betRedBlack(_number ,_player, _value);
-        if (_betType == uint(BetType.HighLow)) return betHighLow(_number, _player, _value);
-        if (_betType == uint(BetType.Column)) return betColumn(_number, _player, _value);
-        if (_betType == uint(BetType.Dozen)) return betDozen(_number, _player, _value);
-    }
-
-    function betSingle(uint _number, address _player, uint _value) internal {
-        require(_number <= 36, 'must be between 0 and 36');
         bets.push(Bet({
-            betType: BetType.Single,
             player: _player,
+            betType: _betType,
             number: _number,
+            tokenIndex: _tokenIndex,
             value: _value
-            // tokenName: _token
         }));
-        // emit NewSingleBet(bets.length, _player, _number, _value);
-    }
-
-    function betEvenOdd(uint256 _number, address _player, uint _value) internal {
-        require(_number <= 1, 'Even(0) - Odd(1)');
-        bets.push(Bet({
-            betType: BetType.EvenOdd,
-            player: _player,
-            number: _number,
-            value: _value
-            // tokenName: _token
-        }));
-        // emit NewEvenOddBet(bets.length, _player, _number, _value);
-    }
-
-    function betRedBlack(uint256 _number, address _player, uint _value) internal {
-        require(_number <= 1, 'Red(0) - Black(1)');
-        bets.push(Bet({
-            betType: BetType.RedBlack,
-            player: _player,
-            number: _number,
-            value: _value
-            // tokenName: _token
-        }));
-        // emit NewRedBlackBet(bets.length, _player, _number, _value);
-    }
-
-    function betHighLow(uint256 _number, address _player, uint _value) internal {
-        require(_number <= 1, 'High(0) - Low(1)');
-        bets.push(Bet({
-            betType: BetType.HighLow,
-            player: _player,
-            number: _number,
-            value: _value
-            // tokenName: _token
-        }));
-        // emit NewHighLowBet(bets.length, _player, _number, _value);
-    }
-
-    function betColumn(uint _column, address _player, uint _value) internal {
-        require(_column <= 2, 'column must be in region between 0 and 2');
-        bets.push(Bet({
-            betType: BetType.Column,
-            player: _player,
-            number: _column,
-            value: _value
-            // tokenName: _token
-        }));
-        // emit NewColumnBet(bets.length, _player, _column, _value);
-    }
-
-    function betDozen(uint _dozen, address _player, uint _value) internal {
-        require(_dozen <= 2, 'dozen must be in region between 0 and 2');
-        bets.push(Bet({
-            betType: BetType.Dozen,
-            player: _player,
-            number: _dozen,
-            value: _value
-            // tokenName: _token
-        }));
-        // emit NewDozenBet(bets.length, _player, _dozen, _value);
     }
 
     function launch(
         bytes32 _localhash
-        // uint256 _machineID,
-        // uint256 _landID,
-        // string calldata _tokenName
-    ) external whenNotPaused onlyCEO returns(uint256[] memory, uint256 number) {
-        return _launch(
-            _localhash
-            // _machineID,
-            // _landID,
-            // _tokenName
-        );
+    ) external whenNotPaused onlyCEO returns(
+        uint256[] memory,
+        uint256 number
+    ) {
+        return _launch(_localhash);
     }
 
     function _launch(
         bytes32 _localhash
-        // uint256 _machineID,
-        // uint256 _landID,
-        // string memory _tokenName
     ) private returns(uint256[] memory, uint256 number) {
 
-        require(now > nextRoundTimestamp, 'expired round');
-        require(bets.length > 0, 'must have bets');
+        require(now > store>>136, 'Roulette: expired round');
+        require(bets.length > 0, 'Roulette: must have bets');
 
         winAmounts.length = 0;
-        nextRoundTimestamp = now;
+
+        store ^= (store>>136)<<136;
+        store |= now<<136;
 
         uint diff = block.difficulty;
         bytes32 hash = _localhash;
         Bet memory lb = bets[bets.length-1];
-        number = uint(keccak256(abi.encodePacked(now, diff, hash, lb.betType, lb.player, lb.number))) % 37;
+
+        number = uint(
+            keccak256(
+                abi.encodePacked(
+                    now, diff, hash, lb.betType, lb.player, lb.number
+                )
+            )
+        ) % 37;
 
         for (uint i = 0; i < bets.length; i++) {
             bool won = false;
             Bet memory b = bets[i];
-            if (b.betType == BetType.Single && b.number == number) {
+            if (b.betType == uint(BetType.Single) && b.number == number) {
                 won = true;
-            } else if (b.betType == BetType.EvenOdd) {
+            } else if (b.betType == uint(BetType.EvenOdd)) {
                 if (number > 0 && number % 2 == b.number) {
                     won = true;
                 }
-            } else if (b.betType == BetType.RedBlack && b.number == 0) {
+            } else if (b.betType == uint(BetType.RedBlack) && b.number == 0) {
                 if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 1);
                 } else {
                     won = (number % 2 == 0);
                 }
-            } else if (b.betType == BetType.RedBlack && b.number == 1) {
+            } else if (b.betType == uint(BetType.RedBlack) && b.number == 1) {
                 if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 0);
                 } else {
                     won = (number % 2 == 1);
                 }
-            } else if (b.betType == BetType.HighLow) {
+            } else if (b.betType == uint(BetType.HighLow)) {
                 if (number >= 19 && b.number == 0) {
                     won = true;
                 }
                 if (number > 0 && number <= 18 && b.number == 1) {
                     won = true;
                 }
-            } else if (b.betType == BetType.Column) {
+            } else if (b.betType == uint(BetType.Column)) {
                 if (b.number == 0) won = (number % 3 == 1);
                 if (b.number == 1) won = (number % 3 == 2);
                 if (b.number == 2) won = (number % 3 == 0);
-            } else if (b.betType == BetType.Dozen) {
+            } else if (b.betType == uint(BetType.Dozen)) {
                 if (b.number == 0) won = (number <= 12);
                 if (b.number == 1) won = (number > 12 && number <= 24);
                 if (b.number == 2) won = (number > 24);
             }
 
             if (won) {
-                uint256 betWin = b.value.mul(getPayoutForType(b.betType));
+                uint256 betWin = b.value.mul(
+                    getPayoutForType(b.betType, b.number)
+                );
                 winAmounts.push(betWin);
             } else {
                 winAmounts.push(0);
             }
-
-            currentBets[uint(b.betType)][b.number] = 0;
+            currentBets[b.tokenIndex][b.betType][b.number] = 0;
         }
 
-        // reset bets
-        bets.length = 0;
-        // emit SpinResult(_tokenName, _landID, number, _machineID, winAmounts);
-
-        // return wins
+        delete bets;
         return(winAmounts, number);
     }
 
@@ -462,123 +371,150 @@ contract TreasuryRoulette is AccessControl {
         address[] memory _players,
         uint256 _landID,
         uint256 _machineID,
-        uint256[] memory _betIDs,
-        uint256[] memory _betValues,
-        uint256[] memory _betAmount,
+        uint8[] memory _betIDs,
+        uint8[] memory _betValues,
+        uint128[] memory _betAmount,
         bytes32 _localhash,
-        string memory _tokenName
+        uint8[] memory _tokenIndex
     ) public whenNotPaused onlyWorker {
 
         require(
             _betIDs.length == _betValues.length,
-            'inconsistent amount of bets'
+            'Roulette: inconsistent amount of betsValues'
         );
+
         require(
-            _betIDs.length == _betAmount.length,
-            'inconsistent amount of bets'
+            _tokenIndex.length == _betAmount.length,
+            'Roulette: inconsistent amount of betAmount'
         );
+
         require(
-            _betIDs.length <= maximumNumberBets,
-            'maximum amount of bets reached'
+            _betValues.length == _tokenIndex.length,
+            'Roulette: inconsistent amount of tokenIndex'
+        );
+
+        require(
+            _betIDs.length <= uint8(store>>0),
+            'Roulette: maximum amount of bets reached'
         );
 
         treasury.consumeHash(_localhash);
+        bool[5] memory checkedTokens;
 
-        for (uint256 i = 0; i < _betIDs.length; i++) {
+        for (uint8 i = 0; i < _betIDs.length; i++) {
 
             require(
-                treasury.checkApproval(_players[i], _tokenName) >= _betAmount[i],
-                'approve treasury as spender'
+                treasury.getMaximumBet(_tokenIndex[i]) >= _betAmount[i],
+                'Roulette: bet amount is more than maximum'
             );
 
-            require(
-                treasury.getMaximumBet(_tokenName) >= _betAmount[i],
-                'bet amount is more than maximum'
-            );
-
-            require(
-                treasury.tokenInboundTransfer(_tokenName, _players[i], _betAmount[i]),
-                'inbound transfer failed'
+            treasury.tokenInboundTransfer(
+                _tokenIndex[i],
+                _players[i],
+                _betAmount[i]
             );
 
             bet(
-                _betIDs[i],
                 _players[i],
+                _betIDs[i],
                 _betValues[i],
+                _tokenIndex[i],
                 _betAmount[i]
-                // _tokenName
             );
+
+            if (!checkedTokens[_tokenIndex[i]]) {
+                uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
+                require(
+                    getNecessaryBalance(_tokenIndex[i]) <= tokenFunds,
+                    'Roulette: not enough tokens for payout'
+                );
+                checkedTokens[_tokenIndex[i]] = true;
+            }
         }
 
-        require(
-            getNecessaryBalance() <= treasury.checkAllocatedTokens(_tokenName),
-            "not enough tokens for payout"
-        );
+        delete checkedTokens;
 
-        uint256 number;
-        (winAmounts, number) = _launch(
-            _localhash
-            // _machineID,
-            // _landID,
-            // _tokenName
-        );
+        uint256 _spinResult;
+        (winAmounts, _spinResult) = _launch(_localhash);
 
-        for (uint256 i = 0; i < winAmounts.length; i++) {
+        for (uint8 i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
-                treasury.tokenOutboundTransfer(_tokenName, _players[i], winAmounts[i]);
+                treasury.tokenOutboundTransfer(
+                    _tokenIndex[i],
+                    _players[i],
+                    winAmounts[i]
+                );
             }
         }
 
         emit GameResult(
             _players,
-            _tokenName,
+            _tokenIndex,
             _landID,
-            number,
+            _spinResult,
             _machineID,
             winAmounts
         );
     }
 
+    function getPayoutForType(
+        uint256 _betType,
+        uint256 _betNumber
+    ) public pure returns(uint256) {
 
-    function getPayoutForType(BetType _betType) public pure returns(uint256) {
-        if (_betType == BetType.Single) return 36;
-        if (_betType == BetType.EvenOdd) return 2;
-        if (_betType == BetType.RedBlack) return 2;
-        if (_betType == BetType.HighLow) return 2;
-        if (_betType == BetType.Column) return 3;
-        if (_betType == BetType.Dozen) return 3;
+        if (_betType == uint8(BetType.Single))
+            return _betNumber > 36 ? 0 : 36;
+        if (_betType == uint8(BetType.EvenOdd))
+            return _betNumber > 1 ? 0 : 2;
+        if (_betType == uint8(BetType.RedBlack))
+            return _betNumber > 1 ? 0 : 2;
+        if (_betType == uint8(BetType.HighLow))
+            return _betNumber > 1 ? 0 : 2;
+        if (_betType == uint8(BetType.Column))
+            return _betNumber > 2 ? 0 : 3;
+        if (_betType == uint8(BetType.Dozen))
+            return _betNumber > 2 ? 0 : 3;
+
+        return 0;
     }
 
-    function getNecessaryBalance() public view returns (uint256 _necessaryBalance) {
+    function getNecessaryBalance(
+        uint256 _tokenIndex
+    ) public view returns (
+        uint256 _necessaryBalance
+    ) {
 
         uint256 _necessaryForBetType;
-        uint256 _i;
         uint256[6] memory betTypesMax;
 
-        // determine highest for each betType
-        for (_i = 0; _i < bets.length; _i++) {
-
+        for (uint8 _i = 0; _i < bets.length; _i++) {
             Bet memory b = bets[_i];
+            if (b.tokenIndex == _tokenIndex) {
 
-            _necessaryForBetType = currentBets[uint(b.betType)][b.number].mul(
-                getPayoutForType(b.betType)
-            );
+                uint256 _payout = getPayoutForType(b.betType, b.number);
+                uint256 _square = currentBets[b.tokenIndex][b.betType][b.number];
 
-            if (_necessaryForBetType > betTypesMax[uint(b.betType)]) {
-                betTypesMax[uint(b.betType)] = _necessaryForBetType;
+                require(
+                    _payout > 0,
+                    'Roulette: incorrect bet type/value'
+                );
+
+                _necessaryForBetType = _square.mul(_payout);
+
+                if (_necessaryForBetType > betTypesMax[b.betType]) {
+                    betTypesMax[b.betType] = _necessaryForBetType;
+                }
             }
         }
 
-        // calculate total for all betTypes
-        for (_i = 0; _i < betTypesMax.length; _i++) {
+        for (uint8 _i = 0; _i < betTypesMax.length; _i++) {
             _necessaryBalance = _necessaryBalance.add(
                 betTypesMax[_i]
             );
         }
     }
 
-    function getBetsCountAndValue() external view returns(uint, uint) {
-        uint value = 0;
+    function getBetsCountAndValue() external view returns(uint value, uint) {
         for (uint i = 0; i < bets.length; i++) {
             value += bets[i].value;
         }
@@ -589,15 +525,40 @@ contract TreasuryRoulette is AccessControl {
         return bets.length;
     }
 
-    function changeMaxSquareBet(uint256 _newMaxSquareBet) external onlyCEO {
-        maxSquareBet = _newMaxSquareBet;
+    function changeMaxSquareBet(
+        uint256 _tokenIndex,
+        uint256 _newMaxSquareBet
+    ) external onlyCEO {
+        maxSquareBets[_tokenIndex] = _newMaxSquareBet;
     }
 
-    function changeTreasury(address _newTreasuryAddress) external onlyCEO {
+    function changeMaxSquareBetDefault(
+        uint128 _newMaxSquareBetDefault
+    ) external onlyCEO {
+        store ^= uint128((store>>8))<<8;
+        store |= _newMaxSquareBetDefault<<8;
+    }
+
+    function changeMaximumBetAmount(
+        uint8 _newMaximumBetAmount
+    ) external onlyCEO {
+        store ^= uint8(store)<<0;
+        store |= _newMaximumBetAmount<<0;
+    }
+
+    function changeTreasury(
+        address _newTreasuryAddress
+    ) external onlyCEO {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 
-    function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
+    function migrateTreasury(
+        address _newTreasuryAddress
+    ) external {
+        require(
+            msg.sender == address(treasury),
+            'Roulette: wrong treasury address'
+        );
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 }

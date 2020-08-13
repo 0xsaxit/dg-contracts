@@ -17,7 +17,7 @@ module.exports = {
     networks: {
         development: {
             host: "127.0.0.1",
-            port: 7545,
+            port: 9545,
             network_id: 5777
         },
         matic: {
@@ -34,10 +34,9 @@ module.exports = {
         mumbai: {
             provider: () => new PrivateKeyProvider(
                 privateKey,
-                'https://rpc-mumbai.matdic.today'
+                'https://rpc-mumbai.matic.today'
             ),
             network_id: 80001,
-            gasPrice: '0x0',
             confirmations: 2,
             timeoutBlocks: 200,
             skipDryRun: true

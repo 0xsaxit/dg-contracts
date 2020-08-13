@@ -1,19 +1,19 @@
 
 // File: contracts/common-contracts/SafeMath.sol
 
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
 library SafeMath {
 
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
+        require(c >= a, 'SafeMath: addition overflow');
 
         return c;
     }
 
     function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
+        return sub(a, b, 'SafeMath: subtraction overflow');
     }
 
     function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -24,25 +24,21 @@ library SafeMath {
     }
 
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
         if (a == 0) {
             return 0;
         }
 
         uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
+        require(c / a == b, 'SafeMath: multiplication overflow');
 
         return c;
     }
 
     function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
+        return div(a, b, 'SafeMath: division by zero');
     }
 
     function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        // Solidity only automatically asserts when dividing by 0
         require(b > 0, errorMessage);
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
@@ -51,7 +47,7 @@ library SafeMath {
     }
 
     function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
+        return mod(a, b, 'SafeMath: modulo by zero');
     }
 
     function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -60,84 +56,84 @@ library SafeMath {
     }
 }
 
-// File: contracts/common-contracts/AccessControl.sol
+// File: contracts/common-contracts/AccessController.sol
 
-pragma solidity ^0.5.11;
+pragma solidity ^0.5.17;
 
-contract AccessControl {
-    address public ceoAddress; // contract's owner and manager address
-    address public workerAddress; // contract's owner and manager address
+contract AccessController {
 
-    bool public paused = false; // keeps track of whether or not contract is paused
+    address public ceoAddress;
+    address public workerAddress;
 
-    /**
-    @notice fired when a new address is set as CEO
-    */
+    bool public paused = false;
+
     event CEOSet(address newCEO);
     event WorkerSet(address newWorker);
 
-    /**
-    @notice fired when the contract is paused
-     */
     event Paused();
-
-    /**
-    @notice fired when the contract is unpaused
-     */
     event Unpaused();
 
-    // AccessControl constructor - sets default executive roles of contract to the sender account
     constructor() public {
         ceoAddress = msg.sender;
         workerAddress = msg.sender;
         emit CEOSet(ceoAddress);
     }
 
-    // access modifier for CEO-only functionality
     modifier onlyCEO() {
-        require(msg.sender == ceoAddress);
+        require(
+            msg.sender == ceoAddress,
+            'AccessControl: CEO access denied'
+        );
         _;
     }
 
-    // access modifier for Worker-only functionality
     modifier onlyWorker() {
-        require(msg.sender == workerAddress);
+        require(
+            msg.sender == workerAddress,
+            'AccessControl: worker access denied'
+        );
         _;
     }
 
-    // assigns new CEO address - only available to the current CEO
+    modifier whenNotPaused() {
+        require(
+            !paused,
+            'AccessControl: currently paused'
+        );
+        _;
+    }
+
+    modifier whenPaused {
+        require(
+            paused,
+            'AccessControl: currenlty not paused'
+        );
+        _;
+    }
+
     function setCEO(address _newCEO) public onlyCEO {
-        require(_newCEO != address(0));
+        require(
+            _newCEO != address(0x0),
+            'AccessControl: invalid CEO address'
+        );
         ceoAddress = _newCEO;
         emit CEOSet(ceoAddress);
     }
 
-    // assigns new Worker address - only available to the current CEO
-    function setWorker(address _newWorker) public onlyCEO {
-        require(_newWorker != address(0));
+    function setWorker(address _newWorker) public onlyWorker {
+        require(
+            _newWorker != address(0x0),
+            'AccessControl: invalid worker address'
+        );
         workerAddress = _newWorker;
         emit WorkerSet(workerAddress);
     }
 
-    // modifier to allow actions only when the contract IS NOT paused
-    modifier whenNotPaused() {
-        require(!paused);
-        _;
-    }
-
-    // modifier to allow actions only when the contract IS paused
-    modifier whenPaused {
-        require(paused);
-        _;
-    }
-
-    // pauses the smart contract - can only be called by the CEO
     function pause() public onlyCEO whenNotPaused {
         paused = true;
         emit Paused();
     }
 
-    // unpauses the smart contract - can only be called by the CEO
     function unpause() public onlyCEO whenPaused {
         paused = false;
         emit Unpaused();
@@ -146,38 +142,38 @@ contract AccessControl {
 
 // File: contracts/common-contracts/TreasuryInstance.sol
 
-pragma solidity ^0.5.14;
+pragma solidity ^0.5.17;
 
 interface TreasuryInstance {
 
-    function tokenAddress(
-        string calldata _tokenName
+    function getTokenAddress(
+        uint256 _tokenIndex
     ) external view returns (address);
 
     function tokenInboundTransfer(
-        string calldata _tokenName,
+        uint8 _tokenIndex,
         address _from,
         uint256 _amount
     )  external returns (bool);
 
     function tokenOutboundTransfer(
-        string calldata _tokenName,
+        uint8 _tokenIndex,
         address _to,
         uint256 _amount
     ) external returns (bool);
 
     function checkAllocatedTokens(
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external view returns (uint256);
 
     function checkApproval(
         address _userAddress,
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external view returns (uint256 approved);
 
     function getMaximumBet(
-        string calldata _tokenName
-    ) external view returns (uint256);
+        uint8 _tokenIndex
+    ) external view returns (uint128);
 
     function consumeHash(
         bytes32 _localhash
@@ -186,18 +182,20 @@ interface TreasuryInstance {
 
 // File: contracts/treasury-example/TreasuryBackgammon.sol
 
-pragma solidity ^0.5.16;
+pragma solidity ^0.5.17;
 
-contract TreasuryBackgammon is AccessControl {
+contract TreasuryBackgammon is AccessController {
 
+    using SafeMath for uint128;
     using SafeMath for uint256;
+
     enum GameState {NewGame, OnGoingGame, DoublingStage, GameEnded}
 
     event GameStarted(
         uint256 gameId,
         address indexed playerOne,
         address indexed playerTwo,
-        string tokenName
+        uint8 tokenIndex
     );
 
     event StakeRaised(
@@ -223,26 +221,22 @@ contract TreasuryBackgammon is AccessControl {
     );
 
     struct Game {
-        GameState state;
-        address playerOne;
-        address playerTwo;
-        string tokenName;
         uint256 stake;
         uint256 total;
+        address playerOne;
+        address playerTwo;
         address lastStaker;
+        uint8 tokenIndex;
+        GameState state;
     }
 
-    //safe factor to check allowance
-    uint256 public safeFactor = 64;
-    uint256 public feePercent = 10;
-
+    uint256 private store;
     mapping(uint256 => Game) public currentGames;
-    mapping(address => uint256) public wins;
 
     modifier onlyDoublingStage(uint256 gameId) {
         require(
             currentGames[gameId].state == GameState.DoublingStage,
-            "must be proposed to double first by one of the players"
+            'must be proposed to double first by one of the players'
         );
         _;
     }
@@ -250,7 +244,7 @@ contract TreasuryBackgammon is AccessControl {
     modifier onlyOnGoingGame(uint256 gameId) {
         require(
             currentGames[gameId].state == GameState.OnGoingGame,
-            "must be ongoing game"
+            'must be ongoing game'
         );
         _;
     }
@@ -259,7 +253,7 @@ contract TreasuryBackgammon is AccessControl {
         require(
             player == currentGames[gameId].playerOne ||
             player == currentGames[gameId].playerTwo,
-            "must be one of the players"
+            'must be one of the players'
         );
         _;
     }
@@ -274,22 +268,22 @@ contract TreasuryBackgammon is AccessControl {
 
     TreasuryInstance public treasury;
 
-    constructor(address _treasuryAddress) public {
+    constructor(address _treasuryAddress, uint8 _safeFactor, uint8 _feePercent) public {
         treasury = TreasuryInstance(_treasuryAddress);
+        store |= _safeFactor<<0;
+        store |= uint256(_feePercent)<<8;
     }
 
     function initializeGame(
-        uint256 _defaultStake,
+        uint128 _defaultStake,
         address _playerOneAddress,
         address _playerTwoAddress,
-        string calldata _tokenName
+        uint8 _tokenIndex
     ) external whenNotPaused onlyWorker returns (bool) {
-
-        //_consume(_localhash); //if needed
 
         require(
             address(_playerOneAddress) != address(_playerTwoAddress),
-            "must be two different players"
+            'must be two different players'
         );
 
         uint256 gameId = uint256(
@@ -297,44 +291,42 @@ contract TreasuryBackgammon is AccessControl {
         );
 
         require(
+            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(_playerOneAddress, _tokenIndex),
+            'P1 must approve/allow treasury as spender'
+        );
+
+        require(
+            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(_playerTwoAddress, _tokenIndex),
+            'P2 must approve/allow treasury as spender'
+        );
+
+        require(
             currentGames[gameId].state == GameState.NewGame ||
             currentGames[gameId].state == GameState.GameEnded,
-            "cannot initialize running game"
+            'cannot initialize running game'
         );
 
         require(
-            treasury.tokenAddress(_tokenName) != address(0x0),
-            "token is not delcared in treasury!"
+            treasury.getTokenAddress(_tokenIndex) != address(0x0),
+            'token is not delcared in treasury!'
         );
 
         require(
-            _defaultStake <= treasury.getMaximumBet(_tokenName),
-            "exceeding maximum bet defined in treasury"
+            _defaultStake <= treasury.getMaximumBet(_tokenIndex),
+            'exceeding maximum bet defined in treasury'
         );
 
-        require(
-            _defaultStake.mul(safeFactor) <= treasury.checkApproval(_playerOneAddress, _tokenName),
-            "P1 must approve/allow treasury contract as spender"
-        );
+        treasury.tokenInboundTransfer(_tokenIndex, _playerOneAddress, _defaultStake);
+        treasury.tokenInboundTransfer(_tokenIndex, _playerTwoAddress, _defaultStake);
 
-        require(
-            _defaultStake.mul(safeFactor) <= treasury.checkApproval(_playerTwoAddress, _tokenName),
-            "P2 must approve/allow treasury contract as spender"
-        );
-
-        //get original stakes from each player to start the game
-        treasury.tokenInboundTransfer(_tokenName, _playerOneAddress, _defaultStake);
-        treasury.tokenInboundTransfer(_tokenName, _playerTwoAddress, _defaultStake);
-
-        // set new status of the game
         Game memory _game = Game(
-            GameState.OnGoingGame,
-            _playerOneAddress,
-            _playerTwoAddress,
-            _tokenName,
             _defaultStake,
             _defaultStake.mul(2),
-            address(0)
+            _playerOneAddress,
+            _playerTwoAddress,
+            address(0),
+            _tokenIndex,
+            GameState.OnGoingGame
         );
 
         currentGames[gameId] = _game;
@@ -343,7 +335,7 @@ contract TreasuryBackgammon is AccessControl {
             gameId,
             _playerOneAddress,
             _playerTwoAddress,
-            _tokenName
+            _tokenIndex
         );
     }
 
@@ -357,16 +349,16 @@ contract TreasuryBackgammon is AccessControl {
         require(
             address(_playerRaising) !=
             address(currentGames[_gameId].lastStaker),
-            "same player cannot raise double again"
+            'same player cannot raise double again'
         );
 
         require(
             treasury.tokenInboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 _playerRaising,
                 currentGames[_gameId].stake
             ),
-            "raising double transfer failed"
+            'raising double transfer failed'
         );
 
         currentGames[_gameId].state = GameState.DoublingStage;
@@ -392,16 +384,16 @@ contract TreasuryBackgammon is AccessControl {
         require(
             address(_playerCalling) !=
             address(currentGames[_gameId].lastStaker),
-            "call must come from opposite player who doubled"
+            'call must come from opposite player who doubled'
         );
 
         require(
             treasury.tokenInboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 _playerCalling,
                 currentGames[_gameId].stake
             ),
-            "calling double transfer failed"
+            'calling double transfer failed'
         );
 
         currentGames[_gameId].total = currentGames[_gameId].total.add(
@@ -427,20 +419,19 @@ contract TreasuryBackgammon is AccessControl {
     {
         require(
             _playerDropping != currentGames[_gameId].lastStaker,
-            "drop must come from opposite player who doubled"
+            'drop must come from opposite player who doubled'
         );
 
         require(
             treasury.tokenOutboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 currentGames[_gameId].lastStaker,
                 applyPercent(currentGames[_gameId].total)
 
             ),
-            "win amount transfer failed (dropGame)"
+            'win amount transfer failed (dropGame)'
         );
 
-        wins[currentGames[_gameId].lastStaker] = wins[currentGames[_gameId].lastStaker].add(1);
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit PlayerDropped(
@@ -450,8 +441,9 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     function applyPercent(uint256 _value) public view returns (uint256) {
-        uint256 _feePercent = uint256(1000).sub(feePercent.mul(10));
-        return _value.mul(_feePercent).div(1000);
+        return _value.mul(
+            100 - uint256(uint8(store>>8))
+        ).div(100);
     }
 
     function resolveGame(uint256 _gameId, address _winPlayer)
@@ -461,17 +453,15 @@ contract TreasuryBackgammon is AccessControl {
         onlyOnGoingGame(_gameId)
         isPlayerInGame(_gameId, _winPlayer)
     {
-
         require(
             treasury.tokenOutboundTransfer(
-                currentGames[_gameId].tokenName,
+                currentGames[_gameId].tokenIndex,
                 _winPlayer,
                 applyPercent(currentGames[_gameId].total)
             ),
-            "win amount transfer failed (resolveGame)"
+            'win amount transfer failed (resolveGame)'
         );
 
-        wins[_winPlayer] = wins[_winPlayer].add(1);
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit GameResolved(
@@ -499,14 +489,24 @@ contract TreasuryBackgammon is AccessControl {
         ) return true;
     }
 
-    function changeFeePercent(uint256 _newFeePercent) external onlyCEO {
-        require(_newFeePercent < 100, 'must be below 100');
-        feePercent = _newFeePercent;
+    function changeSafeFactor(uint8 _newFactor) external onlyCEO {
+        require(_newFactor > 0, 'must be above zero');
+        store ^= uint8(store)<<0;
+        store |= _newFactor<<0;
     }
 
-    function changeSafeFactor(uint256 _newFactor) external onlyCEO {
-        require(_newFactor > 0, 'must be above zero');
-        safeFactor = _newFactor;
+    function changeFeePercent(uint8 _newFeePercent) external onlyCEO {
+        require(_newFeePercent < 20, 'must be below 20');
+        store ^= (store>>8)<<8;
+        store |= uint256(_newFeePercent)<<8;
+    }
+
+    function checkFeePercent() public view returns (uint8) {
+        return uint8(store>>8);
+    }
+
+    function checkSafFactor() public view returns (uint8) {
+        return uint8(store>>0);
     }
 
     function changeTreasury(address _newTreasuryAddress) external onlyCEO {
@@ -514,6 +514,14 @@ contract TreasuryBackgammon is AccessControl {
     }
 
     function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
+        treasury = TreasuryInstance(_newTreasuryAddress);
+    }
+
+    function migrateTreasury(address _newTreasuryAddress) external {
+        require(
+            msg.sender == address(treasury),
+            'wrong current treasury address'
+        );
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 }

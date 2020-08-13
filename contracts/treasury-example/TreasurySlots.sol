@@ -198,6 +198,8 @@ contract TreasurySlots is AccessController {
             msg.sender == address(treasury),
             'Slots: wrong treasury address'
         );
-        treasury = TreasuryInstance(_newTreasuryAddress);
+        treasury = TreasuryInstance(
+            _newTreasuryAddress
+        );
     }
 }
