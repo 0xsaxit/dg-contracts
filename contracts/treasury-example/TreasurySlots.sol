@@ -18,6 +18,15 @@ contract TreasurySlots is AccessController {
     mapping (address => mapping(uint8 => uint128)) insertedTokens;
     mapping (address => mapping(uint8 => uint256)) redeemLock;
 
+    struct NextPlay {
+        address player;
+        uint8 tokenIndex;
+        uint128 betAmount;
+        bool readyToPlay;
+    }
+
+    NextPlay public nextPlay;
+
     event GameResult(
         address player,
         uint8 tokenIndex,
@@ -65,14 +74,20 @@ contract TreasurySlots is AccessController {
         );
 
         require(
+            _betAmount > 0 &&
             treasury.getMaximumBet(_tokenIndex) >= _betAmount,
-            'Slots: exceeded maximum bet amount'
+            'Slots: bet is not in available range'
         );
 
         require(
-            insertedTokens[_player][_tokenIndex] == 0,
+            nextPlay.readyToPlay == false,
             'Slots: player already inserted a token'
         );
+
+        nextPlay.player = _player;
+        nextPlay.tokenIndex = _tokenIndex;
+        nextPlay.betAmount = _betAmount;
+        nextPlay.readyToPlay = true;
 
         treasury.tokenInboundTransfer(
             _tokenIndex,
@@ -80,8 +95,8 @@ contract TreasurySlots is AccessController {
             _betAmount
         );
 
-        insertedTokens[_player][_tokenIndex] = _betAmount;
-        redeemLock[_player][_tokenIndex] = block.timestamp + 12 hours;
+        // insertedTokens[_player][_tokenIndex] = _betAmount;
+        // redeemLock[_player][_tokenIndex] = block.timestamp + 12 hours;
 
         emit tokenInserted(
             _player,
@@ -117,24 +132,26 @@ contract TreasurySlots is AccessController {
     }*/
 
     function play(
-        address _player,
         uint128 _landID,
         uint128 _machineID,
-        bytes32 _localhash,
-        uint8 _tokenIndex
+        bytes32 _localhash
     ) public whenNotPaused onlyWorker {
 
-        uint128 _betAmount = insertedTokens[_player][_tokenIndex];
-
         require(
-            _betAmount > 0,
-            'Slots: player has not inserted a token'
+            nextPlay.readyToPlay == true,
+            'Slots: insert token first'
         );
+
+        address _player = nextPlay.player;
+        uint8 _tokenIndex = nextPlay.tokenIndex;
+        uint128 _betAmount = nextPlay.betAmount;
 
         require(
             treasury.checkAllocatedTokens(_tokenIndex) >= getMaxPayout(_betAmount),
             'Slots: not enough tokens for payout'
         );
+
+        nextPlay.readyToPlay = false;
 
         treasury.consumeHash(
            _localhash
@@ -145,6 +162,9 @@ contract TreasurySlots is AccessController {
             _betAmount
         );
 
+        // insertedTokens[_player][_tokenIndex] = 0;
+        // redeemLock[_player][_tokenIndex] = 0;
+
         if (_winAmount > 0) {
             treasury.tokenOutboundTransfer(
                 _tokenIndex,
@@ -152,9 +172,6 @@ contract TreasurySlots is AccessController {
                 _winAmount
             );
         }
-
-        insertedTokens[_player][_tokenIndex] = 0;
-        redeemLock[_player][_tokenIndex] = 0;
 
         emit GameResult(
             _player,
