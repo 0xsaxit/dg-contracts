@@ -15,13 +15,22 @@ contract TreasurySlots is AccessController {
     uint256 private factors;
     TreasuryInstance public treasury;
 
+    mapping (address => mapping(uint8 => uint128)) insertedTokens;
+    mapping (address => mapping(uint8 => uint256)) redeemLock;
+
     event GameResult(
-        address _player,
-        uint8 _tokenIndex,
-        uint128 _landID,
-        uint256 indexed _number,
-        uint128 indexed _machineID,
-        uint256 _winAmount
+        address player,
+        uint8 tokenIndex,
+        uint128 landID,
+        uint256 indexed number,
+        uint128 indexed machineID,
+        uint256 winAmount
+    );
+
+    event tokenInserted (
+        address player,
+        uint8 tokenIndex,
+        uint128 betAmount
     );
 
     constructor(
@@ -44,14 +53,11 @@ contract TreasurySlots is AccessController {
         factors |= uint256(factor4)<<48;
     }
 
-    function play(
+    function insertToken(
         address _player,
-        uint128 _landID,
-        uint128 _machineID,
         uint128 _betAmount,
-        bytes32 _localhash,
         uint8 _tokenIndex
-    ) public whenNotPaused onlyWorker {
+    ) external {
 
         require(
             treasury.checkApproval(_player, _tokenIndex) >= _betAmount,
@@ -64,14 +70,70 @@ contract TreasurySlots is AccessController {
         );
 
         require(
-            treasury.checkAllocatedTokens(_tokenIndex) >= getMaxPayout(_betAmount),
-            'Slots: not enough tokens for payout'
+            insertedTokens[_player][_tokenIndex] == 0,
+            'Slots: player already inserted a token'
         );
 
         treasury.tokenInboundTransfer(
             _tokenIndex,
             _player,
             _betAmount
+        );
+
+        insertedTokens[_player][_tokenIndex] = _betAmount;
+        redeemLock[_player][_tokenIndex] = block.timestamp + 12 hours;
+
+        emit tokenInserted(
+            _player,
+            _tokenIndex,
+            _betAmount
+        );
+    }
+
+    /*
+    function redeemToken(uint8 _tokenIndex) external onlyWorker {
+
+        uint128 insertedAmount = insertedTokens[msg.sender][_tokenIndex];
+
+        require(
+            insertedAmount > 0,
+            'Slots: no tokens inserted'
+        );
+
+        require(
+            redeemLock[msg.sender][_tokenIndex] > 0 &&
+            redeemLock[msg.sender][_tokenIndex] > block.timestamp,
+            'Slots: redeem lock is not lifted yet'
+        );
+
+        insertedTokens[msg.sender][_tokenIndex] = 0;
+        redeemLock[msg.sender][_tokenIndex] = 0;
+
+        treasury.tokenOutboundTransfer(
+            _tokenIndex,
+            msg.sender,
+            insertedAmount
+        );
+    }*/
+
+    function play(
+        address _player,
+        uint128 _landID,
+        uint128 _machineID,
+        bytes32 _localhash,
+        uint8 _tokenIndex
+    ) public whenNotPaused onlyWorker {
+
+        uint128 _betAmount = insertedTokens[_player][_tokenIndex];
+
+        require(
+            _betAmount > 0,
+            'Slots: player has not inserted a token'
+        );
+
+        require(
+            treasury.checkAllocatedTokens(_tokenIndex) >= getMaxPayout(_betAmount),
+            'Slots: not enough tokens for payout'
         );
 
         treasury.consumeHash(
@@ -90,6 +152,9 @@ contract TreasurySlots is AccessController {
                 _winAmount
             );
         }
+
+        insertedTokens[_player][_tokenIndex] = 0;
+        redeemLock[_player][_tokenIndex] = 0;
 
         emit GameResult(
             _player,
@@ -198,8 +263,6 @@ contract TreasurySlots is AccessController {
             msg.sender == address(treasury),
             'Slots: wrong treasury address'
         );
-        treasury = TreasuryInstance(
-            _newTreasuryAddress
-        );
+        treasury = TreasuryInstance(_newTreasuryAddress);
     }
 }

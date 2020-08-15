@@ -574,7 +574,7 @@ interface TreasuryMigration {
         uint8 _tokenIndex,
         uint256 _tokenAmount
     ) external;
-
+ 
     function setCEO(
         address _newCEO
     ) external;
