@@ -93,6 +93,10 @@ contract EnableAccountMetaTx is EIP712Base {
         nonces[userAddress] = nonces[userAddress].add(1);
     }
 
+    function getNonce(address user) public view returns(uint256 nonce) {
+        nonce = nonces[user];
+    }
+
     function verify(
         address signer,
         MetaTransaction memory metaTx,
@@ -126,4 +130,18 @@ contract EnableAccountMetaTx is EIP712Base {
             );
     }
 
+    function msgSender() internal view returns(address sender) {
+        if(msg.sender == address(this)) {
+            bytes memory array = msg.data;
+            uint256 index = msg.data.length;
+            assembly {
+                // Load the 32 bytes word from memory with the address on the lower 20 bytes, and mask those.
+                sender := and(mload(add(array, index)), 0xffffffffffffffffffffffffffffffffffffffff)
+            }
+        } else {
+            sender = msg.sender;
+        }
+        return sender;
+    }
+    
 }
