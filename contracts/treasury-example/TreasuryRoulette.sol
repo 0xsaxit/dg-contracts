@@ -122,9 +122,7 @@ contract TreasuryRoulette is AccessController {
         store ^= (store>>136)<<136;
         store |= now<<136;
 
-        uint diff = block.difficulty;
         bytes32 hash = _localhash;
-        Bet memory lb = bets[bets.length-1];
 
         number = uint(
             keccak256(

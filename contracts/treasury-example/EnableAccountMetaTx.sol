@@ -55,8 +55,8 @@ contract EnableAccountMetaTx is EIP712Base {
         );
 
         require(success, "Function call not successfull");
-        nonces[userAddress] = nonces[userAddress].add(1);
-        
+        nonces[userAddress] = nonces[userAddress] + 1;
+
         emit MetaTransactionExecuted(
             userAddress,
             msg.sender,
@@ -71,7 +71,7 @@ contract EnableAccountMetaTx is EIP712Base {
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
-    ) external {
+    ) public {
         MetaTransaction memory metaTx = MetaTransaction({
             nonce: nonces[userAddress],
             from: userAddress,
@@ -87,10 +87,10 @@ contract EnableAccountMetaTx is EIP712Base {
         );
 
         require(success, "Function call not successfull");
-        nonces[userAddress] = nonces[userAddress].add(1);
+        nonces[userAddress] = nonces[userAddress] + 1;
 
         require(success, "Function call not successfull");
-        nonces[userAddress] = nonces[userAddress].add(1);
+        nonces[userAddress] = nonces[userAddress] + 1;
     }
 
     function getNonce(address user) public view returns(uint256 nonce) {
@@ -143,5 +143,5 @@ contract EnableAccountMetaTx is EIP712Base {
         }
         return sender;
     }
-    
+
 }
