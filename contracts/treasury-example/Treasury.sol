@@ -56,11 +56,6 @@ contract BiconomyHelper is EIP712Base {
         bytes functionSignature;
     }
 
-    constructor(string memory name, string memory version)
-        public
-        EIP712Base(name, version)
-    {}
-
     function enableAccountMetaTx(
         address userAddress,
         bytes memory functionSignature,
@@ -438,7 +433,7 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper,
     constructor(
         address _defaultTokenAddress,
         string memory _defaultTokenName
-    ) public {
+    ) public EIP712Base('Treasury', 'v2.1') {
         addToken(_defaultTokenAddress, _defaultTokenName);
     }
 
