@@ -129,7 +129,7 @@ contract TreasuryRoulette is AccessController {
         number = uint(
             keccak256(
                 abi.encodePacked(
-                    now, diff, hash, lb.betType, lb.player, lb.number
+                    hash
                 )
             )
         ) % 37;
