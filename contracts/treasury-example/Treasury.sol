@@ -437,12 +437,9 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper,
 
     constructor(
         address _defaultTokenAddress,
-        string memory _defaultTokenName,
-        address _migrationAddress
+        string memory _defaultTokenName
     ) public {
-        _migrationAddress == address(0x0)
-            ? addToken(_defaultTokenAddress, _defaultTokenName)
-            : setCEO(_migrationAddress);
+        addToken(_defaultTokenAddress, _defaultTokenName);
     }
 
     function disableAccount(
@@ -631,85 +628,4 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper,
         _consume(_localhash);
         return true;
     }
-
-    function migrateTreasury(
-        address _newTreasury
-    ) external onlyCEO returns (bool) {
-
-        TreasuryMigration nt = TreasuryMigration(_newTreasury);
-
-        for (uint8 g = 0; g < treasuryGames.length; g++) {
-            bool gameStatus = settings[treasuryGames[g].gameAddress].status == GameStatus.Enabled ? true : false;
-            nt.addGame(
-                treasuryGames[g].gameAddress,
-                treasuryGames[g].gameName,
-                gameStatus
-            );
-            GameMigration gm = GameMigration(treasuryGames[g].gameAddress);
-            gm.migrateTreasury(_newTreasury);
-        }
-
-        for (uint8 t = 0; t < treasuryTokens.length; t++) {
-            nt.addToken(
-                treasuryTokens[t].tokenAddress,
-                treasuryTokens[t].tokenName
-            );
-
-            ERC20Token token = getTokenInstance(t);
-            token.approve(
-                _newTreasury,
-                token.balanceOf(address(this))
-            );
-
-            for (uint8 j = 0; j < treasuryGames.length; j++) {
-                uint256 amount = gameTokens[j][t];
-                uint128 maxBet = maximumBet[j][t];
-                nt.addFunds(j, t, amount);
-                nt.setMaximumBet(j, t, maxBet);
-                gameTokens[j][t] = 0;
-            }
-        }
-
-        nt.setTail(tail);
-        nt.setCEO(msg.sender);
-    }
-}
-
-interface GameMigration {
-    function migrateTreasury(
-        address _newTreasuryAddress
-    ) external;
-}
-
-interface TreasuryMigration {
-    function addGame(
-        address _newGameAddress,
-        string calldata _newGameName,
-        bool _isActive
-    ) external;
-
-    function addToken(
-        address _tokenAddress,
-        string calldata _tokenName
-    ) external;
-
-    function addFunds(
-        uint8 _gameIndex,
-        uint8 _tokenIndex,
-        uint256 _tokenAmount
-    ) external;
-
-    function setCEO(
-        address _newCEO
-    ) external;
-
-    function setMaximumBet(
-        uint8 _gameIndex,
-        uint8 _tokenIndex,
-        uint128 _maximumBet
-    ) external;
-
-    function setTail(
-        bytes32 _tail
-    ) external;
 }
