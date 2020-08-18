@@ -56,7 +56,7 @@ contract BiconomyHelper is EIP712Base {
         bytes functionSignature;
     }
 
-    function enableAccountMetaTx(
+    function executeMetaTransaction(
         address userAddress,
         bytes memory functionSignature,
         uint256 sessionDuration,
