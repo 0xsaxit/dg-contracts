@@ -30,7 +30,7 @@ contract BiconomyHelper is EIP712Base {
 
     modifier onlyEnabledOrNewAccount(address _account) {
         require(
-            enabledTill[_account] > now ||
+            isEnabled(_account) ||
             enabledTill[_account] == 0,
             'Treasury: disabled account'
         );
@@ -39,7 +39,7 @@ contract BiconomyHelper is EIP712Base {
 
     modifier onlyEnabledAccountStrict(address _account) {
         require(
-            enabledTill[_account] > now,
+            isEnabled(_account),
             'Treasury: disabled account'
         );
         _;
@@ -110,6 +110,10 @@ contract BiconomyHelper is EIP712Base {
 
     function getTimeFrame(address _account) internal view returns (uint256) {
         return timeFrame[_account] > 0 ? timeFrame[_account] : defaultTimeFrame;
+    }
+
+    function isEnabled(address _account) public view returns (bool) {
+        return enabledTill[_account] > now;
     }
 
     function verify(
