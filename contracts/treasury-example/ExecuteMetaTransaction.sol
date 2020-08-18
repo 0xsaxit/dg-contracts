@@ -2,7 +2,7 @@ pragma solidity ^0.5.17;
 
 import "../common-contracts/EIP712Base.sol";
 
-contract EnableAccountMetaTx is EIP712Base {
+contract ExecuteMetaTransaction is EIP712Base {
 
     bytes32 private constant META_TRANSACTION_TYPEHASH = keccak256(
         bytes(
@@ -65,7 +65,7 @@ contract EnableAccountMetaTx is EIP712Base {
         return returnData;
     }
 
-    function enableAccountMetaTx(
+    function executeMetaTransaction(
         address userAddress,
         bytes memory functionSignature,
         bytes32 sigR,
