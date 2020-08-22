@@ -4,6 +4,10 @@ pragma solidity ^0.5.17;
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
 // Single Play - Simple Slots - TokenIndex
 
+import "../common-contracts/SafeMath.sol";
+import "../common-contracts/AccessController.sol";
+import "../common-contracts/TreasuryInstance.sol";
+
 contract TreasurySlots is AccessController {
 
     using SafeMath for uint128;

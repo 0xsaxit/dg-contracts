@@ -6,20 +6,20 @@ import "../common-contracts/HashChain.sol";
 import "../common-contracts/AccessController.sol";
 import "../common-contracts/EIP712Base.sol";
 
-contract BiconomyHelper is EIP712Base {
+contract ExecuteMetaTransaction is EIP712Base {
 
     using SafeMath for uint256;
-
-    bytes32 private constant META_TRANSACTION_TYPEHASH = keccak256(
-        bytes(
-            "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
-        )
-    );
 
     event MetaTransactionExecuted(
         address userAddress,
         address payable relayerAddress,
         bytes functionSignature
+    );
+
+    bytes32 private constant META_TRANSACTION_TYPEHASH = keccak256(
+        bytes(
+            "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
+        )
     );
 
     uint256 constant defaultTimeFrame = 12 hours;
@@ -32,7 +32,7 @@ contract BiconomyHelper is EIP712Base {
         require(
             isEnabled(_account) ||
             enabledTill[_account] == 0,
-            'Treasury: disabled account'
+            'Treasury: disabled account!'
         );
         _;
     }
@@ -40,7 +40,7 @@ contract BiconomyHelper is EIP712Base {
     modifier onlyEnabledAccountStrict(address _account) {
         require(
             isEnabled(_account),
-            'Treasury: disabled account'
+            'Treasury: disabled account!'
         );
         _;
     }
@@ -430,7 +430,7 @@ contract TokenController is AccessController {
     }
 }
 
-contract Treasury is GameController, TokenController, HashChain, TransferHelper, BiconomyHelper {
+contract Treasury is GameController, TokenController, HashChain, TransferHelper, ExecuteMetaTransaction {
 
     using SafeMath for uint256;
 

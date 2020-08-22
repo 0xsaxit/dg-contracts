@@ -81,7 +81,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
 
     enum inGameState { notJoined, Playing, EndedPlay }
     enum GameState { NewGame, OnGoingGame, EndedGame }
-    enum PlayerState { notBusted, hasSplit, isSettled, isBusted, hasBlackJack }
+    enum PlayerState { notBusted, isSplit, isSettled, isBusted, hasBlackJack }
 
     // enum PlayerState {Busted, Double, Insured, Split, Win}
 
@@ -104,7 +104,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
     mapping(bytes16 => uint8[]) DealersVisible;
     mapping(bytes16 => uint8[]) public NonBustedPlayers;
     mapping(address => mapping(bytes16 => uint8[])) PlayersHand;
-    mapping(address => mapping(bytes16 => uint8[])) public PlayersSplit;
+    mapping(address => mapping(bytes16 => uint8[])) public PlayerSplit;
     mapping(address => mapping(bytes16 => bool)) public PlayersInsurance;
     mapping(address => mapping(bytes16 => inGameState)) public inGame;
 
@@ -116,10 +116,23 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         _;
     }
 
-    modifier ifPlayerInGame(bytes16 _gameId, address _player) {
+    modifier ifPlayerInGame(bytes16 _gameId, address _player, uint8 _pIndex) {
         require(
             inGame[_player][_gameId] == inGameState.Playing,
             "BlackJack: given player is not in the current game"
+        );
+        require(
+            Games[_gameId].players[_pIndex] == _player,
+            'BlackJack: wrong player arguments supplied'
+        );
+        _;
+    }
+
+    modifier onlyNonBustedOrSplit(bytes16 _gameId, uint8 _pIndex) {
+        require(
+            Games[_gameId].pState[_pIndex] == PlayerState.notBusted ||
+            Games[_gameId].pState[_pIndex] == PlayerState.isSplit,
+            "BlackJack: given player already busted in this game"
         );
         _;
     }
@@ -136,7 +149,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         address[] memory _players = Games[_gameId].players;
         for (uint256 i = 0; i < _players.length; i++) {
             require(
-                uint8(Games[_gameId].pState[i]) > uint8(PlayerState.notBusted),
+                uint8(Games[_gameId].pState[i]) > uint8(PlayerState.notBusted) + 1,
                 'BlackJack: not all players finished their turn'
             );
         }
@@ -180,6 +193,24 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         uint8 cardsIndex,
         string cardSuit,
         string cardVal
+    );
+
+    event splitHand(
+        bytes16 gameId,
+        address player,
+        uint8[] hand,
+        uint8[] split
+    );
+
+    event InsurancePurchased(
+        bytes16 gameId,
+        address player,
+        uint8 playerIndex
+    );
+
+    event InsurancePayout(
+        address player,
+        uint256 amount
     );
 
     event PlayersPayout(
@@ -231,7 +262,11 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
     }
 
     function checkForBlackJack(bytes16 _gameId, address _player, uint8 _playerIndex) private {
-        if (isBlackJack(PlayersHand[_player][_gameId])) {
+
+        if (
+            isBlackJack(
+                    getHand(_gameId, _player, _playerIndex)
+            )) {
             NonBustedPlayers[_gameId].push(_playerIndex);
             Games[_gameId].pState[_playerIndex] = PlayerState.hasBlackJack;
         }
@@ -284,7 +319,11 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             string memory _cardsVal
         ) = getCardsDetails(_card);
 
-        PlayersHand[_player][_gameId].push(_card);
+        uint8[] storage playersHand = hasSplit(_gameId, _pIndex)
+            ? PlayerSplit[_player][_gameId]
+            : PlayersHand[_player][_gameId];
+
+        playersHand.push(_card);
 
         emit PlayerCardDrawn(
             _gameId,
@@ -434,21 +473,16 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
 
     function hitMove(
         bytes16 _gameId,
-        address _player, // consider removing
+        address _player,
         uint8 _pIndex,
         bytes32 _localhashA
     )
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
-        onlyNonBusted(_gameId, _pIndex)
-        ifPlayerInGame(_gameId, _player)
+        onlyNonBustedOrSplit(_gameId, _pIndex)
+        ifPlayerInGame(_gameId, _player, _pIndex)
     {
-        require(
-            Games[_gameId].players[_pIndex] == _player,
-            'BlackJack: wrong player arguments supplied'
-        );
-
         treasury.consumeHash(_localhashA);
 
         drawPlayersCard(
@@ -456,7 +490,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         );
 
         uint8 playersPower = getHandsPower(
-            PlayersHand[_player][_gameId]
+            getHand(_gameId, _player, _pIndex)
         );
 
         if (playersPower > 21) {
@@ -477,15 +511,9 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
-        onlyNonBusted(_gameId, _pIndex)
-        ifPlayerInGame(_gameId, _player)
+        onlyNonBustedOrSplit(_gameId, _pIndex)
+        ifPlayerInGame(_gameId, _player, _pIndex)
     {
-
-        require(
-            Games[_gameId].players[_pIndex] == _player,
-            'BlackJack: wrong player arguments supplied'
-        );
-
         NonBustedPlayers[_gameId].push(_pIndex);
         Games[_gameId].pState[_pIndex] = PlayerState.isSettled;
     }
@@ -583,6 +611,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
 
             address player = Games[_gameId].players[_leftPlayers[i]];
 
+            // payout if player also has a blackjack
             if (Games[_gameId].pState[i] == PlayerState.hasBlackJack) {
 
                 uint128 amount = Games[_gameId].bets[_leftPlayers[i]];
@@ -592,7 +621,25 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
                     player,
                     amount
                 );
+
                 emit PlayersPayout(
+                    player,
+                    amount
+                );
+            }
+
+            // payout if player purchased insurance
+            if (PlayersInsurance[player][_gameId] == true) {
+
+                uint128 amount = Games[_gameId].bets[_leftPlayers[i]];
+
+                payoutAmount(
+                    Games[_gameId].tokens[_leftPlayers[i]],
+                    player,
+                    amount
+                );
+
+                emit InsurancePayout(
                     player,
                     amount
                 );
@@ -605,7 +652,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
 
             uint8 pi = _leftPlayers[i]; // players index
             address player = Games[_gameId].players[pi];
-            uint8 playersPower = getHandsPower(PlayersHand[player][_gameId]);
+            uint8 playersPower = getHandsPower(getHand(_gameId, player, pi));
             uint128 payout;
 
             if (Games[_gameId].pState[pi] == PlayerState.hasBlackJack) {
@@ -651,70 +698,118 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         onlyWorker
         onlyOnGoingGame(_gameId)
         onlyNonBusted(_gameId, _pIndex)
-        ifPlayerInGame(_gameId, _player)
+        ifPlayerInGame(_gameId, _player, _pIndex)
     {
         require(
             canSplitCards(PlayersHand[_player][_gameId]),
             'BlackJack: must be same power cards to split'
         );
 
-        uint8 tokenIndex = Games[_gameId].tokens[_pIndex];
-        uint128 betAmount = Games[_gameId].bets[_pIndex];
+        require(
+            PlayerSplit[_player][_gameId].length == 0,
+            'BlackJack: this player already made a split'
+        );
 
         Games[_gameId].players.push(_player);
-        Games[_gameId].tokens.push(tokenIndex);
-        Games[_gameId].bets.push(betAmount);
+        Games[_gameId].bets.push(Games[_gameId].bets[_pIndex]);
+        Games[_gameId].tokens.push(Games[_gameId].tokens[_pIndex]);
+        Games[_gameId].pState.push(PlayerState.isSplit);
 
         takePlayersBet(
             _gameId, _pIndex
         );
 
+        PlayersHand[_player][_gameId].pop();
+        PlayerSplit[_player][_gameId] = PlayersHand[_player][_gameId];
 
-        // playersState[_player][_gameId] = PlayerState.hasSplit;
-        // split based on cardsPower
-        // create another hand
-        // takePlayersBet()
-        //PlayersSplit
+        emit splitHand(
+            _gameId,
+            _player,
+            PlayersHand[_player][_gameId],
+            PlayerSplit[_player][_gameId]
+        );
     }
 
-    /* TO-DO:
-
-    function insuranceMove(
+    function purchaseInsurance(
         bytes16 _gameId,
         address _player,
-        bool isBuying
+        uint8 _pIndex
     )
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
-        onlyNonBusted(_gameId, _player)
+        onlyNonBusted(_gameId, _pIndex)
     {
         require (
-            PlayersInsurance[_gameId] == false;
+            PlayersInsurance[_player][_gameId] == false,
             'BlackJack: insurance already purchased'
         );
 
-        // dealers visible is ace -->
-        // takePlayersBet() +0.5bet (buying insurance)
-        PlayersInsurance[_gameId] = true;
-        //
+        require (
+            PlayersHand[_player][_gameId].length == 2,
+            'BlackJack: insurance purchase not possible'
+        );
+
+        require (
+            DealersVisible[_gameId].length == 1 &&
+            getHandsPower(DealersVisible[_gameId]) == 11 ,
+            'BlackJack: dealers single visible card must be ace'
+        );
+
+        PlayersInsurance[_player][_gameId] = true;
+
+        uint8 tokenIndex = Games[_gameId].tokens[_pIndex];
+        address player = Games[_gameId].players[_pIndex];
+        uint256 betAmount = Games[_gameId].bets[_pIndex];
+
+        treasury.tokenInboundTransfer(
+            tokenIndex, player, betAmount.div(2)
+        );
+
+        emit InsurancePurchased(
+            _gameId, player, _pIndex
+        );
     }
 
     function doublingDown(
         bytes16 _gameId,
-        address _player
+        address _player,
+        bytes32 _localhashA,
+        uint8 _pIndex
     )
         external
         onlyWorker
         onlyOnGoingGame(_gameId)
-        isPlayerInGame(_gameId, _player)
-        onlyNonBusted(_gameId, _player)
+        onlyNonBusted(_gameId, _pIndex)
+        ifPlayerInGame(_gameId, _player, _pIndex)
     {
-        // can take only one card
-        // double the bet takePlayersBet()
-    }
 
-    */
+        treasury.consumeHash(_localhashA);
+
+        treasury.tokenInboundTransfer(
+            Games[_gameId].tokens[_pIndex],
+            _player,
+            Games[_gameId].bets[_pIndex]
+        );
+
+        Games[_gameId].bets[_pIndex] =
+        Games[_gameId].bets[_pIndex] * 2;
+
+        drawPlayersCard(
+           _gameId, _pIndex, _localhashA, Games[_gameId].deck.length
+        );
+
+        uint8 playersPower = getHandsPower(
+            getHand(_gameId, _player, _pIndex)
+        );
+
+        if (playersPower > 21) {
+            Games[_gameId].pState[_pIndex] = PlayerState.isBusted;
+        } else {
+            NonBustedPlayers[_gameId].push(_pIndex);
+            Games[_gameId].pState[_pIndex] = PlayerState.isSettled;
+        }
+    }
 
     function checkDeck(
         bytes16 _gameId
@@ -763,6 +858,16 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         return checkPlayersHand(_gameId, msg.sender);
     }
 
+    function checkMySplit(
+        bytes16 _gameId
+    )
+        external
+        view
+        returns (uint8[] memory)
+    {
+        return checkPlayerSplit(_gameId, msg.sender);
+    }
+
     function checkDealersHand(
         bytes16 _gameId
     )
@@ -782,6 +887,42 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         returns (uint8[] memory)
     {
         return PlayersHand[_player][_gameId];
+    }
+
+    function checkPlayerSplit(
+        bytes16 _gameId,
+        address _player
+    )
+        public
+        view
+        returns (uint8[] memory)
+    {
+        return PlayerSplit[_player][_gameId];
+    }
+
+    function getHand(
+        bytes16 _gameId,
+        address _player,
+        uint8 _playerIndex
+    )
+        public
+        view
+        returns (uint8[] memory playersHand)
+    {
+        playersHand = hasSplit(_gameId, _playerIndex)
+            ? PlayerSplit[_player][_gameId]
+            : PlayersHand[_player][_gameId];
+    }
+
+    function hasSplit(
+        bytes16 _gameId,
+        uint8 _pIndex
+    )
+        public
+        view
+        returns (bool)
+    {
+        return Games[_gameId].pState[_pIndex] == PlayerState.isSplit;
     }
 
     function changeTreasury(
