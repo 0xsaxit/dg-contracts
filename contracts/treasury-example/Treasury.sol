@@ -59,6 +59,7 @@ contract ExecuteMetaTransaction is EIP712Base {
     function executeMetaTransaction(
         address userAddress,
         bytes memory functionSignature,
+        uint256 sessionDuration,
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
@@ -79,6 +80,8 @@ contract ExecuteMetaTransaction is EIP712Base {
 
         require(success, "Treasury: Function call not successfull");
         nonces[userAddress] = nonces[userAddress] + 1;
+
+        _enableAccount(userAddress, sessionDuration);
 
         emit MetaTransactionExecuted(
             userAddress,
