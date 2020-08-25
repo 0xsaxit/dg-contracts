@@ -81,7 +81,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
 
     enum inGameState { notJoined, Playing, EndedPlay }
     enum GameState { NewGame, OnGoingGame, EndedGame }
-    enum PlayerState { notBusted, isSplit, isSettled, isBusted, hasBlackJack }
+    enum PlayerState { notBusted, hasSplit, isSplit, isSettled, isBusted, hasBlackJack }
 
     // enum PlayerState {Busted, Double, Insured, Split, Win}
 
@@ -131,6 +131,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
     modifier onlyNonBustedOrSplit(bytes16 _gameId, uint8 _pIndex) {
         require(
             Games[_gameId].pState[_pIndex] == PlayerState.notBusted ||
+            Games[_gameId].pState[_pIndex] == PlayerState.hasSplit ||
             Games[_gameId].pState[_pIndex] == PlayerState.isSplit,
             "BlackJack: given player already busted in this game"
         );
@@ -149,7 +150,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         address[] memory _players = Games[_gameId].players;
         for (uint256 i = 0; i < _players.length; i++) {
             require(
-                uint8(Games[_gameId].pState[i]) > uint8(PlayerState.notBusted) + 1,
+                uint8(Games[_gameId].pState[i]) >= uint8(PlayerState.isSettled),
                 'BlackJack: not all players finished their turn'
             );
         }
@@ -714,6 +715,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         Games[_gameId].bets.push(Games[_gameId].bets[_pIndex]);
         Games[_gameId].tokens.push(Games[_gameId].tokens[_pIndex]);
         Games[_gameId].pState.push(PlayerState.isSplit);
+        Games[_gameId].pState[_pIndex] = PlayerState.hasSplit;
 
         takePlayersBet(
             _gameId, _pIndex
@@ -771,7 +773,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         );
     }
 
-    function doublingDown(
+    function doubleDown(
         bytes16 _gameId,
         address _player,
         bytes32 _localhashA,
@@ -783,6 +785,10 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         onlyNonBusted(_gameId, _pIndex)
         ifPlayerInGame(_gameId, _player, _pIndex)
     {
+        require (
+            PlayersHand[_player][_gameId].length == 2,
+            'BlackJack: double down not possible'
+        );
 
         treasury.consumeHash(_localhashA);
 
