@@ -368,13 +368,15 @@ contract TreasuryRoulette is AccessController {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 
-    function migrateTreasury(
-        address _newTreasuryAddress
-    ) external {
-        require(
-            msg.sender == address(treasury),
-            'Roulette: wrong treasury address'
-        );
-        treasury = TreasuryInstance(_newTreasuryAddress);
+    function getNextRoundTimestamp() external view returns(uint) {
+         return store>>136;
+    }
+
+    function checkMaximumBetAmount() public view returns (uint8) {
+        return uint8(store>>0);
+    }
+
+    function checkMaxSquareBetDefault() public view returns (uint128) {
+        return uint128(store>>8);
     }
 }

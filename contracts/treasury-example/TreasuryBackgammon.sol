@@ -52,7 +52,6 @@ contract TreasuryBackgammon is AccessController {
         GameState state;
     }
 
-    uint256 private store;
     mapping(uint256 => Game) public currentGames;
 
     modifier onlyDoublingStage(uint256 gameId) {
@@ -90,14 +89,20 @@ contract TreasuryBackgammon is AccessController {
 
     TreasuryInstance public treasury;
 
+    struct Store {
+        uint8 safeFactor;
+        uint8 feePercent;
+    }
+
+    Store public s;
+
     constructor(
         address _treasuryAddress,
         uint8 _safeFactor,
-        uint8 _feePercent
-    ) {
+        uint8 _feePercent)
+    {
         treasury = TreasuryInstance(_treasuryAddress);
-        store |= _safeFactor<<0;
-        store |= uint256(_feePercent)<<8;
+        (s.safeFactor, s.feePercent) = (_safeFactor, _feePercent);
     }
 
     function initializeGame(
@@ -105,8 +110,12 @@ contract TreasuryBackgammon is AccessController {
         address _playerOneAddress,
         address _playerTwoAddress,
         uint8 _tokenIndex
-    ) external whenNotPaused onlyWorker returns (bool) {
-
+    )
+        external
+        whenNotPaused
+        onlyWorker
+        returns (bool)
+    {
         require(
             address(_playerOneAddress) != address(_playerTwoAddress),
             'must be two different players'
@@ -117,12 +126,16 @@ contract TreasuryBackgammon is AccessController {
         );
 
         require(
-            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(_playerOneAddress, _tokenIndex),
+            _defaultStake.mul(s.safeFactor) <= treasury.checkApproval(
+                _playerOneAddress, _tokenIndex
+            ),
             'P1 must approve/allow treasury as spender'
         );
 
         require(
-            _defaultStake.mul(uint8(store>>0)) <= treasury.checkApproval(_playerTwoAddress, _tokenIndex),
+            _defaultStake.mul(s.safeFactor) <= treasury.checkApproval(
+                _playerTwoAddress, _tokenIndex
+            ),
             'P2 must approve/allow treasury as spender'
         );
 
@@ -268,7 +281,7 @@ contract TreasuryBackgammon is AccessController {
 
     function applyPercent(uint256 _value) public view returns (uint256) {
         return _value.mul(
-            100 - uint256(uint8(store>>8))
+            100 - uint256(s.feePercent)
         ).div(100);
     }
 
@@ -317,22 +330,12 @@ contract TreasuryBackgammon is AccessController {
 
     function changeSafeFactor(uint8 _newFactor) external onlyCEO {
         require(_newFactor > 0, 'must be above zero');
-        store ^= uint8(store)<<0;
-        store |= _newFactor<<0;
+        s.safeFactor = _newFactor;
     }
 
     function changeFeePercent(uint8 _newFeePercent) external onlyCEO {
         require(_newFeePercent < 20, 'must be below 20');
-        store ^= (store>>8)<<8;
-        store |= uint256(_newFeePercent)<<8;
-    }
-
-    function checkFeePercent() public view returns (uint8) {
-        return uint8(store>>8);
-    }
-
-    function checkSafeFactor() public view returns (uint8) {
-        return uint8(store>>0);
+        s.feePercent = _newFeePercent;
     }
 
     function changeTreasury(address _newTreasuryAddress) external onlyCEO {

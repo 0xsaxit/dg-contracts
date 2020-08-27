@@ -42,17 +42,16 @@ module.exports = async function(deployer, network, accounts) {
 
     if (network == 'mumbai') {
 
-        // await deployer.deploy(Treasury, '0x2A3df21E612d30Ac0CD63C3F80E1eB583A4744cC', 'MANA');
-        // await deployer.deploy(TreasurySlots, Treasury.address, 250, 15, 8, 4);
-        // await deployer.deploy(TreasuryRoulette, Treasury.address, "4000000000000000000000");
-        // await deployer.deploy(TreasuryBackgammon, Treasury.address, 64, 10);
-        await deployer.deploy(TreasuryBlackJack, '0x50C593A2eD20B6B210269094B6060a74BA114589', 4);
+        await deployer.deploy(Treasury, '0x2A3df21E612d30Ac0CD63C3F80E1eB583A4744cC', 'MANA');
+        await deployer.deploy(TreasurySlots, Treasury.address, 250, 15, 8, 4);
+        await deployer.deploy(TreasuryRoulette, Treasury.address, "4000000000000000000000");
+        await deployer.deploy(TreasuryBackgammon, Treasury.address, 64, 10);
+        await deployer.deploy(TreasuryBlackJack, Treasury.address, 4);
         // await treasury.addGame("0x0000000000000000000000000000000000000000", "Empty", 0, true, { from: owner });
         // await treasury.addGame(TreasurySlots.address, "Slots", "1000000000000000000000", true, { from: owner });
         // await treasury.addGame(TreasuryRoulette.address, "Roulette", "50000000000000000000", true, { from: owner });
         // await treasury.addGame(TreasuryBackgammon.address, "Backgammon", "5000000000000000000", true, { from: owner });
         // await treasury.addGame(TreasuryBackgammon.address, "Backgammon", "5000000000000000000", true, { from: owner });
-
     }
 
 };

@@ -10,7 +10,12 @@ contract HashChain {
     }
 
     function _consume(bytes32 _parent) internal {
-        require(keccak256(abi.encodePacked(_parent)) == tail, 'hash-chain: wrong parent');
+        require(
+            keccak256(
+                abi.encodePacked(_parent)
+            ) == tail,
+            'hash-chain: wrong parent'
+        );
         tail = _parent;
     }
 }
