@@ -1,9 +1,11 @@
-pragma solidity ^0.5.17;
+// SPDX-License-Identifier: -- 🎲 --
 
-import "../common-contracts/SafeMath.sol";
-import "../common-contracts/HashChain.sol";
-import "../common-contracts/AccessController.sol";
+pragma solidity ^0.7.0;
+
 import "../common-contracts/TreasuryInstance.sol";
+import "../common-contracts/AccessController.sol";
+import "../common-contracts/HashChain.sol";
+import "../common-contracts/SafeMath.sol";
 
 contract BlackJackHelper {
 
@@ -74,7 +76,7 @@ contract BlackJackHelper {
 
 }
 
-contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain {
+contract TreasuryBlackJack is AccessController, BlackJackHelper, HashChain {
 
     using SafeMath for uint128;
     using SafeMath for uint256;
@@ -82,8 +84,6 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
     enum inGameState { notJoined, Playing, EndedPlay }
     enum GameState { NewGame, OnGoingGame, EndedGame }
     enum PlayerState { notBusted, hasSplit, isSplit, isSettled, isBusted, hasBlackJack }
-
-    // enum PlayerState {Busted, Double, Insured, Split, Win}
 
     struct Game {
         address[] players;
@@ -133,7 +133,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             Games[_gameId].pState[_pIndex] == PlayerState.notBusted ||
             Games[_gameId].pState[_pIndex] == PlayerState.hasSplit ||
             Games[_gameId].pState[_pIndex] == PlayerState.isSplit,
-            "BlackJack: given player already busted in this game"
+            "BlackJack: given player already settled or busted"
         );
         _;
     }
@@ -224,9 +224,14 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         bytes32 localhashB
     );
 
-    constructor(address _treasuryAddress, uint8 _maxPlayers) public {
+    constructor(
+        address _treasuryAddress,
+        bytes32 _localhashB,
+        uint8 _maxPlayers
+    ) {
         require(_maxPlayers < 10);
         treasury = TreasuryInstance(_treasuryAddress);
+        _setTail(_localhashB);
         maxPlayers = _maxPlayers;
     }
 
@@ -361,7 +366,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             'BlackJack: too many players'
         );
 
-        // _setTail(_localhashB);
+        _consume(_localhashB);
         treasury.consumeHash(_localhashA);
 
         gameId = getGameId(_landId, _tableId, _players);
@@ -490,7 +495,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
            _gameId, _pIndex, _localhashA, Games[_gameId].deck.length
         );
 
-        uint8 playersPower = getHandsPower(
+        uint256 playersPower = getHandsPower(
             getHand(_gameId, _player, _pIndex)
         );
 
@@ -543,8 +548,8 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             ) == true
         );
 
+        _consume(_localhashB);
         treasury.consumeHash(_localhashA);
-        // _consume(_localhashB);
 
         uint8 revealed = drawCard(_gameId, getRandomCardIndex(
                 _localhashB, Games[_gameId].deck.length
@@ -568,7 +573,7 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
             // check if dealer needs more cards
             } else {
 
-                uint8 dealersPower = getHandsPower(
+                uint256 dealersPower = getHandsPower(
                     DealersVisible[_gameId]
                 );
 
@@ -648,12 +653,12 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
         }
     }
 
-    function $payoutAgainstDealersHand(bytes16 _gameId, uint8[] memory _leftPlayers, uint8 _dealersPower) private {
+    function $payoutAgainstDealersHand(bytes16 _gameId, uint8[] memory _leftPlayers, uint256 _dealersPower) private {
         for (uint256 i = 0; i < _leftPlayers.length; i++) {
 
             uint8 pi = _leftPlayers[i]; // players index
             address player = Games[_gameId].players[pi];
-            uint8 playersPower = getHandsPower(getHand(_gameId, player, pi));
+            uint256 playersPower = getHandsPower(getHand(_gameId, player, pi));
             uint128 payout;
 
             if (Games[_gameId].pState[pi] == PlayerState.hasBlackJack) {
@@ -805,17 +810,31 @@ contract TreasuryBlackJack is AccessController, BlackJackHelper { //, HashChain 
            _gameId, _pIndex, _localhashA, Games[_gameId].deck.length
         );
 
-        uint8 playersPower = getHandsPower(
+        uint256 playersPower = getHandsPower(
             getHand(_gameId, _player, _pIndex)
+        );
+
+        emit DoubleDown(
+            playersPower
         );
 
         if (playersPower > 21) {
             Games[_gameId].pState[_pIndex] = PlayerState.isBusted;
+            emit Busted(true);
         } else {
             NonBustedPlayers[_gameId].push(_pIndex);
             Games[_gameId].pState[_pIndex] = PlayerState.isSettled;
+            emit Busted(false);
         }
     }
+
+    event DoubleDown(
+        uint256 powerAfter
+    );
+
+    event Busted(
+        bool
+    );
 
     function checkDeck(
         bytes16 _gameId

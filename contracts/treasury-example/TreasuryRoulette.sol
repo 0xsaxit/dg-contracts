@@ -1,4 +1,6 @@
-pragma solidity ^0.5.17;
+// SPDX-License-Identifier: -- 🎲 --
+
+pragma solidity ^0.7.0;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
@@ -46,15 +48,15 @@ contract TreasuryRoulette is AccessController {
         address _treasuryAddress,
         uint128 _maxSquareBetDefault,
         uint8 _maxNumberBets
-    ) public {
+    ) {
         treasury = TreasuryInstance(_treasuryAddress);
         store |= _maxNumberBets<<0;
         store |= _maxSquareBetDefault<<8;
-        store |= now<<136;
+        store |= block.timestamp<<136;
     }
 
     function checknow64() public view returns (uint64) {
-        return uint64(now);
+        return uint64(block.timestamp);
     }
 
     function createBet(
@@ -114,21 +116,17 @@ contract TreasuryRoulette is AccessController {
         bytes32 _localhash
     ) private returns(uint256[] memory, uint256 number) {
 
-        require(now > store>>136, 'Roulette: expired round');
+        require(block.timestamp > store>>136, 'Roulette: expired round');
         require(bets.length > 0, 'Roulette: must have bets');
 
-        winAmounts.length = 0;
+        delete winAmounts;
 
         store ^= (store>>136)<<136;
-        store |= now<<136;
-
-        bytes32 hash = _localhash;
+        store |= block.timestamp<<136;
 
         number = uint(
             keccak256(
-                abi.encodePacked(
-                    hash
-                )
+                abi.encodePacked(_localhash)
             )
         ) % 37;
 
@@ -332,10 +330,6 @@ contract TreasuryRoulette is AccessController {
         }
     }
 
-    function getNextRoundTimestamp() external view returns(uint) {
-        return store>>136;
-    }
-
     function getBetsCountAndValue() external view returns(uint value, uint) {
         for (uint i = 0; i < bets.length; i++) {
             value += bets[i].value;
@@ -361,19 +355,11 @@ contract TreasuryRoulette is AccessController {
         store |= _newMaxSquareBetDefault<<8;
     }
 
-    function checkMaxSquareBetDefault() public view returns (uint128) {
-        return uint128(store>>8);
-    }
-
     function changeMaximumBetAmount(
         uint8 _newMaximumBetAmount
     ) external onlyCEO {
         store ^= uint8(store)<<0;
         store |= _newMaximumBetAmount<<0;
-    }
-
-    function checkMaximumBetAmount() public view returns (uint8) {
-        return uint8(store>>0);
     }
 
     function changeTreasury(

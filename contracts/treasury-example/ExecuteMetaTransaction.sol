@@ -1,4 +1,6 @@
-pragma solidity ^0.5.17;
+// SPDX-License-Identifier: -- 🎲--
+
+pragma solidity ^0.7.0;
 
 import "../common-contracts/EIP712Base.sol";
 
@@ -29,41 +31,8 @@ contract ExecuteMetaTransaction is EIP712Base {
     }
 
     constructor(string memory name, string memory version)
-        public
         EIP712Base(name, version)
     {}
-
-    function executeMetaTransaction(
-        address userAddress,
-        bytes memory functionSignature,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
-    ) public payable returns (bytes memory) {
-        MetaTransaction memory metaTx = MetaTransaction({
-            nonce: nonces[userAddress],
-            from: userAddress,
-            functionSignature: functionSignature
-        });
-        require(
-            verify(userAddress, metaTx, sigR, sigS, sigV),
-            "Signer and signature do not match"
-        );
-        // Append userAddress and relayer address at the end to extract it from calling context
-        (bool success, bytes memory returnData) = address(this).call(
-            abi.encodePacked(functionSignature, userAddress, msg.sender)
-        );
-
-        require(success, "Function call not successfull");
-        nonces[userAddress] = nonces[userAddress] + 1;
-
-        emit MetaTransactionExecuted(
-            userAddress,
-            msg.sender,
-            functionSignature
-        );
-        return returnData;
-    }
 
     function executeMetaTransaction(
         address userAddress,

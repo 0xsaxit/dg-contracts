@@ -1,4 +1,6 @@
-pragma solidity ^0.5.17;
+// SPDX-License-Identifier: -- 🎲 --
+
+pragma solidity ^0.7.0;
 
 import "../common-contracts/SafeMath.sol";
 import "../common-contracts/ERC20Token.sol";
@@ -6,7 +8,7 @@ import "../common-contracts/HashChain.sol";
 import "../common-contracts/AccessController.sol";
 import "../common-contracts/EIP712Base.sol";
 
-contract ExecuteMetaTransaction is EIP712Base {
+abstract contract ExecuteMetaTransaction is EIP712Base {
 
     using SafeMath for uint256;
 
@@ -103,7 +105,7 @@ contract ExecuteMetaTransaction is EIP712Base {
 
     function _enableAccount(address _user, uint256 _sessionDuration) internal {
         timeFrame[_user] = _sessionDuration;
-        enabledTill[_user] = now.add(
+        enabledTill[_user] = block.timestamp.add(
             timeFrame[_user]
         );
     }
@@ -113,7 +115,7 @@ contract ExecuteMetaTransaction is EIP712Base {
     }
 
     function isEnabled(address _account) public view returns (bool) {
-        return enabledTill[_account] > now;
+        return enabledTill[_account] > block.timestamp;
     }
 
     function verify(
@@ -437,7 +439,7 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper,
     constructor(
         address _defaultTokenAddress,
         string memory _defaultTokenName
-    ) public EIP712Base('Treasury', 'v2.1') {
+    ) EIP712Base('Treasury', 'v3.0') {
         addToken(_defaultTokenAddress, _defaultTokenName);
     }
 
@@ -447,7 +449,7 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper,
         external
         onlyWorker
     {
-        enabledTill[_account] = now;
+        enabledTill[_account] = block.timestamp;
     }
 
     function tokenInboundTransfer(
@@ -463,7 +465,7 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper,
         address _token = getTokenAddress(_tokenIndex);
         addGameTokens(_gameIndex, _tokenIndex, _amount);
         safeTransferFrom(_token, _from, address(this), _amount);
-        enabledTill[_from] = now.add(getTimeFrame(msg.sender));
+        enabledTill[_from] = block.timestamp.add(getTimeFrame(msg.sender));
         return true;
     }
 
@@ -528,7 +530,7 @@ contract Treasury is GameController, TokenController, HashChain, TransferHelper,
         );
     }
 
-    function() external payable {
+    receive() external payable {
         revert();
     }
 

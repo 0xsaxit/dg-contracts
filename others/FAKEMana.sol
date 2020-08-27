@@ -1,4 +1,6 @@
-pragma solidity >=0.4.21 <0.7.0;
+// SPDX-License-Identifier: -- 🎲--
+
+pragma solidity >=0.4.21 <=0.7.0;
 
 contract EIP712Base {
 
@@ -46,7 +48,7 @@ contract EIP712Base {
 
 }
 
-pragma solidity >=0.4.21 <0.7.0;
+pragma solidity >=0.4.21 <=0.7.0;
 
 contract EIP712MetaTransaction is EIP712Base {
     using SafeMath for uint256;
@@ -75,7 +77,6 @@ contract EIP712MetaTransaction is EIP712Base {
     }
 
     constructor(string memory name, string memory version)
-        public
         EIP712Base(name, version)
     {}
 
@@ -147,19 +148,6 @@ contract EIP712MetaTransaction is EIP712Base {
             );
     }
 
-    function _msgSender() internal view returns (address payable) {
-        if (msg.sender == address(this)) {
-            bytes20 userAddress;
-            uint256 dataLength = msg.data.length;
-            assembly {
-                calldatacopy(0x0, sub(dataLength, 40), sub(dataLength, 20))
-                userAddress := mload(0x0)
-            }
-            return address(uint160(userAddress));
-        } else {
-            return msg.sender;
-        }
-    }
 
     function msgRelayer() internal view returns (address relayer) {
         if (msg.sender == address(this)) {
@@ -174,13 +162,13 @@ contract EIP712MetaTransaction is EIP712Base {
     }
 
     // To recieve ether in contract
-    function() external payable {}
+    receive() external payable {}
 }
 
 
 // File: @openzeppelin/contracts/GSN/Context.sol
 
-pragma solidity ^0.5.0;
+pragma solidity ^0.7.0;
 
 /*
  * @dev Provides information about the current execution context, including the
@@ -195,10 +183,10 @@ pragma solidity ^0.5.0;
 contract Context {
     // Empty internal constructor, to prevent people from mistakenly deploying
     // an instance of this contract, which should be used via inheritance.
-    constructor () internal { }
+    constructor () { }
     // solhint-disable-previous-line no-empty-blocks
 
-    function _msgSender() internal view returns (address payable) {
+    function _msgSender() internal virtual view returns (address payable) {
         return msg.sender;
     }
 
@@ -210,7 +198,7 @@ contract Context {
 
 // File: @openzeppelin/contracts/token/ERC20/IERC20.sol
 
-pragma solidity ^0.5.0;
+pragma solidity ^0.7.0;
 
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP. Does not include
@@ -289,7 +277,7 @@ interface IERC20 {
 
 // File: @openzeppelin/contracts/math/SafeMath.sol
 
-pragma solidity ^0.5.0;
+pragma solidity ^0.7.0;
 
 /**
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
@@ -448,7 +436,7 @@ library SafeMath {
 
 // File: @openzeppelin/contracts/token/ERC20/ERC20.sol
 
-pragma solidity ^0.5.0;
+pragma solidity ^0.7.0;
 
 
 
@@ -489,14 +477,14 @@ contract ERC20 is Context, IERC20 {
     /**
      * @dev See {IERC20-totalSupply}.
      */
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() public override view returns (uint256) {
         return _totalSupply;
     }
 
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address account) public view returns (uint256) {
+    function balanceOf(address account) public override view returns (uint256) {
         return _balances[account];
     }
 
@@ -508,7 +496,7 @@ contract ERC20 is Context, IERC20 {
      * - `recipient` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-    function transfer(address recipient, uint256 amount) public returns (bool) {
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
@@ -516,7 +504,7 @@ contract ERC20 is Context, IERC20 {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender) public view returns (uint256) {
+    function allowance(address owner, address spender) public override view returns (uint256) {
         return _allowances[owner][spender];
     }
 
@@ -527,7 +515,7 @@ contract ERC20 is Context, IERC20 {
      *
      * - `spender` cannot be the zero address.
      */
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint256 amount) public override returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
@@ -544,7 +532,7 @@ contract ERC20 is Context, IERC20 {
      * - the caller must have allowance for `sender`'s tokens of at least
      * `amount`.
      */
-    function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
@@ -680,13 +668,13 @@ contract ERC20 is Context, IERC20 {
 
 // File: @openzeppelin/contracts/token/ERC20/ERC20Detailed.sol
 
-pragma solidity ^0.5.0;
+pragma solidity ^0.7.0;
 
 
 /**
  * @dev Optional functions from the ERC20 standard.
  */
-contract ERC20Detailed is IERC20 {
+abstract contract ERC20Detailed is IERC20 {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
@@ -696,7 +684,7 @@ contract ERC20Detailed is IERC20 {
      * these values are immutable: they can only be set once during
      * construction.
      */
-    constructor (string memory name, string memory symbol, uint8 decimals) public {
+    constructor (string memory name, string memory symbol, uint8 decimals) {
         _name = name;
         _symbol = symbol;
         _decimals = decimals;
@@ -736,15 +724,15 @@ contract ERC20Detailed is IERC20 {
 
 // File: contracts/Token.sol
 
-pragma solidity >=0.4.21 <0.7.0;
+pragma solidity >=0.4.21 <=0.7.0;
 
 
 
 contract FAKEMana is ERC20, ERC20Detailed, EIP712MetaTransaction {
     uint256 public initialSupply = 100000000000000000000;
 
+
     constructor()
-        public
         ERC20Detailed("Decentraland MANA", "MANA", 18)
         EIP712MetaTransaction("FAKEMana", "1")
     {

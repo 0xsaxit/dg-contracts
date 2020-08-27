@@ -1,4 +1,6 @@
-pragma solidity ^0.5.17;
+// SPDX-License-Identifier: -- 🎲 --
+
+pragma solidity ^0.7.0;
 
 // Slot Machine Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
@@ -30,7 +32,7 @@ contract TreasurySlots is AccessController {
         uint16 factor2,
         uint16 factor3,
         uint16 factor4
-    ) public {
+    ) {
         treasury = TreasuryInstance(_treasury);
 
         require(

@@ -1,4 +1,6 @@
-pragma solidity ^0.5.17;
+// SPDX-License-Identifier: -- 🎲 --
+
+pragma solidity ^0.7.0;
 
 interface ERC20Token {
     function totalSupply() external view returns (uint256);

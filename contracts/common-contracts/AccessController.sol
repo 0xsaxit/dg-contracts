@@ -1,4 +1,6 @@
-pragma solidity ^0.5.17;
+// SPDX-License-Identifier: -- 🎲 --
+
+pragma solidity ^0.7.0;
 
 contract AccessController {
 
@@ -7,13 +9,15 @@ contract AccessController {
 
     bool public paused = false;
 
+    // mapping (address => enumRoles) accessRoles; // multiple operators idea
+
     event CEOSet(address newCEO);
     event WorkerSet(address newWorker);
 
     event Paused();
     event Unpaused();
 
-    constructor() public {
+    constructor() {
         ceoAddress = msg.sender;
         workerAddress = msg.sender;
         emit CEOSet(ceoAddress);
@@ -74,7 +78,7 @@ contract AccessController {
         emit WorkerSet(workerAddress);
     }
 
-    function pause() external onlyWorker whenNotPaused {
+    function pause() external onlyCEO whenNotPaused {
         paused = true;
         emit Paused();
     }

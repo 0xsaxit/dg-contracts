@@ -38,7 +38,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
     describe("Initial Values", () => {
         before(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
         });
 
         it("correct default token name and address", async () => {
@@ -65,7 +65,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             roulette = await Roulette.new(treasury.address, 4000, 36);
             slots = await Slots.new(treasury.address, 250, 16, 8, 4);
         });
@@ -106,7 +106,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
     describe("Adding Funds to a Game", () => {
         beforeEach(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             roulette = await Roulette.new(treasury.address, 4000, 36);
             slots = await Slots.new(treasury.address, 250, 16, 8, 4);
             await treasury.addGame(slots.address, "Slots", true, { from: owner });
@@ -153,7 +153,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
     describe("Removing Funds", () => {
         beforeEach(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             roulette = await Roulette.new(treasury.address, 4000, 36);
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await token.approve(treasury.address, 1000, { from: owner });
@@ -230,7 +230,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             roulette = await Roulette.new(treasury.address, 4000, 36);
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await treasury.setMaximumBet(0, 0, 1000, { from: owner });
@@ -507,7 +507,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             // Deploy contracts
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             roulette = await Roulette.new(treasury.address, 4000, 36);
 
             // Add game and fund it
@@ -626,7 +626,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             slots = await Slots.new(treasury.address, 250, 16, 8, 4);
             await treasury.addGame(slots.address, "Slots", true, { from: owner });
             await treasury.setMaximumBet(0, 0, 1000, { from: owner });
@@ -697,7 +697,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             // Deploy contracts
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             slots = await Slots.new(treasury.address, 250, 16, 8, 4);
 
             // Add game and fund it
@@ -807,7 +807,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             backgammon = await Backgammon.new(treasury.address, 4, 10);
             await treasury.addGame(backgammon.address, "Backgammon", true, { from: owner });
             await treasury.setMaximumBet(0, 0, web3.utils.toWei("10000"), { from: owner });
@@ -1182,7 +1182,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
-            treasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            treasury = await Treasury.new(token.address, "MANA");
             roulette = await Roulette.new(treasury.address, web3.utils.toWei("400000"), 50);
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await treasury.setMaximumBet(0, 0, web3.utils.toWei("1000000000"), { from: owner });
@@ -1262,10 +1262,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe("Migrating Treasury", () => {
+    /* describe("Migrating Treasury", () => {
         beforeEach(async () => {
             token = await Token.new();
-            currentTreasury = await Treasury.new(token.address, "MANA", ZERO_ADDRESS);
+            currentTreasury = await Treasury.new(token.address, "MANA");
             roulette = await Roulette.new(currentTreasury.address, 4000, 36);
             slots = await Slots.new(currentTreasury.address, 250, 16, 8, 4);
             await currentTreasury.addGame(slots.address, "Slots", true, { from: owner });
@@ -1374,5 +1374,5 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
             assert.equal(newTreasuryTail, tail);
             assert.equal(newTreasuryTail, currentTreasuryTail);
         });
-    });
+    }); */
 });
