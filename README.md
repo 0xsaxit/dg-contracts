@@ -18,7 +18,7 @@
 	output -> game address (`0x641AD78BAca220C5BD28b51Ce8e0F495e85Fe689`)
 		_masterAddress - check step A) when deploying MasterParent.sol
 
-- C1) Add games to master by using `masterParent.addGame(_gameAddress, _newGameName, _maximumBet (Wei))` (game address take from B1/B2)
+- C1) Add games to master by using `masterParent.addGame(_gameAddress, _newGameName, _isActive (true || false))` (game address take from B1/B2)
 		_gameAddress - check output of step B1 and B2 when deploying games
 
 ## Phase 2 - allocating funds for each game
