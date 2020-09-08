@@ -432,7 +432,7 @@ contract TokenController is AccessController {
     }
 }
 
-contract Treasury is GameController, TokenController, HashChain, TransferHelper, ExecuteMetaTransaction {
+contract dgTreasury is GameController, TokenController, HashChain, TransferHelper, ExecuteMetaTransaction {
 
     using SafeMath for uint256;
 

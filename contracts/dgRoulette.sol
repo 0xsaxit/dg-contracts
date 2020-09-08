@@ -10,7 +10,7 @@ import "../common-contracts/SafeMath.sol";
 import "../common-contracts/AccessController.sol";
 import "../common-contracts/TreasuryInstance.sol";
 
-contract TreasuryRoulette is AccessController {
+contract dgRoulette is AccessController {
 
     using SafeMath for uint128;
     using SafeMath for uint256;

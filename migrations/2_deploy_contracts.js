@@ -44,7 +44,7 @@ module.exports = async function(deployer, network, accounts) {
 
         await deployer.deploy(Treasury, '0x2A3df21E612d30Ac0CD63C3F80E1eB583A4744cC', 'MANA');
         await deployer.deploy(TreasurySlots, Treasury.address, 250, 15, 8, 4);
-        await deployer.deploy(TreasuryRoulette, Treasury.address, "4000000000000000000000");
+        await deployer.deploy(TreasuryRoulette, Treasury.address, '4000000000000000000000', 36);
         await deployer.deploy(TreasuryBackgammon, Treasury.address, 64, 10);
         await deployer.deploy(TreasuryBlackJack, Treasury.address, 4);
         // await treasury.addGame("0x0000000000000000000000000000000000000000", "Empty", 0, true, { from: owner });

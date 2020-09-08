@@ -2,9 +2,165 @@
 
 pragma solidity ^0.7.0;
 
-import "../common-contracts/SafeMath.sol";
-import "../common-contracts/AccessController.sol";
-import "../common-contracts/TreasuryInstance.sol";
+library SafeMath {
+
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, 'SafeMath: addition overflow');
+        return c;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b <= a, 'SafeMath: subtraction overflow');
+        uint256 c = a - b;
+        return c;
+    }
+
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, 'SafeMath: multiplication overflow');
+        return c;
+    }
+
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b > 0, 'SafeMath: division by zero');
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+        return c;
+    }
+
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b != 0, 'SafeMath: modulo by zero');
+        return a % b;
+    }
+}
+
+contract AccessController {
+
+    address public ceoAddress;
+    address public workerAddress;
+
+    bool public paused = false;
+
+    // mapping (address => enumRoles) accessRoles; // multiple operators idea
+
+    event CEOSet(address newCEO);
+    event WorkerSet(address newWorker);
+
+    event Paused();
+    event Unpaused();
+
+    constructor() {
+        ceoAddress = msg.sender;
+        workerAddress = msg.sender;
+        emit CEOSet(ceoAddress);
+        emit WorkerSet(workerAddress);
+    }
+
+    modifier onlyCEO() {
+        require(
+            msg.sender == ceoAddress,
+            'AccessControl: CEO access denied'
+        );
+        _;
+    }
+
+    modifier onlyWorker() {
+        require(
+            msg.sender == workerAddress,
+            'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier whenNotPaused() {
+        require(
+            !paused,
+            'AccessControl: currently paused'
+        );
+        _;
+    }
+
+    modifier whenPaused {
+        require(
+            paused,
+            'AccessControl: currenlty not paused'
+        );
+        _;
+    }
+
+    function setCEO(address _newCEO) public onlyCEO {
+        require(
+            _newCEO != address(0x0),
+            'AccessControl: invalid CEO address'
+        );
+        ceoAddress = _newCEO;
+        emit CEOSet(ceoAddress);
+    }
+
+    function setWorker(address _newWorker) external {
+        require(
+            _newWorker != address(0x0),
+            'AccessControl: invalid worker address'
+        );
+        require(
+            msg.sender == ceoAddress || msg.sender == workerAddress,
+            'AccessControl: invalid worker address'
+        );
+        workerAddress = _newWorker;
+        emit WorkerSet(workerAddress);
+    }
+
+    function pause() external onlyWorker whenNotPaused {
+        paused = true;
+        emit Paused();
+    }
+
+    function unpause() external onlyCEO whenPaused {
+        paused = false;
+        emit Unpaused();
+    }
+}
+
+interface TreasuryInstance {
+
+    function getTokenAddress(
+        uint8 _tokenIndex
+    ) external view returns (address);
+
+    function tokenInboundTransfer(
+        uint8 _tokenIndex,
+        address _from,
+        uint256 _amount
+    )  external returns (bool);
+
+    function tokenOutboundTransfer(
+        uint8 _tokenIndex,
+        address _to,
+        uint256 _amount
+    ) external returns (bool);
+
+    function checkAllocatedTokens(
+        uint8 _tokenIndex
+    ) external view returns (uint256);
+
+    function checkApproval(
+        address _userAddress,
+        uint8 _tokenIndex
+    ) external view returns (uint256 approved);
+
+    function getMaximumBet(
+        uint8 _tokenIndex
+    ) external view returns (uint128);
+
+    function consumeHash(
+        bytes32 _localhash
+    ) external returns (bool);
+}
 
 contract TreasuryBackgammon is AccessController {
 
