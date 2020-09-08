@@ -6,6 +6,7 @@ import "../common-contracts/TreasuryInstance.sol";
 import "../common-contracts/AccessController.sol";
 import "../common-contracts/HashChain.sol";
 import "../common-contracts/SafeMath.sol";
+import "../common-contracts/PointerInstance.sol";
 
 contract BlackJackHelper {
 
@@ -118,12 +119,9 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     modifier ifPlayerInGame(bytes16 _gameId, address _player, uint8 _pIndex) {
         require(
+            Games[_gameId].players[_pIndex] == _player &&
             inGame[_player][_gameId] == inGameState.Playing,
-            "BlackJack: given player is not in the current game"
-        );
-        require(
-            Games[_gameId].players[_pIndex] == _player,
-            'BlackJack: wrong player arguments supplied'
+            "BlackJack: wrong player"
         );
         _;
     }
@@ -190,6 +188,13 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     );
 
     event DealersCardDrawn(
+        bytes16 gameId,
+        uint8 cardsIndex,
+        string cardSuit,
+        string cardVal
+    );
+
+    event DealersCardRevealed(
         bytes16 gameId,
         uint8 cardsIndex,
         string cardSuit,
@@ -358,14 +363,10 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         returns (bytes16 gameId)
     {
         require(
+            _players.length <= maxPlayers &&
             _bets.length == _tokens.length &&
             _tokens.length == _players.length,
-            'BlackJack: inconsistent parameters'
-        );
-
-        require(
-            _players.length <= maxPlayers,
-            'BlackJack: too many players'
+            'BlackJack: wrong parameters'
         );
 
         _consume(_localhashB);
@@ -526,6 +527,34 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         Games[_gameId].pState[_pIndex] = PlayerState.isSettled;
     }
 
+    function revealDealersCard(
+        bytes16 _gameId,
+        bytes32 _localhashB
+    )
+        internal
+    {
+        uint8 revealed = drawCard(_gameId, getRandomCardIndex(
+                _localhashB, Games[_gameId].deck.length
+            )
+        );
+
+        _consume(_localhashB);
+
+        (
+            string memory _cardsSuit,
+            string memory _cardsVal
+        ) = getCardsDetails(revealed);
+
+        DealersVisible[_gameId].push(revealed);
+
+        emit DealersCardRevealed(
+            _gameId,
+            revealed,
+            _cardsSuit,
+            _cardsVal
+        );
+    }
+
     function dealersMove(
         bytes16 _gameId,
         bytes32 _localhashA,
@@ -550,17 +579,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
             ) == true
         );
 
-        _consume(_localhashB);
         treasury.consumeHash(_localhashA);
-
-        uint8 revealed = drawCard(_gameId, getRandomCardIndex(
-                _localhashB, Games[_gameId].deck.length
-            )
-        );
-
-        DealersVisible[_gameId].push(revealed);
-
-        delete revealed;
+        revealDealersCard(_gameId, _localhashB);
 
         uint8[] memory _leftPlayers = getNotBustedPlayers(_gameId);
 
@@ -579,20 +599,36 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
                     DealersVisible[_gameId]
                 );
 
+                uint8 _card;
+
                 // draw cards for dealer with _localhashA
                 while (dealersPower <= 16) {
 
-                    DealersVisible[_gameId].push(
-                        drawCard(_gameId, getRandomCardIndex(
-                                _localhashA, Games[_gameId].deck.length
-                            )
+                    _card = drawCard(_gameId, getRandomCardIndex(
+                            _localhashA, Games[_gameId].deck.length
                         )
+                    );
+
+                    (
+                        string memory _cardsSuit,
+                        string memory _cardsVal
+                    ) = getCardsDetails(_card);
+
+                    DealersVisible[_gameId].push(_card);
+
+                    emit DealersCardDrawn(
+                        _gameId,
+                        _card,
+                        _cardsSuit,
+                        _cardsVal
                     );
 
                     dealersPower = getHandsPower(
                         DealersVisible[_gameId]
                     );
                 }
+
+                delete _card;
 
                 // calculate any winnings and payout
                 $payoutAgainstDealersHand(_gameId, _leftPlayers, dealersPower);
@@ -709,13 +745,9 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         ifPlayerInGame(_gameId, _player, _pIndex)
     {
         require(
+            PlayerSplit[_player][_gameId].length == 0 &&
             canSplitCards(PlayersHand[_player][_gameId]),
-            'BlackJack: must be same power cards to split'
-        );
-
-        require(
-            PlayerSplit[_player][_gameId].length == 0,
-            'BlackJack: this player already made a split'
+            'BlackJack: wrong split!'
         );
 
         Games[_gameId].players.push(_player);
@@ -750,13 +782,9 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         onlyNonBusted(_gameId, _pIndex)
     {
         require (
+            PlayersHand[_player][_gameId].length == 2 &&
             PlayersInsurance[_player][_gameId] == false,
-            'BlackJack: insurance already purchased'
-        );
-
-        require (
-            PlayersHand[_player][_gameId].length == 2,
-            'BlackJack: insurance purchase not possible'
+            'BlackJack: insurance denied!'
         );
 
         require (
