@@ -6,9 +6,9 @@ pragma solidity ^0.7.0;
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
 // Roulette - MultiPlayer - TokenIndex 2.0
 
-import "../common-contracts/SafeMath.sol";
-import "../common-contracts/AccessController.sol";
-import "../common-contracts/TreasuryInstance.sol";
+import "./common-contracts/SafeMath.sol";
+import "./common-contracts/AccessController.sol";
+import "./common-contracts/TreasuryInstance.sol";
 
 contract dgRoulette is AccessController {
 

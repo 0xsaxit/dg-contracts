@@ -2,7 +2,7 @@
 
 pragma solidity ^0.7.0;
 
-import "../common-contracts/EIP712Base.sol";
+import "./common-contracts/EIP712Base.sol";
 
 contract ExecuteMetaTransaction is EIP712Base {
 
