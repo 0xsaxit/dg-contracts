@@ -9,6 +9,7 @@ pragma solidity ^0.7.0;
 import "./common-contracts/SafeMath.sol";
 import "./common-contracts/AccessController.sol";
 import "./common-contracts/TreasuryInstance.sol";
+import "./common-contracts/PointerInstance.sol";
 
 contract dgSlots is AccessController {
 
@@ -16,6 +17,7 @@ contract dgSlots is AccessController {
 
     uint256 private factors;
     TreasuryInstance public treasury;
+    PointerInstance immutable public pointerContract;
 
     event GameResult(
         address _player,
@@ -31,7 +33,8 @@ contract dgSlots is AccessController {
         uint16 factor1,
         uint16 factor2,
         uint16 factor3,
-        uint16 factor4
+        uint16 factor4,
+        address _pointerAddress
     ) {
         treasury = TreasuryInstance(_treasury);
 
@@ -44,6 +47,7 @@ contract dgSlots is AccessController {
         factors |= uint256(factor2)<<16;
         factors |= uint256(factor3)<<32;
         factors |= uint256(factor4)<<48;
+        pointerContract = PointerInstance(_pointerAddress);
     }
 
     function play(
@@ -78,6 +82,13 @@ contract dgSlots is AccessController {
 
         treasury.consumeHash(
            _localhash
+        );
+
+        pointerContract.addPoints(
+            _player,
+            _betAmount,
+            treasury.getTokenAddress(_tokenIndex),
+            100
         );
 
         (uint256 _number, uint256 _winAmount) = _launch(

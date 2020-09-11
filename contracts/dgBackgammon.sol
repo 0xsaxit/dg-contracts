@@ -5,6 +5,7 @@ pragma solidity ^0.7.0;
 import "./common-contracts/SafeMath.sol";
 import "./common-contracts/AccessController.sol";
 import "./common-contracts/TreasuryInstance.sol";
+import "./common-contracts/PointerInstance.sol";
 
 contract dgBackgammon is AccessController {
 
@@ -88,6 +89,7 @@ contract dgBackgammon is AccessController {
     }
 
     TreasuryInstance public treasury;
+    PointerInstance immutable public pointerContract;
 
     struct Store {
         uint8 safeFactor;
@@ -99,10 +101,13 @@ contract dgBackgammon is AccessController {
     constructor(
         address _treasuryAddress,
         uint8 _safeFactor,
-        uint8 _feePercent)
+        uint8 _feePercent,
+        address _pointerAddress
+    )
     {
         treasury = TreasuryInstance(_treasuryAddress);
         (s.safeFactor, s.feePercent) = (_safeFactor, _feePercent);
+        pointerContract = PointerInstance(_pointerAddress);
     }
 
     function initializeGame(
@@ -158,6 +163,20 @@ contract dgBackgammon is AccessController {
         treasury.tokenInboundTransfer(_tokenIndex, _playerOneAddress, _defaultStake);
         treasury.tokenInboundTransfer(_tokenIndex, _playerTwoAddress, _defaultStake);
 
+        pointerContract.addPoints(
+            _playerOneAddress,
+            _defaultStake,
+            treasury.getTokenAddress(_tokenIndex),
+            100
+        );
+
+        pointerContract.addPoints(
+            _playerTwoAddress,
+            _defaultStake,
+            treasury.getTokenAddress(_tokenIndex),
+            100
+        );
+
         Game memory _game = Game(
             _defaultStake,
             _defaultStake.mul(2),
@@ -200,6 +219,13 @@ contract dgBackgammon is AccessController {
             'raising double transfer failed'
         );
 
+        pointerContract.addPoints(
+            _playerRaising,
+            currentGames[_gameId].stake,
+            treasury.getTokenAddress(currentGames[_gameId].tokenIndex),
+            100
+        );
+
         currentGames[_gameId].state = GameState.DoublingStage;
         currentGames[_gameId].lastStaker = _playerRaising;
         currentGames[_gameId].total = currentGames[_gameId].total.add(
@@ -233,6 +259,13 @@ contract dgBackgammon is AccessController {
                 currentGames[_gameId].stake
             ),
             'calling double transfer failed'
+        );
+
+        pointerContract.addPoints(
+            _playerCalling,
+            currentGames[_gameId].stake,
+            treasury.getTokenAddress(currentGames[_gameId].tokenIndex),
+            100
         );
 
         currentGames[_gameId].total = currentGames[_gameId].total.add(
