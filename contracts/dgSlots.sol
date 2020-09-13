@@ -87,8 +87,7 @@ contract dgSlots is AccessController {
         pointerContract.addPoints(
             _player,
             _betAmount,
-            treasury.getTokenAddress(_tokenIndex),
-            100
+            treasury.getTokenAddress(_tokenIndex)
         );
 
         (uint256 _number, uint256 _winAmount) = _launch(

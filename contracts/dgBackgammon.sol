@@ -166,15 +166,13 @@ contract dgBackgammon is AccessController {
         pointerContract.addPoints(
             _playerOneAddress,
             _defaultStake,
-            treasury.getTokenAddress(_tokenIndex),
-            100
+            treasury.getTokenAddress(_tokenIndex)
         );
 
         pointerContract.addPoints(
             _playerTwoAddress,
             _defaultStake,
-            treasury.getTokenAddress(_tokenIndex),
-            100
+            treasury.getTokenAddress(_tokenIndex)
         );
 
         Game memory _game = Game(
@@ -222,8 +220,7 @@ contract dgBackgammon is AccessController {
         pointerContract.addPoints(
             _playerRaising,
             currentGames[_gameId].stake,
-            treasury.getTokenAddress(currentGames[_gameId].tokenIndex),
-            100
+            treasury.getTokenAddress(currentGames[_gameId].tokenIndex)
         );
 
         currentGames[_gameId].state = GameState.DoublingStage;
@@ -264,8 +261,7 @@ contract dgBackgammon is AccessController {
         pointerContract.addPoints(
             _playerCalling,
             currentGames[_gameId].stake,
-            treasury.getTokenAddress(currentGames[_gameId].tokenIndex),
-            100
+            treasury.getTokenAddress(currentGames[_gameId].tokenIndex)
         );
 
         currentGames[_gameId].total = currentGames[_gameId].total.add(
