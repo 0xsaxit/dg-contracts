@@ -143,6 +143,11 @@ contract dgPointer is AccessController {
         distributionToken.transfer(_player, tokenAmount);
     }
 
+    // can be removed on mainnet - for easier testing
+    function changeDistributionToken(address _newDistributionToken) external onlyCEO {
+        distributionToken = ERC20Token(_newDistributionToken);
+    }
+
     function setPointToTokenRatio(address _token, uint256 _ratio) external onlyCEO {
         tokenToPointRatio[_token] = _ratio;
     }
