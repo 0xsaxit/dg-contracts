@@ -10,6 +10,12 @@ contract dgPointer is AccessController {
 
     using SafeMath for uint256;
 
+    uint256 constant MAX_BONUS = 140;
+    uint256 constant MIN_BONUS = 100;
+
+    bool public collectingEnabled;
+    bool public distributionEnabled;
+
     ERC20Token public distributionToken;
 
     mapping(address => bool) public declaredContracts;
@@ -61,7 +67,7 @@ contract dgPointer is AccessController {
         public
         returns (uint256 newPoints, uint256 multiplier)
     {
-      if (_isDeclaredContract(msg.sender)) {
+      if (_isDeclaredContract(msg.sender) && collectingEnabled) {
 
             multiplier = getBonusMultiplier(_numPlayers);
 
@@ -90,9 +96,6 @@ contract dgPointer is AccessController {
             pointsBalancer[affiliateData[_player]] = _points.mul(20).div(100);
         }
     }
-
-    uint256 constant MAX_BONUS = 140;
-    uint256 constant MIN_BONUS = 100;
 
     function getBonusMultiplier(
         uint256 numPlayers
@@ -131,6 +134,10 @@ contract dgPointer is AccessController {
         public
         returns (uint256 tokenAmount)
     {
+        require(
+            distributionEnabled == true,
+            'Pointer: distribution paused'
+        );
         tokenAmount = pointsBalancer[_player];
         pointsBalancer[_player] = 0;
         distributionToken.transfer(_player, tokenAmount);
@@ -138,6 +145,14 @@ contract dgPointer is AccessController {
 
     function setPointToTokenRatio(address _token, uint256 _ratio) external onlyCEO {
         tokenToPointRatio[_token] = _ratio;
+    }
+
+    function enableCollecting(bool _state) external onlyCEO {
+        collectingEnabled = _state;
+    }
+
+    function enableDistribtion(bool _state) external onlyCEO {
+        distributionEnabled = _state;
     }
 
     function declareContract(address _contract) external onlyCEO returns(bool) {
