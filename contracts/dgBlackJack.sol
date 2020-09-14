@@ -838,7 +838,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
         addPoints(
             player,
-            betAmount,
+            betAmount.div(2),
             treasury.getTokenAddress(tokenIndex),
             playersCount
         );
