@@ -275,20 +275,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     function takePlayersBet(bytes16 _gameId, uint8 _playerIndex) private {
 
-        uint8 playersCount = Games[_gameId].playersCount;
         uint8 tokenIndex = Games[_gameId].tokens[_playerIndex];
         address player = Games[_gameId].players[_playerIndex];
         uint256 betAmount = Games[_gameId].bets[_playerIndex];
 
         require(
             treasury.getMaximumBet(tokenIndex) >= betAmount
-        );
-
-        _addPoints(
-            player,
-            betAmount,
-            treasury.getTokenAddress(tokenIndex),
-            playersCount
         );
 
         treasury.tokenInboundTransfer(
@@ -301,7 +293,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     }
 
     function initializePlayer(bytes16 _gameId, uint8 _pIndex) private {
-
         Games[_gameId].pState[_pIndex] = PlayerState.notBusted;
     }
 
@@ -489,19 +480,36 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     function manualPayout(
         bytes16 _gameId,
         uint8[] calldata _playerIndexes,
-        uint128[] calldata _payoutAmounts
+        uint128[] calldata _payoutAmounts,
+        uint128[] calldata _refundAmounts
     )
         external
         onlyOnGoingGame(_gameId)
         whenNotPaused
         onlyWorker
     {
-        for (uint256 i = 0; i < _playerIndexes.length; i++) {
-            uint8 pIndex = _playerIndexes[i];
+        for (uint256 i = 0; i < _payoutAmounts.length; i++) {
+
+            // winnings
             payoutAmount(
-                Games[_gameId].tokens[pIndex],
-                Games[_gameId].players[pIndex],
+                Games[_gameId].tokens[_playerIndexes[i]],
+                Games[_gameId].players[_playerIndexes[i]],
                 _payoutAmounts[i]
+            );
+
+            // refunds
+            payoutAmount(
+                Games[_gameId].tokens[_playerIndexes[i]],
+                Games[_gameId].players[_playerIndexes[i]],
+                _refundAmounts[i]
+            );
+
+            // points
+            _addPoints(
+                Games[_gameId].players[_playerIndexes[i]],
+                Games[_gameId].bets[_playerIndexes[i]] - _refundAmounts[i],
+                treasury.getTokenAddress(Games[_gameId].tokens[_playerIndexes[i]]),
+                Games[_gameId].players.length
             );
         }
 
@@ -981,6 +989,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         );
     }
 
+    /*
     function checkPlayerInGame(
         bytes16 _gameId,
         address _player
@@ -1042,7 +1051,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         returns (uint8[] memory)
     {
         return PlayerSplit[_player][_gameId];
-    }
+    }*/
 
     function getHand(
         bytes16 _gameId,
