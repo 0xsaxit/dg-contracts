@@ -2,11 +2,12 @@
 // const RouletteLogic = artifacts.require("RouletteLogic");
 // const MasterParent = artifacts.require("MasterParent");
 const Token = artifacts.require("Token");
-const Treasury = artifacts.require("Treasury");
+const dgTreasury = artifacts.require("dgTreasury");
 const dgRoulette = artifacts.require("dgRoulette");
 const dgSlots = artifacts.require("dgSlots");
 const dgBackgammon = artifacts.require("dgBackgammon");
 const dgBlackJack = artifacts.require("dgBlackJack");
+const dgPointer = artifacts.require("dgPointer");
 // const FAKEMana = artifacts.require("FAKEMana");
 
 module.exports = async function(deployer, network, accounts) {
@@ -40,13 +41,15 @@ module.exports = async function(deployer, network, accounts) {
 
     }
 
-    if (network == 'mumbai') {
-
-        // await deployer.deploy(Treasury, '0x2A3df21E612d30Ac0CD63C3F80E1eB583A4744cC', 'MANA');
-        // await deployer.deploy(dgSlots, Treasury.address, 250, 15, 8, 4);
-        // await deployer.deploy(dgRoulette, Treasury.address, '4000000000000000000000', 36);
-        // await deployer.deploy(dgBackgammon, Treasury.address, 64, 10);
-        await deployer.deploy(dgBlackJack, '0x14Bb841662B1806E9Fa03286A0Db0B090eb8b416', 4);
+    // if (network == 'mumbai') {
+    if (network == 'maticmain') {
+        await deployer.deploy(dgPointer, '0xA1c57f48F0Deb89f569dFbE6E2B7f46D33606fD4');
+        await deployer.deploy(dgTreasury, '0xA1c57f48F0Deb89f569dFbE6E2B7f46D33606fD4', 'MANA');
+        await deployer.deploy(dgSlots, dgTreasury.address, 250, 15, 8, 4, dgPointer.address);
+        await deployer.deploy(dgRoulette, dgTreasury.address, '4000000000000000000000', 36);
+        // await deployer.deploy(dgRoulette, Treasury.address, '4000000000000000000000', 36, dgPointer.address');
+        await deployer.deploy(dgBackgammon, dgTreasury.address, 64, 10, dgPointer.address);
+        await deployer.deploy(dgBlackJack, '0x14Bb841662B1806E9Fa03286A0Db0B090eb8b416', dgPointer.address, 4);
         // await treasury.addGame("0x0000000000000000000000000000000000000000", "Empty", 0, true, { from: owner });
         // await treasury.addGame(dgSlots.address, "Slots", "1000000000000000000000", true, { from: owner });
         // await treasury.addGame(dgRoulette.address, "Roulette", "50000000000000000000", true, { from: owner });

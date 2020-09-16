@@ -26,40 +26,35 @@ contract AccessController {
 
     modifier onlyCEO() {
         require(
-            msg.sender == ceoAddress,
-            'AccessControl: CEO access denied'
+            msg.sender == ceoAddress
         );
         _;
     }
 
     modifier onlyWorker() {
         require(
-            msg.sender == workerAddress,
-            'AccessControl: worker access denied'
+            msg.sender == workerAddress
         );
         _;
     }
 
     modifier whenNotPaused() {
         require(
-            !paused,
-            'AccessControl: currently paused'
+            !paused
         );
         _;
     }
 
     modifier whenPaused {
         require(
-            paused,
-            'AccessControl: currenlty not paused'
+            paused
         );
         _;
     }
 
     function setCEO(address _newCEO) public onlyCEO {
         require(
-            _newCEO != address(0x0),
-            'AccessControl: invalid CEO address'
+            _newCEO != address(0x0)
         );
         ceoAddress = _newCEO;
         emit CEOSet(ceoAddress);
@@ -67,12 +62,10 @@ contract AccessController {
 
     function setWorker(address _newWorker) external {
         require(
-            _newWorker != address(0x0),
-            'AccessControl: invalid worker address'
+            _newWorker != address(0x0)
         );
         require(
-            msg.sender == ceoAddress || msg.sender == workerAddress,
-            'AccessControl: invalid worker address'
+            msg.sender == ceoAddress || msg.sender == workerAddress
         );
         workerAddress = _newWorker;
         emit WorkerSet(workerAddress);

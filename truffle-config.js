@@ -9,7 +9,7 @@ module.exports = {
             settings: {
                 optimizer: {
                     enabled: true,
-                    runs: 200
+                    runs: 300
                 }
             },
         }
@@ -37,8 +37,18 @@ module.exports = {
                 'https://rpc-mumbai.matic.today'
             ),
             network_id: 80001,
-            confirmations: 2,
-            timeoutBlocks: 200,
+            confirmations: 1,
+            timeoutBlocks: 300,
+            skipDryRun: true
+        },
+        maticmain: {
+            provider: () => new PrivateKeyProvider(
+                privateKey,
+                'https://rpc-mainnet.matic.network'
+            ),
+            network_id: 137,
+            confirmations: 1,
+            timeoutBlocks: 300,
             skipDryRun: true
         }
     },
