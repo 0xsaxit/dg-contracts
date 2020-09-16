@@ -230,13 +230,10 @@ contract ERC20 is Context {
 }
 
 contract Token is ERC20 {
-
-    constructor() ERC20("MANA", "MANA") {
+    constructor() ERC20("DG", "DGToken") {
         _mint(msg.sender, 100000000000E18);
     }
-
 }
-
 
 library SafeMath {
 
