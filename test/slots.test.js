@@ -1,5 +1,7 @@
-const Slots = artifacts.require("TreasurySlots");
-const Treasury = artifacts.require("Treasury");
+const Token = artifacts.require("Token");
+const Pointer = artifacts.require("dgPointer");
+const Slots = artifacts.require("dgSlots");
+const Treasury = artifacts.require("dgTreasury");
 const catchRevert = require("./exceptionsHelpers.js").catchRevert;
 const positions = [0, 16, 32, 48];
 
@@ -15,11 +17,13 @@ const getLastEvent = async (eventName, instance) => {
     return events.pop().returnValues;
 };
 
-contract("TreasurySlots", ([owner, newCEO, user1, user2, random]) => {
+contract("dgSlots", ([owner, newCEO, user1, user2, random]) => {
     let slots;
 
     before(async () => {
-        slots = await Slots.deployed(owner, 250, 15, 8, 4, {from: owner});
+        token = await Token.new();
+        pointer = await Pointer.new(token.address);
+        slots = await Slots.new(owner, 250, 15, 8, 4, pointer.address, {from: owner});
     });
 
     describe("Initial Variables", () => {
@@ -79,9 +83,9 @@ contract("TreasurySlots", ([owner, newCEO, user1, user2, random]) => {
             assert.equal(event.newWorker, user1);
         });
 
-        it("only CEO can pause the contract", async () => {
+        it("only Worker can pause the contract", async () => {
             await catchRevert(slots.pause({ from: random }));
-            await slots.pause({ from: newCEO });
+            await slots.pause({ from: user1 });
 
             const event = await getLastEvent("Paused", slots);
             assert(event);

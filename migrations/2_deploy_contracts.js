@@ -21,10 +21,10 @@ module.exports = async function(deployer, network, accounts) {
         // await deployer.deploy(SlotMachineLogic, accounts[0], 250, 15, 8, 4, 100000);
         // await deployer.deploy(RouletteLogic, accounts[0], 4000);
 
-        await deployer.deploy(Token);
-        await deployer.deploy(Treasury, Token.address, "MANA");
-        await deployer.deploy(dgRoulette, Treasury.address, 4000, 36);
-        await deployer.deploy(dgSlots, Treasury.address, 250, 15, 8, 4);
+        // await deployer.deploy(Token);
+        // await deployer.deploy(Treasury, Token.address, "MANA");
+        // await deployer.deploy(dgRoulette, Treasury.address, 4000, 36);
+        // await deployer.deploy(dgSlots, Treasury.address, 250, 15, 8, 4);
 
     }
 

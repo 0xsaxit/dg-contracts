@@ -9,6 +9,7 @@ pragma solidity ^0.7.0;
 import "./common-contracts/SafeMath.sol";
 import "./common-contracts/AccessController.sol";
 import "./common-contracts/TreasuryInstance.sol";
+import "./common-contracts/PointerInstance.sol";
 
 contract dgRoulette is AccessController {
 
@@ -43,20 +44,35 @@ contract dgRoulette is AccessController {
     );
 
     TreasuryInstance public treasury;
+    PointerInstance immutable public pointerContract;
 
     constructor(
         address _treasuryAddress,
         uint128 _maxSquareBetDefault,
-        uint8 _maxNumberBets
+        uint8 _maxNumberBets,
+        address _pointerAddress
     ) {
         treasury = TreasuryInstance(_treasuryAddress);
         store |= _maxNumberBets<<0;
         store |= _maxSquareBetDefault<<8;
         store |= block.timestamp<<136;
+        pointerContract = PointerInstance(_pointerAddress);
     }
 
-    function checknow64() public view returns (uint64) {
-        return uint64(block.timestamp);
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers
+    )
+        private
+    {
+        pointerContract.addPoints(
+            _player,
+            _points,
+            _token,
+            _numPlayers
+        );
     }
 
     function createBet(
@@ -191,7 +207,8 @@ contract dgRoulette is AccessController {
         uint8[] memory _betValues,
         uint128[] memory _betAmount,
         bytes32 _localhash,
-        uint8[] memory _tokenIndex
+        uint8[] memory _tokenIndex,
+        uint8 _playerCount
     ) public whenNotPaused onlyWorker {
 
         require(
@@ -216,8 +233,9 @@ contract dgRoulette is AccessController {
 
         treasury.consumeHash(_localhash);
         bool[5] memory checkedTokens;
+        uint8 i;
 
-        for (uint8 i = 0; i < _betIDs.length; i++) {
+        for (i = 0; i < _betIDs.length; i++) {
 
             require(
                 treasury.getMaximumBet(_tokenIndex[i]) >= _betAmount[i],
@@ -238,6 +256,13 @@ contract dgRoulette is AccessController {
                 _betAmount[i]
             );
 
+           addPoints(
+                _players[i],
+                _betValues[i],
+                treasury.getTokenAddress(_tokenIndex[i]),
+                _playerCount
+            );
+
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
                 require(
@@ -248,12 +273,10 @@ contract dgRoulette is AccessController {
             }
         }
 
-        delete checkedTokens;
-
         uint256 _spinResult;
         (winAmounts, _spinResult) = _launch(_localhash);
 
-        for (uint8 i = 0; i < winAmounts.length; i++) {
+        for (i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
                 treasury.tokenOutboundTransfer(
                     _tokenIndex[i],
@@ -262,6 +285,8 @@ contract dgRoulette is AccessController {
                 );
             }
         }
+
+        delete i;
 
         emit GameResult(
             _players,
