@@ -481,13 +481,19 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         bytes16 _gameId,
         uint8[] calldata _playerIndexes,
         uint128[] calldata _payoutAmounts,
-        uint128[] calldata _refundAmounts
+        uint128[] calldata _refundAmounts,
+        bytes32[] calldata _localHashes
     )
         external
         onlyOnGoingGame(_gameId)
         whenNotPaused
         onlyWorker
     {
+
+        for (uint256 i = 0; i < _localHashes.length; i++) {
+            _consume(_localHashes[i]);
+        }
+
         for (uint256 i = 0; i < _payoutAmounts.length; i++) {
 
             // winnings
@@ -504,16 +510,24 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
                 _refundAmounts[i]
             );
 
-            // points
-            _addPoints(
-                Games[_gameId].players[_playerIndexes[i]],
-                Games[_gameId].bets[_playerIndexes[i]] - _refundAmounts[i],
-                treasury.getTokenAddress(Games[_gameId].tokens[_playerIndexes[i]]),
-                Games[_gameId].players.length
-            );
+            _smartPoints(_gameId, _playerIndexes[i], _refundAmounts[i]);
+
         }
 
         Games[_gameId].state = GameState.EndedGame;
+    }
+
+    function _smartPoints(
+        bytes16 _gameId,
+        uint8 _pIndex,
+        uint128 _refundAmount
+    ) internal {
+        _addPoints(
+            Games[_gameId].players[_pIndex],
+            Games[_gameId].bets[_pIndex] - _refundAmount,
+            treasury.getTokenAddress(Games[_gameId].tokens[_pIndex]),
+            Games[_gameId].players.length
+        );
     }
 
     function prepareDeck(
