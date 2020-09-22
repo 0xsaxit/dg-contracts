@@ -13,26 +13,26 @@ contract MultiHashChain {
     ) public tail;
 
     function _setMultiTail(
-        uint256 tableID,
-        uint256 landID,
-        uint256 serverID,
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
         bytes32 _tail
     ) internal {
-        tail[serverID][landID][tableID] = _tail;
+        tail[_serverId][_landId][_tableId] = _tail;
     }
 
     function _consumeMulti(
-        uint256 tableID,
-        uint256 landID,
-        uint256 serverID,
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
         bytes32 _parent
     ) internal {
         require(
             keccak256(
                 abi.encodePacked(_parent)
-            ) == tail[serverID][landID][tableID],
+            ) == tail[_serverId][_landId][_tableId],
             'hash-chain: wrong parent'
         );
-        tail[serverID][landID][tableID] = _parent;
+        tail[_serverId][_landId][_tableId] = _parent;
     }
 }
