@@ -17,60 +17,19 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         bytes functionSignature
     );
 
-    bytes32 private constant META_TRANSACTION_TYPEHASH = keccak256(
+    bytes32 internal constant META_TRANSACTION_TYPEHASH = keccak256(
         bytes(
             "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
         )
     );
 
-    mapping(address => uint256) private nonces;
-    
-     /*
-     * Meta transaction structure.
-     * No point of including value field here as if user is doing value transfer then he has the funds to pay for gas
-     * He should call the desired function directly in that case.
-     */
+    mapping(address => uint256) internal nonces;
+
     struct MetaTransaction {
 		uint256 nonce;
 		address from;
         bytes functionSignature;
 	}
-
-    constructor(string memory name, string memory version) public EIP712Base(name, version) {}
-
-    function executeMetaTransaction(
-        address userAddress,
-        bytes memory functionSignature,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
-    ) public returns (bytes memory) {
-        MetaTransaction memory metaTx = MetaTransaction({
-            nonce: nonces[userAddress],
-            from: userAddress,
-            functionSignature: functionSignature
-        });
-        require(
-            verify(userAddress, metaTx, sigR, sigS, sigV),
-            "Signer and signature do not match"
-        );
-
-        // Append userAddress and relayer address at the end to extract it from calling context
-        (bool success, bytes memory returnData) = address(this).call(
-            abi.encodePacked(functionSignature, userAddress, msg.sender)
-        );
-
-        require(success, "dgPointer: Function call not successfull");
-        nonces[userAddress] = nonces[userAddress] + 1;
-
-        emit MetaTransactionExecuted(
-            userAddress,
-            msg.sender,
-            functionSignature
-        );
-
-        return returnData;
-    }
 
     function getNonce(address user) public view returns(uint256 nonce) {
         nonce = nonces[user];
@@ -142,7 +101,11 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     mapping(address => uint256) public tokenToPointRatio;
     mapping(address => address) public affiliateData;
 
-    constructor(address _distributionToken) {
+    constructor(
+        address _distributionToken,
+        string memory name,
+        string memory version
+    ) EIP712Base(name, version) {
         distributionToken = ERC20Token(_distributionToken);
     }
 
@@ -167,13 +130,18 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         address _token
     )
         external
-        returns (uint256 newPoints, uint256 multiplier)
+        returns (
+            uint256 newPoints,
+            uint256 multiplierA,
+            uint256 multiplierB
+        )
     {
         return addPoints(
             _player,
             _points,
             _token,
-            1
+            1,
+            0
         );
     }
 
@@ -184,15 +152,43 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         uint256 _numPlayers
     )
         public
-        returns (uint256 newPoints, uint256 multiplier)
+        returns (
+            uint256 newPoints,
+            uint256 multiplier,
+            uint256 multiplierB
+        )
+    {
+        return addPoints(
+            _player,
+            _points,
+            _token,
+            _numPlayers,
+            0
+        );
+    }
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers,
+        uint256 _wearableBonus
+    )
+        public
+        returns (
+            uint256 newPoints,
+            uint256 multiplierA,
+            uint256 multiplierB
+        )
     {
       if (_isDeclaredContract(msg.sender) && collectingEnabled) {
 
-            multiplier = getBonusMultiplier(_numPlayers);
+            multiplierA = getPlayerMultiplier(_numPlayers);
+            multiplierB = getWearableMultiplier(_wearableBonus);
 
             newPoints = _points
                 .div(tokenToPointRatio[_token])
-                .mul(multiplier)
+                .mul(multiplierA + multiplierB)
                 .div(100);
 
             pointsBalancer[_player] =
@@ -212,21 +208,36 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         internal
     {
         if (_isAffiliated(_player)) {
-            pointsBalancer[affiliateData[_player]] = _points.mul(20).div(100);
+            pointsBalancer[affiliateData[_player]] =
+            pointsBalancer[affiliateData[_player]] + _points.mul(20).div(100);
         }
     }
 
-    function getBonusMultiplier(
-        uint256 numPlayers
+    function getPlayerMultiplier(
+        uint256 baseAmount
     )
         internal
         pure
         returns (uint256)
+        // possible return values 100, 110, 120, 130, 140
     {
-        if (numPlayers == 1) return MIN_BONUS;
-        return numPlayers > 4
+        if (baseAmount == 1) return MIN_BONUS;
+        return baseAmount > 4
             ? MAX_BONUS
-            : MIN_BONUS.add(numPlayers.mul(10));
+            : MIN_BONUS.add(baseAmount.mul(10));
+    }
+
+    function getWearableMultiplier(
+        uint256 baseAmount
+    )
+        internal
+        pure
+        returns (uint256)
+        // possible return values 0, 10, 20, 30, 40
+    {
+        return baseAmount > 4
+            ? MAX_BONUS - MIN_BONUS
+            : baseAmount.mul(10);
     }
 
     function _isAffiliated(address _player) internal view returns (bool) {
@@ -255,14 +266,14 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     {
         require(
             distributionEnabled == true,
-            'Pointer: distribution paused'
+            'Pointer: distribution disabled'
         );
         tokenAmount = pointsBalancer[_player];
         pointsBalancer[_player] = 0;
         distributionToken.transfer(_player, tokenAmount);
     }
 
-    // can be removed on mainnet - for easier testing
+    // for easier testing on testnet - can be removed on mainnet
     function changeDistributionToken(address _newDistributionToken) external onlyCEO {
         distributionToken = ERC20Token(_newDistributionToken);
     }
@@ -289,5 +300,41 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
 
     function _isDeclaredContract(address _contract) internal view returns (bool) {
         return declaredContracts[_contract];
+    }
+
+    function executeMetaTransaction(
+        address userAddress,
+        bytes memory functionSignature,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    ) public returns (bytes memory) {
+        MetaTransaction memory metaTx = MetaTransaction({
+            nonce: nonces[userAddress],
+            from: userAddress,
+            functionSignature: functionSignature
+        });
+        require(
+            verify(userAddress, metaTx, sigR, sigS, sigV),
+            "Signer and signature do not match"
+        );
+
+        distributeTokens(userAddress);
+
+        // Append userAddress and relayer address at the end to extract it from calling context
+        (bool success, bytes memory returnData) = address(this).call(
+            abi.encodePacked(functionSignature, userAddress, msg.sender)
+        );
+
+        require(success, "dgPointer: Function call not successfull");
+        nonces[userAddress] = nonces[userAddress] + 1;
+
+        emit MetaTransactionExecuted(
+            userAddress,
+            msg.sender,
+            functionSignature
+        );
+
+        return returnData;
     }
 }

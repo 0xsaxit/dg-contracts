@@ -73,7 +73,6 @@ contract BlackJackHelper {
             abi.encodePacked(_hashParent)
         ) == _hashChild ? true : false;
     }
-
 }
 
 contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
@@ -164,7 +163,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
     event GameInitialized(
         bytes16 gameId,
-        // address[] players,
         uint128[] bets,
         uint8[] tokens,
         uint256 landId,
@@ -219,8 +217,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
     );
 
     event FinishedGame(
-        bytes16 gameId,
-        bytes32 localhashB
+        bytes16 gameId
     );
 
     event DoubleDown(
@@ -263,7 +260,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         address _player,
         uint256 _points,
         address _token,
-        uint256 numPlayers
+        uint256 _numPlayers,
+        uint256 _wearableBonus
     )
         private
     {
@@ -271,7 +269,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             _player,
             _points,
             _token,
-            numPlayers
+            _numPlayers,
+            _wearableBonus
         );
     }
 
@@ -402,13 +401,14 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             _tokens.length == _players.length
         );
 
-        _consumeMulti(
+        /* _consumeMulti(
             _serverId,
             _landId,
             _tableId,
             _localhashB
-        );
-        treasury.consumeHash(_localhashA);
+        ); */
+
+        // treasury.consumeHash(_localhashA);
 
         gameId = getGameId(_serverId, _landId, _tableId, _players, nonce);
         nonce = nonce + 1;
@@ -482,7 +482,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
         emit GameInitialized(
             gameId,
-            // _players,
             _bets,
             _tokens,
             _landId,
@@ -495,10 +494,10 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         uint256 _serverId,
         uint256 _landId,
         uint256 _tableId,
-        uint8[] calldata _playerIndexes,
         uint128[] calldata _payoutAmounts,
         uint128[] calldata _refundAmounts,
-        bytes32[] calldata _localHashes
+        bytes32[] calldata _localHashes,
+        uint128[] calldata _wearableBonus
     )
         external
         onlyOnGoingGame(_gameId)
@@ -515,28 +514,32 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
         _payout(
             _gameId,
-            _playerIndexes,
             _payoutAmounts,
-            _refundAmounts
+            _refundAmounts,
+            _wearableBonus
         );
 
-        Games[_gameId].state = GameState.EndedGame;
+        emit FinishedGame(
+            _gameId
+            // _localhashB
+        );
     }
 
     function _payout(
         bytes16 _gameId,
-        uint8[] calldata _playerIndexes,
         uint128[] calldata _payoutAmounts,
-        uint128[] calldata _refundAmounts
+        uint128[] calldata _refundAmounts,
+        uint128[] calldata _wearableBonus
     ) internal {
-        for (uint256 i = 0; i < _payoutAmounts.length; i++) {
+        Games[_gameId].state = GameState.EndedGame;
+        for (uint8 i = 0; i < _payoutAmounts.length; i++) {
             payoutAmount(
-                Games[_gameId].tokens[_playerIndexes[i]],
-                Games[_gameId].players[_playerIndexes[i]],
+                Games[_gameId].tokens[i],
+                Games[_gameId].players[i],
                 _payoutAmounts[i] + _refundAmounts[i]
             );
 
-            _smartPoints(_gameId, _playerIndexes[i], _refundAmounts[i]);
+            _smartPoints(_gameId, i, _refundAmounts[i], _wearableBonus[i]);
         }
     }
 
@@ -559,13 +562,18 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
     function _smartPoints(
         bytes16 _gameId,
         uint8 _pIndex,
-        uint128 _refundAmount
+        uint128 _refundAmount,
+        uint128 _wearableBonus
     ) internal {
+
+        require(Games[_gameId].bets[_pIndex] >= _refundAmount);
+
         _addPoints(
             Games[_gameId].players[_pIndex],
             Games[_gameId].bets[_pIndex] - _refundAmount,
             treasury.getTokenAddress(Games[_gameId].tokens[_pIndex]),
-            Games[_gameId].players.length
+            Games[_gameId].players.length,
+            _wearableBonus
         );
     }
 
@@ -766,8 +774,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         Games[_gameId].state = GameState.EndedGame;
 
         emit FinishedGame(
-            _gameId,
-            _localhashB
+            _gameId
+            // _localhashB
         );
     }
 
@@ -944,7 +952,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             player,
             betAmount / 2,
             treasury.getTokenAddress(tokenIndex),
-            playersCount
+            playersCount,
+            0
         );
 
         treasury.tokenInboundTransfer(
@@ -983,7 +992,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             player,
             betAmount,
             treasury.getTokenAddress(tokenIndex),
-            playersCount
+            playersCount,
+            0
         );
 
         treasury.tokenInboundTransfer(
