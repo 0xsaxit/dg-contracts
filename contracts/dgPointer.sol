@@ -319,8 +319,6 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
             "Signer and signature do not match"
         );
 
-        distributeTokens(userAddress);
-
         // Append userAddress and relayer address at the end to extract it from calling context
         (bool success, bytes memory returnData) = address(this).call(
             abi.encodePacked(functionSignature, userAddress, msg.sender)
