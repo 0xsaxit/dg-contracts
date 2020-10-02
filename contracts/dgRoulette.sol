@@ -20,6 +20,9 @@ contract dgRoulette is AccessController {
 
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
 
+    mapping (address => uint) public totalBets;
+    mapping (address => uint) public totalPayout;
+
     mapping (uint => uint) public maxSquareBets;
     mapping (uint => mapping (uint => mapping (uint => uint))) public currentBets;
 
@@ -63,7 +66,8 @@ contract dgRoulette is AccessController {
         address _player,
         uint256 _points,
         address _token,
-        uint256 _numPlayers
+        uint256 _numPlayers,
+        uint256 _wearableBonus
     )
         private
     {
@@ -71,23 +75,8 @@ contract dgRoulette is AccessController {
             _player,
             _points,
             _token,
-            _numPlayers
-        );
-    }
-
-    function createBet(
-        address _player,
-        uint8 _betType,
-        uint8 _number,
-        uint8 _tokenIndex,
-        uint128 _value
-    ) external whenNotPaused onlyCEO {
-        bet(
-            _player,
-            _betType,
-            _number,
-            _tokenIndex,
-            _value
+            _numPlayers,
+            _wearableBonus
         );
     }
 
@@ -119,17 +108,12 @@ contract dgRoulette is AccessController {
         }));
     }
 
-    function launch(
-        bytes32 _localhash
-    ) external whenNotPaused onlyCEO returns(
-        uint256[] memory,
-        uint256 number
-    ) {
-        return _launch(_localhash);
-    }
-
     function _launch(
-        bytes32 _localhash
+        bytes32 _localhash,
+        address[] memory _players,
+        uint8[] memory _tokenIndex,
+        uint256 _landID,
+        uint256 _machineID
     ) private returns(uint256[] memory, uint256 number) {
 
         require(block.timestamp > store>>136, 'Roulette: expired round');
@@ -196,6 +180,16 @@ contract dgRoulette is AccessController {
         }
 
         delete bets;
+
+        emit GameResult(
+            _players,
+            _tokenIndex,
+            _landID,
+            number,
+            _machineID,
+            winAmounts
+        );
+
         return(winAmounts, number);
     }
 
@@ -208,7 +202,8 @@ contract dgRoulette is AccessController {
         uint128[] memory _betAmount,
         bytes32 _localhash,
         uint8[] memory _tokenIndex,
-        uint8 _playerCount
+        uint8 _playerCount,
+        uint8[] memory _wearableBonus
     ) public whenNotPaused onlyWorker {
 
         require(
@@ -256,13 +251,6 @@ contract dgRoulette is AccessController {
                 _betAmount[i]
             );
 
-           addPoints(
-                _players[i],
-                _betValues[i],
-                treasury.getTokenAddress(_tokenIndex[i]),
-                _playerCount
-            );
-
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
                 require(
@@ -274,8 +262,15 @@ contract dgRoulette is AccessController {
         }
 
         uint256 _spinResult;
-        (winAmounts, _spinResult) = _launch(_localhash);
+        (winAmounts, _spinResult) = _launch(
+            _localhash,
+            _players,
+            _tokenIndex,
+            _landID,
+            _machineID
+        );
 
+        // payout && points preparation
         for (i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
                 treasury.tokenOutboundTransfer(
@@ -283,19 +278,53 @@ contract dgRoulette is AccessController {
                     _players[i],
                     winAmounts[i]
                 );
+                // collecting totalPayout
+                totalPayout[_players[i]] =
+                totalPayout[_players[i]] + winAmounts[i];
             }
+            totalBets[_players[i]] =
+            totalBets[_players[i]] + _betAmount[i];
         }
 
-        delete i;
+        // point calculation && bonus
+        for (i = 0; i < _players.length; i++) {
+            _issuePointsAmount(
+                _players[i],
+                _tokenIndex[i],
+                _playerCount,
+                _wearableBonus[i]
+            );
+        }
+    }
 
-        emit GameResult(
-            _players,
-            _tokenIndex,
-            _landID,
-            _spinResult,
-            _machineID,
-            winAmounts
-        );
+    function _issuePointsAmount(
+        address _player,
+        uint8 _tokenIndex,
+        uint256 _playerCount,
+        uint256 _wearableBonus
+    ) private {
+        if (totalPayout[_player] > totalBets[_player]) {
+            addPoints(
+                _player,
+                totalPayout[_player].sub(totalBets[_player]),
+                treasury.getTokenAddress(_tokenIndex),
+                _playerCount,
+                _wearableBonus
+            );
+            totalBets[_player] = 0;
+            totalPayout[_player] = 0;
+        }
+        else if (totalPayout[_player] < totalBets[_player]) {
+            addPoints(
+                _player,
+                totalBets[_player].sub(totalPayout[_player]),
+                treasury.getTokenAddress(_tokenIndex),
+                _playerCount,
+                _wearableBonus
+            );
+            totalBets[_player] = 0;
+            totalPayout[_player] = 0;
+        }
     }
 
     function getPayoutForType(
