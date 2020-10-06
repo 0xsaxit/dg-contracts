@@ -2,10 +2,212 @@
 
 pragma solidity ^0.7.0;
 
-import "./common-contracts/SafeMath.sol";
-import "./common-contracts/AccessController.sol";
-import "./common-contracts/ERC20Token.sol";
-import "./common-contracts/EIP712Base.sol";
+// SPDX-License-Identifier: -- 🎲 --
+
+
+
+library SafeMath {
+
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, 'SafeMath: addition overflow');
+        return c;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b <= a, 'SafeMath: subtraction overflow');
+        uint256 c = a - b;
+        return c;
+    }
+
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, 'SafeMath: multiplication overflow');
+        return c;
+    }
+
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b > 0, 'SafeMath: division by zero');
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+        return c;
+    }
+
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b != 0, 'SafeMath: modulo by zero');
+        return a % b;
+    }
+}
+
+// SPDX-License-Identifier: -- 🎲 --
+
+
+
+contract AccessController {
+
+    address public ceoAddress;
+    address public workerAddress;
+
+    bool public paused = false;
+
+    // mapping (address => enumRoles) accessRoles; // multiple operators idea
+
+    event CEOSet(address newCEO);
+    event WorkerSet(address newWorker);
+
+    event Paused();
+    event Unpaused();
+
+    constructor() {
+        ceoAddress = msg.sender;
+        workerAddress = msg.sender;
+        emit CEOSet(ceoAddress);
+        emit WorkerSet(workerAddress);
+    }
+
+    modifier onlyCEO() {
+        require(
+            msg.sender == ceoAddress,
+            'AccessControl: CEO access denied'
+        );
+        _;
+    }
+
+    modifier onlyWorker() {
+        require(
+            msg.sender == workerAddress,
+            'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier whenNotPaused() {
+        require(
+            !paused,
+            'AccessControl: currently paused'
+        );
+        _;
+    }
+
+    modifier whenPaused {
+        require(
+            paused,
+            'AccessControl: currenlty not paused'
+        );
+        _;
+    }
+
+    function setCEO(address _newCEO) public onlyCEO {
+        require(
+            _newCEO != address(0x0),
+            'AccessControl: invalid CEO address'
+        );
+        ceoAddress = _newCEO;
+        emit CEOSet(ceoAddress);
+    }
+
+    function setWorker(address _newWorker) external {
+        require(
+            _newWorker != address(0x0),
+            'AccessControl: invalid worker address'
+        );
+        require(
+            msg.sender == ceoAddress || msg.sender == workerAddress,
+            'AccessControl: invalid worker address'
+        );
+        workerAddress = _newWorker;
+        emit WorkerSet(workerAddress);
+    }
+
+    function pause() external onlyWorker whenNotPaused {
+        paused = true;
+        emit Paused();
+    }
+
+    function unpause() external onlyCEO whenPaused {
+        paused = false;
+        emit Unpaused();
+    }
+}
+// SPDX-License-Identifier: -- 🎲 --
+
+
+
+interface ERC20Token {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+
+    event Transfer(
+        address indexed from,
+        address indexed to,
+        uint256 value
+    );
+
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+}
+
+// SPDX-License-Identifier: -- 🎲 --
+
+
+
+contract EIP712Base {
+
+    struct EIP712Domain {
+        string name;
+        string version;
+        uint256 chainId;
+        address verifyingContract;
+    }
+
+    bytes32 internal constant EIP712_DOMAIN_TYPEHASH = keccak256(bytes("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"));
+
+    bytes32 internal domainSeperator;
+
+    constructor(string memory name, string memory version) {
+      domainSeperator = keccak256(abi.encode(
+			EIP712_DOMAIN_TYPEHASH,
+			keccak256(bytes(name)),
+			keccak256(bytes(version)),
+			getChainID(),
+			address(this)
+		));
+    }
+
+    function getChainID() internal pure returns (uint256 id) {
+		assembly {
+			id := 5 // set to Goerli for now, Mainnet later
+		}
+	}
+
+    function getDomainSeperator() private view returns(bytes32) {
+		return domainSeperator;
+	}
+
+    /**
+    * Accept message hash and returns hash message in EIP712 compatible form
+    * So that it can be used to recover signer from signature signed using EIP712 formatted data
+    * https://eips.ethereum.org/EIPS/eip-712
+    * "\\x19" makes the encoding deterministic
+    * "\\x01" is the version byte to make it compatible to EIP-191
+    */
+    function toTypedMessageHash(bytes32 messageHash) internal view returns(bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", getDomainSeperator(), messageHash));
+    }
+
+}
+
 
 abstract contract ExecuteMetaTransaction is EIP712Base {
 
@@ -181,12 +383,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
             uint256 multiplierB
         )
     {
-        require(
-            _numPlayers > 0,
-            'dgPointer: _numPlayers error'
-        );
-
-        if (_isDeclaredContract(msg.sender) && collectingEnabled) {
+      if (_isDeclaredContract(msg.sender) && collectingEnabled) {
 
             multiplierA = getPlayerMultiplier(_numPlayers);
             multiplierB = getWearableMultiplier(_wearableBonus);
@@ -323,6 +520,8 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
             verify(userAddress, metaTx, sigR, sigS, sigV),
             "Signer and signature do not match"
         );
+
+        distributeTokens(userAddress);
 
         // Append userAddress and relayer address at the end to extract it from calling context
         (bool success, bytes memory returnData) = address(this).call(
