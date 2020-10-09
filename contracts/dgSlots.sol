@@ -56,7 +56,8 @@ contract dgSlots is AccessController {
         uint128 _machineID,
         uint128 _betAmount,
         bytes32 _localhash,
-        uint8 _tokenIndex
+        uint8 _tokenIndex,
+        uint256 _wearableBonus
     ) public whenNotPaused onlyWorker {
 
         require(
@@ -87,7 +88,9 @@ contract dgSlots is AccessController {
         pointerContract.addPoints(
             _player,
             _betAmount,
-            treasury.getTokenAddress(_tokenIndex)
+            treasury.getTokenAddress(_tokenIndex),
+            1,
+            _wearableBonus
         );
 
         (uint256 _number, uint256 _winAmount) = _launch(

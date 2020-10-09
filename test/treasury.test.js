@@ -1,8 +1,11 @@
-const Roulette = artifacts.require("TreasuryRoulette");
-const Slots = artifacts.require("TreasurySlots");
-const Backgammon = artifacts.require("TreasuryBackgammon");
-const Treasury = artifacts.require("Treasury");
-const Token = artifacts.require("Token");
+const Roulette = artifacts.require("dgRoulette");
+const Slots = artifacts.require("dgSlots");
+const Backgammon = artifacts.require("dgBackgammon");
+const Treasury = artifacts.require("dgTreasury");
+const Token = artifacts.require("dgToken");
+const Pointer = artifacts.require("dgPointer");
+const name = "name";
+const version = "0";
 
 const catchRevert = require("./exceptionsHelpers.js").catchRevert;
 
@@ -31,7 +34,7 @@ const getLastEvent = async (eventName, instance) => {
     return events.pop().returnValues;
 };
 
-contract("Treasury", ([owner, user1, user2, user3, random]) => {
+contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
 
     let roulette, slots, token, treasury;
 
@@ -65,9 +68,11 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            roulette = await Roulette.new(treasury.address, 4000, 36);
-            slots = await Slots.new(treasury.address, 250, 16, 8, 4);
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            slots = await Slots.new(treasury.address, 250, 16, 8, 4, pointer.address);
         });
 
         it("only CEO can add a game", async () => {
@@ -106,9 +111,11 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
     describe("Adding Funds to a Game", () => {
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            roulette = await Roulette.new(treasury.address, 4000, 36);
-            slots = await Slots.new(treasury.address, 250, 16, 8, 4);
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            slots = await Slots.new(treasury.address, 250, 16, 8, 4, pointer.address);
             await treasury.addGame(slots.address, "Slots", true, { from: owner });
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await treasury.setMaximumBet(0, 0, 100, { from: owner });
@@ -153,8 +160,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
     describe("Removing Funds", () => {
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            roulette = await Roulette.new(treasury.address, 4000, 36);
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await token.approve(treasury.address, 1000, { from: owner });
             await treasury.addFunds(0, 0, 1000, { from: owner });
@@ -230,8 +239,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            roulette = await Roulette.new(treasury.address, 4000, 36);
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await treasury.setMaximumBet(0, 0, 1000, { from: owner });
             await token.approve(treasury.address, web3.utils.toWei("100"));
@@ -274,6 +285,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                 tokenIndex,
+                3,
+                [0,0,0],
                 { from: owner }
             );
         });
@@ -294,6 +307,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                     [0],
+                    3,
+                    [0,0,0],
                     { from: random }
                 ),
                 "revert"
@@ -308,6 +323,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                 tokenIndex,
+                3,
+                [0,0,0],
                 { from: owner }
             );
         });
@@ -323,6 +340,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                     tokenIndex,
+                    3,
+                    [0,0,0],
                     { from: owner }
                 ),
                 "revert approve treasury as spender"
@@ -341,6 +360,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                 tokenIndex,
+                3,
+                [0,0,0],
                 { from: owner }
             );
         });
@@ -360,6 +381,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                     tokenIndex,
+                    3,
+                    [0,0,0],
                     { from: owner }
                 ),
                 "revert inconsistent amount of bets"
@@ -380,6 +403,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     [500, 300, 3000],
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                     tokenIndex,
+                    3,
+                    [0,0,0],
                     { from: owner }
                 ),
                 "revert bet amount is more than maximum"
@@ -400,6 +425,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                 tokenIndex,
+                3,
+                [0,0,0],
                 { from: owner }
             );
             const { _players, _tokenIndex, _landID, _machineID } = await getLastEvent(
@@ -430,6 +457,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                 tokenIndex,
+                3,
+                [0,0,0],
                 { from: owner }
             );
 
@@ -443,6 +472,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     betAmount,
                     "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                     tokenIndex,
+                    3,
+                    [0,0,0],
                     { from: owner }
                 ),
                 "revert hash-chain: wrong parent"
@@ -463,6 +494,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                 [0, 0, 0],
+                3,
+                [0,0,0],
                 { from: owner }
             );
 
@@ -479,6 +512,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0x85b19f01fe40119c675666a851d9e6b9a85424dc4016b2de0bdb69efecf08dea",
                 [0, 0, 0],
+                3,
+                [0,0,0],
                 { from: owner }
             );
 
@@ -492,6 +527,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 "0x28ecea1ba1f63e6973e214182b87fce258a89705e40360fddcf00cad0f905730",
                 [0, 0, 0],
+                3,
+                [0,0,0],
                 { from: owner }
             );
 
@@ -507,8 +544,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             // Deploy contracts
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            roulette = await Roulette.new(treasury.address, 4000, 36);
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
 
             // Add game and fund it
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
@@ -546,6 +585,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     betAmounts,
                     HASH_CHAIN[i + 1],
                     tokenIndex,
+                    1,
+                    [0,0,0,0,0],
                     { from: owner }
                 );
 
@@ -593,6 +634,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     betAmounts,
                     HASH_CHAIN[i + 1],
                     tokenIndex,
+                    1,
+                    [0,0,0,0,0],
                     { from: owner }
                 );
 
@@ -626,8 +669,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            slots = await Slots.new(treasury.address, 250, 16, 8, 4);
+            slots = await Slots.new(treasury.address, 250, 16, 8, 4, pointer.address);
             await treasury.addGame(slots.address, "Slots", true, { from: owner });
             await treasury.setMaximumBet(0, 0, 1000, { from: owner });
             await token.approve(treasury.address, web3.utils.toWei("100"));
@@ -649,6 +694,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     2000,
                     HASH_CHAIN[1],
                     0,
+                    0,
                     { from: owner }
                 ),
                 "revert bet amount is more than maximum"
@@ -664,6 +710,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 100,
                 HASH_CHAIN[1],
                 0,
+                0,
                 { from: owner }
             );
         });
@@ -677,6 +724,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 2,
                 100,
                 HASH_CHAIN[1],
+                0,
                 0,
                 { from: owner }
             );
@@ -697,8 +745,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
         beforeEach(async () => {
             // Deploy contracts
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            slots = await Slots.new(treasury.address, 250, 16, 8, 4);
+            slots = await Slots.new(treasury.address, 250, 16, 8, 4, pointer.address);
 
             // Add game and fund it
             await treasury.addGame(slots.address, "Slots", { from: owner });
@@ -737,6 +787,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     12,
                     betAmounts,
                     HASH_CHAIN[i + 1],
+                    0,
                     0,
                     { from: owner }
                 );
@@ -779,6 +830,7 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                     betAmounts,
                     HASH_CHAIN[i + 1],
                     0,
+                    0,
                     { from: owner }
                 );
 
@@ -807,8 +859,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            backgammon = await Backgammon.new(treasury.address, 4, 10);
+            backgammon = await Backgammon.new(treasury.address, 4, 10, pointer.address);
             await treasury.addGame(backgammon.address, "Backgammon", true, { from: owner });
             await treasury.setMaximumBet(0, 0, web3.utils.toWei("10000"), { from: owner });
             await token.approve(treasury.address, 10000000000);
@@ -1182,8 +1236,10 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
 
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             treasury = await Treasury.new(token.address, "MANA");
-            roulette = await Roulette.new(treasury.address, web3.utils.toWei("400000"), 50);
+            roulette = await Roulette.new(treasury.address, web3.utils.toWei("400000"), 50, pointer.address);
             await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await treasury.setMaximumBet(0, 0, web3.utils.toWei("1000000000"), { from: owner });
             await token.approve(treasury.address, web3.utils.toWei("100000000"));
@@ -1231,7 +1287,9 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 betValues,
                 betAmount,
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
-                new Array(30).fill(0),
+                new Array(players.length).fill(0),
+                2,
+                new Array(players.length).fill(0),
                 { from: owner }
             );
         });
@@ -1257,6 +1315,8 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
                 new Array(31).fill('50000000000000000000'),
                 "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
                 new Array(31).fill(0),
+                1,
+                new Array(31).fill(0),
                 { from: owner }
             );
         });
@@ -1265,9 +1325,11 @@ contract("Treasury", ([owner, user1, user2, user3, random]) => {
     /* describe("Migrating Treasury", () => {
         beforeEach(async () => {
             token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
             currentTreasury = await Treasury.new(token.address, "MANA");
-            roulette = await Roulette.new(currentTreasury.address, 4000, 36);
-            slots = await Slots.new(currentTreasury.address, 250, 16, 8, 4);
+            roulette = await Roulette.new(currentTreasury.address, 4000, 36, pointer.address);
+            slots = await Slots.new(currentTreasury.address, 250, 16, 8, 4, pointer.address);
             await currentTreasury.addGame(slots.address, "Slots", true, { from: owner });
             await currentTreasury.addGame(roulette.address, "Roulette", true, { from: owner });
             await currentTreasury.setMaximumBet(0, 0, 100, { from: owner });

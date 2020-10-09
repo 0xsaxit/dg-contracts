@@ -17,6 +17,18 @@ const getLastEvent = async (eventName, instance) => {
     return events.pop().returnValues;
 };
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const HASH_CHAIN = [
+    "0x7f7e3e79bc27e06158e71e3d1ad06c358ac9634e29875cd95c3041e0206494d5",
+    "0xd3ea1389b1549688059ed3bb1c8d9fe972389e621d1341ec4340dc468fd5576d",
+    "0x85b19f01fe40119c675666a851d9e6b9a85424dc4016b2de0bdb69efecf08dea",
+    "0x28ecea1ba1f63e6973e214182b87fce258a89705e40360fddcf00cad0f905730",
+    "0xd1f07819ba177c9c9977dade4370f99942f8a5e24ea36750207d890293c7866f",
+    "0x5ef64968497705b2ad68ed5ebb3a8edd478a5cab3e443cb44429bc9de7766149",
+    "0xf8bf31336d2f22ffb04bff206dc338f4f96ffd243281fdc2268435d92f70988f"
+];
+
 contract("dgPointer", ([owner, user1, user2, random]) => {
     let slots;
     before(async () => {
@@ -113,7 +125,13 @@ contract("dgPointer", ([owner, user1, user2, random]) => {
             await pointer.setPointToTokenRatio(token.address, ratio);
             await pointer.addPoints(user1, points, token.address, 1, 0, {from: user2});
 
-            await catchRevert(pointer.distributeTokens(user1));
+            await catchRevert(
+                pointer.distributeTokens(
+                    user1
+                ),
+                'revert Pointer: distribution disabled'
+            );
+
         });
 
         it("should ONLY allow worker to assign affiliate", async () => {
@@ -123,8 +141,14 @@ contract("dgPointer", ([owner, user1, user2, random]) => {
             const workerUser = owner;
 
             await catchRevert(
-                pointer.assignAffiliate(affiliatedUser, affiliatingUser, { from: random })
+                pointer.assignAffiliate(
+                    affiliatedUser,
+                    affiliatingUser,
+                    { from: random }
+                ),
+                'revert AccessControl: worker access denied'
             );
+
 
             await pointer.setWorker(workerUser, { from: owner });
             const event = await getLastEvent("WorkerSet", pointer);
@@ -140,7 +164,14 @@ contract("dgPointer", ([owner, user1, user2, random]) => {
             const distributionToken = await pointer.distributionToken();
             assert.equal(distributionToken, token.address);
 
-            await catchRevert(pointer.changeDistributionToken(token.address, { from: random }));
+            await catchRevert(
+                pointer.changeDistributionToken(
+                    token.address,
+                    { from: random }
+                ),
+                'revert AccessControl: CEO access denied'
+            );
+
             await pointer.changeDistributionToken(token.address, { from: owner });
         });
 
@@ -164,7 +195,12 @@ contract("dgPointer", ([owner, user1, user2, random]) => {
             await pointer.addPoints(user1, points, token.address, 1, 0, {from: user2});
             const resultAfter = await pointer.pointsBalancer(user1);
 
-            await catchRevert(pointer.distributeTokens(user1));
+            await catchRevert(
+                pointer.distributeTokens(
+                    user1
+                ),
+                'revert Pointer: distribution disabled'
+            );
 
             assert.equal(resultBefore, 0);
             assert.equal(resultAfter, points/ratio);
@@ -443,7 +479,6 @@ contract("dgPointer", ([owner, user1, user2, random]) => {
             assert.equal(resultAfter, bonuspoints/ratio);
         });
 
-
         it("should allow to assign affiliate", async () => {
             const ratio = 150;
             const points = 15000;
@@ -478,5 +513,199 @@ contract("dgPointer", ([owner, user1, user2, random]) => {
         // getWearableMultiplier
     });
 
+    describe("Game Results: Slots", () => {
 
+        beforeEach(async () => {
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            treasury = await Treasury.new(token.address, "MANA");
+            slots = await Slots.new(treasury.address, 250, 16, 8, 4, pointer.address);
+            pointer.declareContract(owner);
+            pointer.declareContract(slots.address);
+            await treasury.addGame(slots.address, "Slots", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
+            await token.transfer(user1, 10000);
+            await token.transfer(user2, 10000);
+            await token.approve(treasury.address, 5000, { from: user1 });
+            await token.approve(treasury.address, 5000, { from: user2 });
+            await treasury.setTail(HASH_CHAIN[0], { from: owner });
+        });
+
+        it("should be able to play slots", async () => {
+            await advanceTimeAndBlock(60);
+            await slots.play(
+                user1,
+                1,
+                2,
+                100,
+                HASH_CHAIN[1],
+                0,
+                0,
+                { from: owner }
+            );
+        });
+
+        it("should addPoints when playing slots", async () => {
+            const resultBefore = await pointer.pointsBalancer(user1);
+
+            //setup Pointer
+            const ratio = 100;
+            const betAmount = 1000;
+            await pointer.enableDistribtion(true);
+            await pointer.enableCollecting(true);
+            await pointer.setPointToTokenRatio(token.address, ratio);
+
+            await advanceTimeAndBlock(60);
+            await slots.play(
+                user1,
+                1,
+                2,
+                betAmount,
+                HASH_CHAIN[1],
+                0,
+                0,
+                { from: owner }
+            );
+
+            const resultAfter = await pointer.pointsBalancer(user1);
+
+            assert.equal(resultBefore, 0);
+            assert.equal(resultAfter > 0 , true);
+            assert.equal(resultAfter.toString(), betAmount/ratio);
+        });
+
+        it("should addPoints when playing slots continuously", async () => {
+            //setup Pointer
+            const ratio = 200;
+            const betAmount = 1000;
+            await pointer.enableDistribtion(true);
+            await pointer.enableCollecting(true);
+            await pointer.setPointToTokenRatio(token.address, ratio);
+
+            let beforeBetUser,
+                afterBetUser,
+                totalBet = 0,
+                winTotal = 0;
+
+            beforeBetUser = await token.balanceOf(user2);
+            pointsBefore = await pointer.pointsBalancer(user2);
+
+            for (let i = 0; i < 5; i++) {
+                totalBet += betAmount;
+                await advanceTimeAndBlock(60);
+                await slots.play(
+                    user2,
+                    1,
+                    12,
+                    betAmount,
+                    HASH_CHAIN[i + 1],
+                    0,
+                    0,
+                    { from: owner }
+                );
+
+                const { _winAmount } = await getLastEvent("GameResult", slots);
+
+                console.log(
+                    `     Play ${i + 1}: WinAmount:[${_winAmount}]`.cyan.inverse
+                );
+
+                let pointsAfter = await pointer.pointsBalancer(user2);
+
+                console.log(
+                    `     Play ${i + 1}: Points:[${pointsAfter}]`.cyan.inverse
+                );
+
+                if (_winAmount > 0) {
+                    winTotal = _winAmount;
+                    // break;
+                }
+            }
+
+            afterBetUser = await token.balanceOf(user2);
+            pointsAfter = await pointer.pointsBalancer(user2);
+
+            assert.equal(
+                afterBetUser.toNumber(),
+                beforeBetUser.toNumber() + Number(winTotal) - totalBet
+            );
+
+            assert.equal(
+                pointsBefore,
+                0
+            );
+
+            assert.equal(
+                pointsAfter > 0,
+                true
+            );
+
+            assert.equal(
+                pointsAfter.toString(),
+                totalBet/ratio
+            );
+        });
+
+        it("should addPoints when playing slots continuously (with wearables)", async () => {
+            //setup Pointer
+            const ratio = 200;
+            const betAmount = 1000;
+            const wearableCount = 4;
+            const wearableBonus = 0.1;
+            await pointer.enableDistribtion(true);
+            await pointer.enableCollecting(true);
+            await pointer.setPointToTokenRatio(token.address, ratio);
+
+            let beforeBetUser,
+                afterBetUser,
+                totalBet = 0,
+                winTotal = 0;
+
+            beforeBetUser = await token.balanceOf(user2);
+            pointsBefore = await pointer.pointsBalancer(user2);
+
+            for (let i = 0; i < 5; i++) {
+                totalBet += betAmount;
+                await advanceTimeAndBlock(60);
+                await slots.play(
+                    user2,
+                    1,
+                    12,
+                    betAmount,
+                    HASH_CHAIN[i + 1],
+                    0,
+                    wearableCount,
+                    { from: owner }
+                );
+
+                const { _winAmount } = await getLastEvent("GameResult", slots);
+
+                console.log(
+                    `     Play ${i + 1}: WinAmount:[${_winAmount}]`.cyan.inverse
+                );
+
+                let pointsAfterWithBonus = await pointer.pointsBalancer(user2);
+
+                console.log(
+                    `     Play ${i + 1}: PointsWithBonus:[${pointsAfterWithBonus}]`.cyan.inverse
+                );
+
+                if (_winAmount > 0) {
+                    winTotal = _winAmount;
+                    // break;
+                }
+            }
+
+            pointsAfter = await pointer.pointsBalancer(user2);
+
+            assert.equal(
+                pointsAfter.toString(),
+                (totalBet + (totalBet * wearableBonus * wearableCount)) / ratio
+            );
+        });
+    });
 });
