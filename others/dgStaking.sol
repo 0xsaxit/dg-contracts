@@ -15,6 +15,7 @@ library Math {
     }
 
     function average(uint256 a, uint256 b) internal pure returns (uint256) {
+        // (a + b) / 2 can overflow, so we distribute
         return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
     }
 }
@@ -37,17 +38,11 @@ contract Ownable is Context {
 
     address private _owner;
 
-    event OwnershipTransferred(
-        address indexed previousOwner,
-        address indexed newOwner
-    );
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     constructor() {
         _owner = _msgSender();
-        emit OwnershipTransferred(
-            address(0),
-            _owner
-        );
+        emit OwnershipTransferred(address(0), _owner);
     }
 
     function owner() public view returns (address) {
@@ -55,10 +50,7 @@ contract Ownable is Context {
     }
 
     modifier onlyOwner() {
-        require(
-            isOwner(),
-            'Ownable: caller is not the owner'
-        );
+        require(isOwner(), 'Ownable: caller is not the owner');
         _;
     }
 
@@ -67,11 +59,8 @@ contract Ownable is Context {
     }
 
     function renounceOwnership() public onlyOwner {
-        emit OwnershipTransferred(
-            _owner,
-            address(0x0)
-        );
-        _owner = address(0x0);
+        emit OwnershipTransferred(_owner, address(0));
+        _owner = address(0);
     }
 
     function transferOwnership(address newOwner) public onlyOwner {
@@ -89,29 +78,83 @@ contract Ownable is Context {
 }
 
 interface IERC20 {
-
+    /**
+     * @dev Returns the amount of tokens in existence.
+     */
     function totalSupply() external view returns (uint256);
 
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
     function balanceOf(address account) external view returns (uint256);
 
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
     function transfer(address recipient, uint256 amount) external returns (bool);
 
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
     function allowance(address owner, address spender) external view returns (uint256);
 
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
     function approve(address spender, uint256 amount) external returns (bool);
 
+    /**
+     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
 
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
     event Transfer(address indexed from, address indexed to, uint256 value);
 
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
 library Address {
 
     function isContract(address account) internal view returns (bool) {
+
         bytes32 codehash;
         bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
+
         assembly { codehash := extcodehash(account) }
         return (codehash != 0x0 && codehash != accountHash);
     }
@@ -127,10 +170,9 @@ library Address {
         );
 
         (bool success, ) = recipient.call{value: amount}('');
-
         require(
             success,
-            'Address: unable to send value'
+            'Address: unable to send value, recipient may have reverted'
         );
     }
 }
@@ -176,17 +218,12 @@ library SafeERC20 {
         );
     }
 
-    function safeApprove(
-        IERC20 token,
-        address spender,
-        uint256 value
-    )
-        internal
-    {
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
         require(
             (value == 0) || (token.allowance(address(this), spender) == 0),
             'SafeERC20: approve from non-zero to non-zero allowance'
         );
+
         callOptionalReturn(
             token,
             abi.encodeWithSelector(
@@ -197,17 +234,10 @@ library SafeERC20 {
         );
     }
 
-    function safeIncreaseAllowance(
-        IERC20 token,
-        address spender,
-        uint256 value
-    )
-        internal
-    {
-        uint256 newAllowance = token.allowance(
-            address(this),
-            spender
-        ).add(value);
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+
+        uint256 newAllowance =
+        token.allowance(address(this), spender).add(value);
 
         callOptionalReturn(
             token,
@@ -219,14 +249,10 @@ library SafeERC20 {
         );
     }
 
-    function safeDecreaseAllowance(
-        IERC20 token,
-        address spender,
-        uint256 value
-    )
-        internal
-    {
-        uint256 newAllowance = token.allowance(
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+
+        uint256 newAllowance =
+        token.allowance(
             address(this),
             spender
         ).sub(value);
@@ -241,18 +267,15 @@ library SafeERC20 {
         );
     }
 
-    function callOptionalReturn(
-        IERC20 token,
-        bytes memory data
-    )
-        private
-    {
+    function callOptionalReturn(IERC20 token, bytes memory data) private {
+
         require(
             address(token).isContract(),
             'SafeERC20: call to non-contract'
         );
 
         (bool success, bytes memory returndata) = address(token).call(data);
+
         require(
             success,
             'SafeERC20: low-level call failed'
@@ -267,13 +290,33 @@ library SafeERC20 {
     }
 }
 
+abstract contract IRewardDistributionRecipient is Ownable {
+
+    address public rewardDistributor;
+
+    modifier onlyRewardDistributor() {
+        require(
+            _msgSender() == rewardDistributor,
+            'dgStaking: wrong sender'
+        );
+        _;
+    }
+
+    function setRewardDistribution(address _rewardDistributor)
+        external
+        onlyOwner
+    {
+        rewardDistributor = _rewardDistributor;
+    }
+}
+
 contract LPTokenWrapper {
 
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 public bpt = IERC20(
-        0xb70C4d4578AeF63A1CecFF8bF4aE1BCeDD187a6b
+        0xb27A31f1b0AF2946B7F582768f03239b1eC07c2c
     );
 
     uint256 private _totalSupply;
@@ -287,55 +330,62 @@ contract LPTokenWrapper {
         return _balances[account];
     }
 
-    function _stake(uint256 amount) internal {
-
+    function stake(uint256 amount) public virtual {
         _totalSupply = _totalSupply.add(amount);
-
-        _balances[msg.sender] =
-        _balances[msg.sender].add(amount);
-
-        bpt.safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        _balances[msg.sender] = _balances[msg.sender].add(amount);
+        bpt.safeTransferFrom(msg.sender, address(this), amount);
     }
 
-    function _withdraw(uint256 amount) internal {
-
+    function withdraw(uint256 amount) public virtual {
         _totalSupply = _totalSupply.sub(amount);
-
-        _balances[msg.sender] =
-        _balances[msg.sender].sub(amount);
-
-        bpt.safeTransfer(
-            msg.sender,
-            amount
-        );
+        _balances[msg.sender] = _balances[msg.sender].sub(amount);
+        bpt.safeTransfer(msg.sender, amount);
     }
 }
 
-contract dgStaking is LPTokenWrapper, Ownable {
+contract dgStaking is LPTokenWrapper, IRewardDistributionRecipient {
 
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 public dg = IERC20(
-        0x938bE4C47B909613441427db721B66D73dDd58c0
+        0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d
     );
 
-    uint256 public constant DURATION = 40 minutes;
+    uint256 public nextReduction;
+    uint256 public constant DURATION = 4 weeks;
 
-    uint256 public periodFinish;
+    uint256 public rewardIndex;
+    uint256[4] public rewardAmounts;
+
     uint256 public rewardRate;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
-    mapping(address => uint256) public userRewardPerTokenPaid;
+    constructor(uint256 _startIn) {
+
+        lastUpdateTime = block.timestamp + _startIn;
+        nextReduction = lastUpdateTime + DURATION;
+
+        rewardAmounts[0] = 17500E18;
+        rewardAmounts[1] = 10500E18;
+        rewardAmounts[2] = 7350E18;
+        rewardAmounts[3] = 3850E18;
+
+        rewardRate = rewardAmounts[0].div(DURATION);
+    }
+
     mapping(address => uint256) public rewards;
+    mapping(address => uint256) public userRewardPerTokenPaid;
 
     event RewardAdded(
         uint256 reward
+    );
+
+    event RewardUpdated(
+        uint256 rewardRate,
+        uint256 timestamp,
+        uint256 nextReduction
     );
 
     event Staked(
@@ -354,26 +404,52 @@ contract dgStaking is LPTokenWrapper, Ownable {
     );
 
     modifier updateReward(address account) {
-
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
-
-        if (account != address(0)) {
+        if (account != address(0x0)) {
             rewards[account] = earned(account);
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
         _;
     }
 
+    modifier updateRewardRate() {
+        if (block.timestamp > nextReduction && rewardIndex < 3) {
+            rewardIndex++;
+            rewardRate = rewardAmounts[rewardIndex].div(DURATION);
+            lastUpdateTime = nextReduction;
+            nextReduction = lastUpdateTime + DURATION;
+
+            emit RewardUpdated(
+                rewardRate,
+                lastUpdateTime,
+                nextReduction
+            );
+        }
+        _;
+    }
+
+    modifier onlyAfterLastReduction {
+        require(
+            block.timestamp >= nextReduction &&
+            rewardIndex == 3,
+            'dgStaking: too early'
+        );
+        _;
+    }
+
+
     function lastTimeRewardApplicable()
         public
         view
         returns (uint256)
     {
-        return Math.min(
-            block.timestamp,
-            periodFinish
-        );
+        return block.timestamp > lastUpdateTime
+            ? Math.min(
+                block.timestamp,
+                nextReduction
+            ) : lastUpdateTime;
+
     }
 
     function rewardPerToken()
@@ -389,9 +465,61 @@ contract dgStaking is LPTokenWrapper, Ownable {
             lastTimeRewardApplicable()
                 .sub(lastUpdateTime)
                 .mul(rewardRate)
-                .mul(1e18)
+                .mul(1E18)
                 .div(totalSupply())
         );
+    }
+
+    function stake(
+        uint256 amount
+    )
+        public
+        override
+        updateRewardRate
+        updateReward(msg.sender)
+    {
+        require(
+            amount > 0,
+            'dgStaking: zero stake'
+        );
+        super.stake(amount);
+        emit Staked(msg.sender, amount);
+    }
+
+    function withdraw(
+        uint256 amount
+    )
+        public
+        override
+        updateRewardRate
+        updateReward(msg.sender)
+    {
+        require(
+            amount > 0,
+            'dgStaking: zero reward'
+        );
+        super.withdraw(amount);
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    function exit() external {
+        withdraw(
+            balanceOf(msg.sender)
+        );
+        getReward();
+    }
+
+    function getReward()
+        public
+        updateRewardRate
+        updateReward(msg.sender)
+    {
+        uint256 reward = earned(msg.sender);
+        if (reward > 0) {
+            rewards[msg.sender] = 0;
+            dg.safeTransfer(msg.sender, reward);
+            emit RewardPaid(msg.sender, reward);
+        }
     }
 
     function earned(
@@ -401,82 +529,50 @@ contract dgStaking is LPTokenWrapper, Ownable {
         view
         returns (uint256)
     {
+        uint256 difference = _difference(account);
         return balanceOf(account)
-            .mul(rewardPerToken().sub(userRewardPerTokenPaid[account]))
-            .div(1e18)
+            .mul(difference)
+            .div(1E18)
             .add(rewards[account]);
     }
 
-    function stake(
-        uint256 amount
+    function _difference(
+        address account
     )
         public
-        updateReward(msg.sender)
+        view
+        returns (uint256)
     {
-        require(
-            amount > 0,
-            'Cannot stake 0'
-        );
-
-        _stake(amount);
-
-        emit Staked(
-            msg.sender,
-            amount
+        rewardPerToken().sub(
+            userRewardPerTokenPaid[account]
         );
     }
 
-    function withdraw(
-        uint256 amount
+    function extendRewards(
+        uint256 _newReward
     )
-        public
-        updateReward(msg.sender)
-    {
-        require(
-            amount > 0,
-            'Cannot withdraw 0'
-        );
-
-        _withdraw(amount);
-
-        emit Withdrawn(
-            msg.sender,
-            amount
-        );
-    }
-
-    function exit() external {
-        withdraw(balanceOf(msg.sender));
-        getReward();
-    }
-
-    function getReward()
-        public
-        updateReward(msg.sender)
-        returns (uint256 reward)
-    {
-        reward = earned(msg.sender);
-        if (reward > 0) {
-            rewards[msg.sender] = 0;
-            dg.safeTransfer(msg.sender, reward);
-            emit RewardPaid(msg.sender, reward);
-        }
-    }
-
-    function notifyRewardAmount(uint256 reward)
         external
-        onlyOwner
-        updateReward(address(0x0))
+        onlyRewardDistributor
+        onlyAfterLastReduction
     {
-        if (block.timestamp >= periodFinish) {
-            rewardRate = reward.div(DURATION);
-        } else {
-            uint256 remaining = periodFinish.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
-            rewardRate = reward.add(leftover).div(DURATION);
-        }
-        lastUpdateTime = block.timestamp;
-        periodFinish = block.timestamp.add(DURATION);
-        emit RewardAdded(reward);
+        rewardRate = _newReward.div(DURATION);
+        lastUpdateTime = nextReduction;
+        nextReduction = lastUpdateTime + DURATION;
+
+        emit RewardUpdated(
+            rewardRate,
+            lastUpdateTime,
+            nextReduction
+        );
+    }
+
+    function withdrawLeftOver(
+        uint256 _amount
+    )
+        external
+        onlyRewardDistributor
+        onlyAfterLastReduction
+    {
+        dg.safeTransfer(rewardDistributor, _amount);
     }
 }
