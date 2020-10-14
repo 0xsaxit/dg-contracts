@@ -884,6 +884,8 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
                     user1,
                     user1,
                     0,
+                    0,
+                    0,
                     { from: owner }
                 ),
                 "revert must be two different players"
@@ -898,6 +900,8 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
                     user1,
                     user2,
                     0,
+                    0,
+                    0,
                     { from: owner }
                 ),
                 "revert P1 must approve/allow treasury as spender"
@@ -910,18 +914,23 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
                     user1,
                     user2,
                     0,
+                    0,
+                    0,
                     { from: owner }
                 ),
                 "revert P2 must approve/allow treasury as spender"
             );
 
             await token.approve(treasury.address, 5000000, { from: user2 });
-
+            const playerOneWearableBonus = 0;
+            const playerTwoWearableBonus = 0;
             await backgammon.initializeGame(
                 1,
                 user1,
                 user2,
                 0,
+                playerOneWearableBonus,
+                playerTwoWearableBonus,
                 { from: owner }
             );
 
@@ -940,11 +949,15 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
         it("should revert if game already started", async () => {
             await token.approve(treasury.address, 5000, { from: user1 });
             await token.approve(treasury.address, 5000, { from: user2 });
+            const playerOneWearableBonus = 0;
+            const playerTwoWearableBonus = 0;
             backgammon.initializeGame(
                 0,
                 user1,
                 user2,
                 0,
+                playerOneWearableBonus,
+                playerTwoWearableBonus,
                 { from: owner }
             )
 
@@ -954,6 +967,8 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
                     user1,
                     user2,
                     0,
+                    playerOneWearableBonus,
+                    playerTwoWearableBonus,
                     { from: owner }
                 ),
                 "revert cannot initialize running game"
@@ -967,6 +982,8 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
                     user1,
                     user2,
                     1,
+                    0,
+                    0,
                     { from: owner }
                 ),
                 "revert cannot initialize running game"
@@ -976,11 +993,15 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
         it("should be able to initialize game", async () => {
             await token.approve(treasury.address, 5000, { from: user1 });
             await token.approve(treasury.address, 5000, { from: user2 });
+            const playerOneWearableBonus = 0;
+            const playerTwoWearableBonus = 0;
             await backgammon.initializeGame(
                 0,
                 user1,
                 user2,
                 0,
+                playerOneWearableBonus,
+                playerTwoWearableBonus,
                 { from: owner }
             );
 
@@ -1001,11 +1022,15 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
 
             await token.approve(treasury.address, 5000, { from: user1 });
             await token.approve(treasury.address, 5000, { from: user2 });
+            const playerOneWearableBonus = 0;
+            const playerTwoWearableBonus = 0;
             await backgammon.initializeGame(
                 staked,
                 user1,
                 user2,
                 0,
+                playerOneWearableBonus,
+                playerTwoWearableBonus,
                 { from: owner }
             );
 
@@ -1040,11 +1065,15 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
             const staked = 10
             await token.approve(treasury.address, 5000, { from: user1 });
             await token.approve(treasury.address, 5000, { from: user2 });
+            const playerOneWearableBonus = 0;
+            const playerTwoWearableBonus = 0;
             await backgammon.initializeGame(
                 staked,
                 user1,
                 user2,
                 0,
+                playerOneWearableBonus,
+                playerTwoWearableBonus,
                 { from: owner }
             );
 
@@ -1095,6 +1124,8 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
             const staked = 10
             await token.approve(treasury.address, 5000, { from: user1 });
             await token.approve(treasury.address, 5000, { from: user2 });
+            const playerOneWearableBonus = 0;
+            const playerTwoWearableBonus = 0;
 
             const treasuryBalanceBefore = await token.balanceOf(treasury.address);
 
@@ -1103,6 +1134,8 @@ contract("dgTreasury", ([owner, user1, user2, user3, random]) => {
                 user1,
                 user2,
                 0,
+                playerOneWearableBonus,
+                playerTwoWearableBonus,
                 { from: owner }
             );
 

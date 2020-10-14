@@ -114,7 +114,9 @@ contract dgBackgammon is AccessController {
         uint128 _defaultStake,
         address _playerOneAddress,
         address _playerTwoAddress,
-        uint8 _tokenIndex
+        uint8 _tokenIndex,
+        uint256 _playerOneWearableBonus,
+        uint256 _playerTwoWearableBonus
     )
         external
         whenNotPaused
@@ -166,13 +168,17 @@ contract dgBackgammon is AccessController {
         pointerContract.addPoints(
             _playerOneAddress,
             _defaultStake,
-            treasury.getTokenAddress(_tokenIndex)
+            treasury.getTokenAddress(_tokenIndex),
+            1,
+            _playerOneWearableBonus
         );
 
         pointerContract.addPoints(
             _playerTwoAddress,
             _defaultStake,
-            treasury.getTokenAddress(_tokenIndex)
+            treasury.getTokenAddress(_tokenIndex),
+            1,
+            _playerTwoWearableBonus
         );
 
         Game memory _game = Game(
@@ -216,13 +222,13 @@ contract dgBackgammon is AccessController {
             ),
             'raising double transfer failed'
         );
-
+    /*
         pointerContract.addPoints(
             _playerRaising,
             currentGames[_gameId].stake,
             treasury.getTokenAddress(currentGames[_gameId].tokenIndex)
         );
-
+    */
         currentGames[_gameId].state = GameState.DoublingStage;
         currentGames[_gameId].lastStaker = _playerRaising;
         currentGames[_gameId].total = currentGames[_gameId].total.add(
@@ -256,6 +262,13 @@ contract dgBackgammon is AccessController {
                 currentGames[_gameId].stake
             ),
             'calling double transfer failed'
+        );
+
+        //uses currentGames[id].lastStaker to add points to _playerRaising 
+        pointerContract.addPoints(
+            currentGames[_gameId].lastStaker,
+            currentGames[_gameId].stake,
+            treasury.getTokenAddress(currentGames[_gameId].tokenIndex)
         );
 
         pointerContract.addPoints(
