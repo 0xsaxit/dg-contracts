@@ -74,4 +74,8 @@ contract dgAirdrop is AccessController {
     function enableDistribtion(bool _state) external onlyCEO {
         distributionEnabled = _state;
     }
+
+    function withdrawTokens(uint256 _amount) external onlyCEO {
+        distributionToken.transfer(msg.sender, _amount);
+    }
 }
