@@ -19,7 +19,7 @@ library Math {
     }
 }
 
-contract Context {
+contract ContextB {
 
     constructor() {}
 
@@ -33,7 +33,7 @@ contract Context {
     }
 }
 
-contract Ownable is Context {
+contract Ownable is ContextB {
 
     address private _owner;
 

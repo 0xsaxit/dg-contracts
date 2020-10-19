@@ -245,15 +245,172 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
         //admin sets enablecollecting = true, check points = expected points for that game
         //distributionEnabled = false, check points = 0
         //admin sets distributionEnabled = true, check points = expected points for that game
-    });
 
+        beforeEach(async () => {
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+        });
+
+        it("should ONLY allow CEO to change Player Bonus + event is generated", async () => {
+
+            const twoplayerbonus = await pointer.playerBonuses(2);
+            const threeplayerbonus = await pointer.playerBonuses(3);
+            const fourplayerbonus = await pointer.playerBonuses(4);
+
+            assert.equal(
+                twoplayerbonus.toString(),
+                10
+            );
+
+            assert.equal(
+                threeplayerbonus.toString(),
+                20
+            );
+
+            assert.equal(
+                fourplayerbonus.toString(),
+                30
+            );
+
+            await catchRevert(
+                pointer.changePlayerBonus(
+                    2,
+                    20,
+                    { from: random }
+                ),
+                'revert AccessControl: CEO access denied'
+            );
+
+            await pointer.changePlayerBonus(
+                2,
+                20,
+                { from: owner }
+            );
+
+            //test event
+
+            const event = await getLastEvent(
+                "updatedPlayerBonus",
+                pointer
+            );
+
+            assert.equal(
+                event.numPlayers,
+                2
+            );
+
+            assert.equal(
+                event.newBonus,
+                20
+            );
+
+            const twoplayerbonusAfter = await pointer.playerBonuses(2);
+
+            assert.equal(
+                twoplayerbonusAfter.toString(),
+                20
+            );
+        });
+
+        it("should ONLY allow CEO to change affiliateBonus + event is generated", async () => {
+
+            const affiliatebonusBefore = await pointer.affiliateBonus();
+            assert.equal(affiliatebonusBefore.toString(), 10);
+
+            await catchRevert(
+                pointer.changeAffiliateBonus(
+                    30,
+                    { from: random }
+                ),
+                'revert AccessControl: CEO access denied'
+            );
+
+            await pointer.changeAffiliateBonus(30, { from: owner });
+            const affilEvent = await getLastEvent("updatedAffiliateBonus", pointer);
+            assert.equal(affilEvent.newBonus, 30);
+
+            const affiliatebonusAfter = await pointer.affiliateBonus();
+
+            assert.equal(affiliatebonusAfter.toString(), 30);
+
+
+            const ratio = 150;
+            const points = 15000;
+            const bonus = 0.3;
+
+            const affiliatedUser = user1;
+            const affiliatingUser = user2;
+            const workerUser = owner;
+
+            // affiliate user
+            await pointer.setWorker(workerUser, { from: owner });
+            const event = await getLastEvent("WorkerSet", pointer);
+            assert.equal(event.newWorker, workerUser);
+
+            await pointer.assignAffiliate(affiliatedUser, affiliatingUser, { from: workerUser });
+            const affiliateAddress = await pointer.affiliateData(affiliatingUser);
+
+            assert.equal(affiliateAddress, affiliatedUser);
+            await pointer.enableDistribtion(true);
+            await pointer.enableCollecting(true);
+            await pointer.declareContract(user2);
+            await pointer.setPointToTokenRatio(token.address, ratio);
+            await pointer.addPoints(affiliatingUser, points, token.address, 1, 0, {from: user2});
+            const resultA = await pointer.pointsBalancer(affiliatingUser);
+            const resultB = await pointer.pointsBalancer(affiliatedUser);
+
+            assert.equal(resultA.toString(), points/ratio);
+            assert.equal(resultB.toString(), (points/ratio * bonus));
+        });
+
+
+        it("should ONLY allow CEO to set MAX_PLAYER_BONUS, + generate event", async () => {
+            const MAX_BONUS_Before = await pointer.MAX_PLAYER_BONUS();
+            //const MIN_BONUS = await pointer.MIN_BONUS();
+            assert.equal(MAX_BONUS_Before.toString(), 130);
+
+            await catchRevert(
+                pointer.changeMaxPlayerBonus(
+                    50,
+                    { from: random }
+                ),
+                'revert AccessControl: CEO access denied'
+            );
+
+            await pointer.changeMaxPlayerBonus(50, { from: owner });
+            //test event
+            const event = await getLastEvent(
+                'updatedMaxPlayerBonus',
+                pointer
+            );
+            //assert.equal(event.newBonus, (MIN_BONUS+50));
+            assert.equal(
+                event.newBonus,
+                (150)
+            );
+
+            const MAX_BONUS_After = await pointer.MAX_PLAYER_BONUS();
+            //assert.equal(MAX_BONUS_After.toString(), (MIN_BONUS+50));
+            assert.equal(MAX_BONUS_After.toString(), (150));
+
+        });
+    });
 
     describe("dgPointer bonus points", () => {
 
         beforeEach(async () => {
             token = await Token.new();
             pointer = await Pointer.new(token.address, name, version);
-            slots = await Slots.new(owner, 250, 15, 8, 4, pointer.address, {from: owner});
+            slots = await Slots.new(
+                owner,
+                250,
+                15,
+                8,
+                4,
+                pointer.address,
+                {from: owner}
+            );
             pointer.declareContract(owner);
             // pointer.enableDistribtion(true);
             // pointer.enableCollecting(true);
@@ -312,18 +469,32 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             assert.equal(resultAfter, points/ratio);
         });
 
-        it("should give 20% bonus for numPlayers = 2", async () => {
+        it("should give 10% bonus for numPlayers = 2", async () => {
             const ratio = 150;
             const points = 15000;
-            const bonuspoints = points + ((points*20)/100);
+            const bonuspoints = points + ((points*10)/100);
 
             //check user1 pointsbalancer = 0 at first
             const resultBefore = await pointer.pointsBalancer(user1);
+
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
+
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, ratio);
-            await pointer.addPoints(user1, points, token.address, 2, 0, {from: user2});
+
+            await pointer.setPointToTokenRatio(
+                token.address,
+                ratio
+            );
+
+            await pointer.addPoints(
+                user1,
+                points,
+                token.address,
+                2,
+                0,
+                {from: user2}
+            );
 
             const resultAfter = await pointer.pointsBalancer(user1);
 
@@ -331,29 +502,54 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             assert.equal(resultAfter, bonuspoints/ratio);
         });
 
-        it("should give 30% bonus for numPlayers = 3", async () => {
+        it("should give 20% bonus for numPlayers = 3", async () => {
+
             const ratio = 150;
             const points = 15000;
-            const bonuspoints = points + ((points * 30) / 100);
+
+            const bonuspoints = points + ((points * 20) / 100);
 
             // check user1 pointsbalancer = 0 at first
             const resultBefore = await pointer.pointsBalancer(user1);
+
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
+
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, ratio);
-            await pointer.addPoints(user1, points, token.address, 3, 0, {from: user2});
+
+            await pointer.setPointToTokenRatio(
+                token.address,
+                ratio
+            );
+
+            await pointer.addPoints(
+                user1,
+                points,
+                token.address,
+                3,
+                0,
+                {from: user2}
+            );
 
             const resultAfter = await pointer.pointsBalancer(user1);
 
-            assert.equal(resultBefore, 0);
-            assert.equal(resultAfter, bonuspoints/ratio);
+            assert.equal(
+                resultBefore,
+                0
+            );
+
+            assert.equal(
+                resultAfter,
+                bonuspoints / ratio
+            );
         });
 
-        it("should give 40% bonus for numPlayers = 4", async () => {
+        it("should give 30% bonus for numPlayers = 4", async () => {
+
             const ratio = 150;
             const points = 15000;
-            const bonuspoints = points + ((points * 40) / 100);
+
+            const bonuspoints = points + ((points * 30) / 100);
 
             // check user1 pointsbalancer = 0 at first
             const resultBefore = await pointer.pointsBalancer(user1);
@@ -372,8 +568,8 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
         it("should only give 4 player bonus with +4 players", async () => {
             const ratio = 150;
             const points = 15000;
-            // const bonuspoints = points * 1.4;
-            const bonuspoints = 21000;
+            // const bonuspoints = points * 1.3;
+            const bonuspoints = 19500;
 
             // check user1 pointsbalancer = 0 at first
             const resultBefore = await pointer.pointsBalancer(user1);
@@ -386,7 +582,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const resultAfter = await pointer.pointsBalancer(user1);
 
             assert.equal(resultBefore, 0);
-            assert.equal(resultAfter, bonuspoints/ratio);
+            assert.equal(resultAfter.toString(), bonuspoints/ratio);
         });
 
         it("should give 10% bonus for numWearables = 1", async () => {
@@ -406,8 +602,6 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             assert.equal(resultBefore, 0);
             assert.equal(resultAfter, bonuspoints/ratio);
-
-            // pointer = await Pointer.new(token.address, name, version);
         });
 
         it("should give 20% bonus for numWearables = 2", async () => {
@@ -483,7 +677,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
         it("should allow to assign affiliate", async () => {
             const ratio = 150;
             const points = 15000;
-            const bonus = 0.2;
+            const bonus = 0.1;
 
             const affiliatedUser = user1;
             const affiliatingUser = user2;
@@ -737,7 +931,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await treasury.setTail(HASH_CHAIN[0], { from: owner });
 
             const ratio = 10;
-            
+
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
             await pointer.setPointToTokenRatio(token.address, ratio);
@@ -753,7 +947,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const user2PointsBefore = await pointer.pointsBalancer(user2);
             const playerOneWearableBonus = 0;
             const playerTwoWearableBonus = 0;
-            
+
             await backgammon.initializeGame(
                 defaultStake,
                 user1,
@@ -783,7 +977,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const user2PointsBefore = await pointer.pointsBalancer(user2);
             const playerOneWearableBonus = 0;
             const playerTwoWearableBonus = 0;
-            
+
             await backgammon.initializeGame(
                 defaultStake,
                 user1,
@@ -831,7 +1025,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const user2PointsBefore = await pointer.pointsBalancer(user2);
             const playerOneWearableBonus = 0;
             const playerTwoWearableBonus = 0;
-            
+
             await backgammon.initializeGame(
                 defaultStake,
                 user1,
@@ -883,7 +1077,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const user2PointsBefore = await pointer.pointsBalancer(user2);
             const playerOneWearableBonus = 1;
             const playerTwoWearableBonus = 0;
-            
+
             await backgammon.initializeGame(
                 defaultStake,
                 user1,
@@ -905,7 +1099,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
         });
 
         it("should NOT earn points from raiseDouble if user2 drops the game without calling", async () => {
-       
+
             const ratio = 10;
             const defaultStake = 100;
 
@@ -913,7 +1107,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const user2PointsBefore = await pointer.pointsBalancer(user2);
             const playerOneWearableBonus = 0;
             const playerTwoWearableBonus = 0;
-            
+
 
             await backgammon.initializeGame(
                 defaultStake,
@@ -956,7 +1150,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             assert.equal(user2PointsAfter.toString(), defaultStake/ratio);
 
         });
-        
+
 
         it("should addpoints if initializing multiple games", async () => {
             const ratio = 10;
@@ -971,7 +1165,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             const playerOneWearableBonus = 0;
             const playerTwoWearableBonus = 0;
-            
+
             await backgammon.initializeGame(
                 defaultStake,
                 user1,
@@ -1035,7 +1229,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             const playerOneWearableBonus = 0;
             const playerTwoWearableBonus = 0;
-            
+
             await backgammon.initializeGame(
                 defaultStake,
                 user1,

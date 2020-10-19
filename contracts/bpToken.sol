@@ -2,7 +2,7 @@
 
 pragma solidity =0.7.0;
 
-contract Context {
+contract ContextA {
 
     function _msgSender() internal view virtual returns (address payable) {
         return msg.sender;
@@ -14,8 +14,9 @@ contract Context {
     }
 }
 
-contract bpToken is Context {
-    using SafeMath for uint256;
+contract bpToken is ContextA {
+
+    using SafeMathFull for uint256;
 
     mapping (address => uint256) private _balances;
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -199,7 +200,7 @@ contract bpToken is Context {
     }
 }
 
-library SafeMath {
+library SafeMathFull {
 
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a + b;
