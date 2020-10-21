@@ -669,8 +669,8 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const newBonus = 50;
 
             assert.equal(
-                MAX_BONUS_Before.toString(),
-                MIN_BONUS_Before + currentBonus
+                MAX_BONUS_Before.toNumber(),
+                MIN_BONUS_Before.toNumber() + currentBonus
             );
 
             await catchRevert(
@@ -694,14 +694,14 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             assert.equal(
                 event.newBonus,
-                MIN_BONUS_Before + newBonus
+                MIN_BONUS_Before.toNumber() + newBonus
             );
 
             const MAX_BONUS_After = await pointer.MAX_PLAYER_BONUS();
 
             assert.equal(
-                MAX_BONUS_After.toString(),
-                MIN_BONUS_Before + newBonus
+                MAX_BONUS_After,
+                MIN_BONUS_Before.toNumber() + newBonus
             );
 
         });
@@ -1083,7 +1083,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const affiliatedUserResult = await pointer.pointsBalancer(affiliatedUser);
 
             assert.equal(
-                affiliatingUser.toString(),
+                affiliatingUserResult.toString(),
                 points / ratio
             );
 
