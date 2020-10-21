@@ -1,5 +1,9 @@
-const Roulette = artifacts.require("TreasuryRoulette");
-const Treasury = artifacts.require("Treasury");
+const Roulette = artifacts.require("dgRoulette");
+const Treasury = artifacts.require("dgTreasury");
+const Token = artifacts.require("dgToken");
+const Pointer = artifacts.require("dgPointer");
+const name = "name";
+const version = "0";
 const {catchRevert, catchSquareLimit} = require("./exceptionsHelpers.js");
 
 require("./utils");
@@ -17,7 +21,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Initial Variables", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("correct initial round timestamp", async () => {
@@ -64,7 +78,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Single", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should let user create a single bet", async () => {
@@ -102,7 +126,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Even", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should let user create an even bet", async () => {
@@ -142,7 +176,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Odd", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should let user create an odd bet", async () => {
@@ -183,7 +227,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Red", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should let user create a red bet", async () => {
@@ -221,7 +275,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Black", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should let user create a black bet", async () => {
@@ -259,7 +323,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: High", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should let user create a High bet", async () => {
@@ -297,7 +371,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Low", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should let user create a Low bet", async () => {
@@ -335,7 +419,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Column", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should emit NewColumnBet event", async () => {
@@ -379,7 +473,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Dozen", () => {
         beforeEach(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should emit NewDozenBet event", async () => {
@@ -424,7 +528,17 @@ contract("TreasuryRoulette", ([owner, user1, user2, random]) => {
 
     describe("Betting: Launch", () => {
         before(async () => {
-            roulette = await Roulette.new(owner, 4000, 36);
+            token = await Token.new();
+            pointer = await Pointer.new(token.address, name, version);
+            pointer.declareContract(owner);
+            treasury = await Treasury.new(token.address, "MANA");
+            roulette = await Roulette.new(treasury.address, 4000, 36, pointer.address);
+            await treasury.addGame(roulette.address, "Roulette", true, { from: owner });
+            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
+            await token.approve(treasury.address, web3.utils.toWei("100"));
+            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
+                from: owner
+            });
         });
 
         it("should revert if current time is not greater than next round timestamp", async () => {

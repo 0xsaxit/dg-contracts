@@ -1,9 +1,11 @@
-const Token = artifacts.require("Token");
+const Token = artifacts.require("dgToken");
 const Pointer = artifacts.require("dgPointer");
 const Slots = artifacts.require("dgSlots");
 const Treasury = artifacts.require("dgTreasury");
 const catchRevert = require("./exceptionsHelpers.js").catchRevert;
 const positions = [0, 16, 32, 48];
+const name = "name";
+const version = "0";
 
 // require("./utils");
 
@@ -22,7 +24,7 @@ contract("dgSlots", ([owner, newCEO, user1, user2, random]) => {
 
     before(async () => {
         token = await Token.new();
-        pointer = await Pointer.new(token.address);
+        pointer = await Pointer.new(token.address, name, version);
         slots = await Slots.new(owner, 250, 15, 8, 4, pointer.address, {from: owner});
     });
 
