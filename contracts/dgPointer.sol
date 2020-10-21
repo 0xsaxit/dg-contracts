@@ -158,7 +158,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
 
     mapping(address => bool) public declaredContracts;
     mapping(address => uint256) public pointsBalancer;
-    mapping(address => uint256) public tokenToPointRatio;
+    mapping(address => mapping(address => uint256)) public tokenToPointRatio;
     mapping(uint256 => uint256) public playerBonuses;
     mapping(uint256 => uint256) public wearableBonuses;
     mapping(address => address) public affiliateData;
@@ -275,7 +275,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     {
         require(
             _playersCount > 0,
-            'dgPointer: _numPlayers error'
+            'dgPointer: _playersCount error'
         );
 
         if (_isDeclaredContract(msg.sender) && collectingEnabled) {
@@ -293,7 +293,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
             );
 
             newPoints = _points
-                .div(tokenToPointRatio[_token])
+                .div(tokenToPointRatio[msg.sender][_token])
                 .mul(multiplierA.add(multiplierB))
                 .div(100);
 
@@ -452,12 +452,13 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
 
     function setPointToTokenRatio(
         address _token,
+        address _gameAddress,
         uint256 _ratio
     )
         external
         onlyCEO
     {
-        tokenToPointRatio[_token] = _ratio;
+        tokenToPointRatio[_gameAddress][_token] = _ratio;
     }
 
     function enableCollecting(
