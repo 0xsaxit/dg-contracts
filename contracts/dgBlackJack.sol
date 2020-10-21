@@ -228,7 +228,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         bool
     );
 
-    PointerInstance immutable public pointerContract;
+    PointerInstance public pointerContract;
 
     constructor(
         address _treasuryAddress,
@@ -1171,5 +1171,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         returns (bool)
     {
         return Games[_gameId].pState[_pIndex] == PlayerState.isSplit;
+    }
+
+    function updatePointer(address _newPointerAddress)
+        external
+        onlyCEO
+    {
+         pointerContract = PointerInstance(_newPointerAddress);
     }
 }

@@ -89,7 +89,7 @@ contract dgBackgammon is AccessController {
     }
 
     TreasuryInstance public treasury;
-    PointerInstance immutable public pointerContract;
+    PointerInstance public pointerContract;
 
     struct Store {
         uint8 safeFactor;
@@ -394,5 +394,12 @@ contract dgBackgammon is AccessController {
             'wrong current treasury address'
         );
         treasury = TreasuryInstance(_newTreasuryAddress);
+    }
+
+    function updatePointer(address _newPointerAddress)
+        external
+        onlyCEO
+    {
+         pointerContract = PointerInstance(_newPointerAddress);
     }
 }

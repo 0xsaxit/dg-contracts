@@ -47,7 +47,7 @@ contract dgRoulette is AccessController {
     );
 
     TreasuryInstance public treasury;
-    PointerInstance immutable public pointerContract;
+    PointerInstance public pointerContract;
 
     constructor(
         address _treasuryAddress,
@@ -432,5 +432,12 @@ contract dgRoulette is AccessController {
 
     function checkMaxSquareBetDefault() public view returns (uint128) {
         return uint128(store>>8);
+    }
+
+    function updatePointer(address _newPointerAddress)
+        external
+        onlyCEO
+    {
+         pointerContract = PointerInstance(_newPointerAddress);
     }
 }

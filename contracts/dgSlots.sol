@@ -17,7 +17,7 @@ contract dgSlots is AccessController {
 
     uint256 private factors;
     TreasuryInstance public treasury;
-    PointerInstance immutable public pointerContract;
+    PointerInstance public pointerContract;
 
     event GameResult(
         address _player,
@@ -214,5 +214,12 @@ contract dgSlots is AccessController {
             'Slots: wrong treasury address'
         );
         treasury = TreasuryInstance(_newTreasuryAddress);
+    }
+
+    function updatePointer(address _newPointerAddress)
+        external
+        onlyCEO
+    {
+         pointerContract = PointerInstance(_newPointerAddress);
     }
 }
