@@ -1,26 +1,27 @@
-const errorString = "VM Exception while processing transaction: ";
-
-async function tryCatch(promise, reason) {
+async function tryCatch(promise, reason, message) {
     try {
         await promise;
         throw null;
     } catch (error) {
-        assert(error, "Expected a VM exception but did not get one");
+
         assert(
-            error.message.search(errorString + reason) >= 0,
-            "Expected an error containing '" +
-                errorString +
-                reason +
-                "' but got '" +
-                error.message +
-                "' instead"
+            error,
+            'Expected a VM exception but did not get one'
+        );
+
+        // console.log(error.reason);
+        // console.log(message);
+
+        assert.equal(
+            `revert ${error.reason}`,
+            message.toString()
         );
     }
 }
 
 module.exports = {
-    catchRevert: async function(promise) {
-        await tryCatch(promise, "revert");
+    catchRevert: async function(promise, message) {
+        await tryCatch(promise, "revert", message);
     },
     catchOutOfGas: async function(promise) {
         await tryCatch(promise, "out of gas");

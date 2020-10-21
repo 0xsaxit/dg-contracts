@@ -148,7 +148,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     using SafeMath for uint256;
 
     uint256 public MAX_PLAYER_BONUS = 130;
-    uint256 constant MIN_PLAYER_BONUS = 100;
+    uint256 public constant MIN_PLAYER_BONUS = 100;
     uint256 public MAX_WEARABLE_BONUS = 40;
 
     bool public collectingEnabled;
@@ -167,7 +167,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     uint256 public wearableBonusPerObject;
 
     event updatedPlayerBonus(
-        uint256 numPlayers,
+        uint256 playersCount,
         uint256 newBonus
     );
 
