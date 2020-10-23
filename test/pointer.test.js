@@ -10,6 +10,7 @@ const version = "0";
 const secondName = "newName";
 const secondVersion = "1";
 
+
 require("./utils");
 
 const getLastEvent = async (eventName, instance) => {
@@ -34,6 +35,7 @@ const HASH_CHAIN = [
 
 contract("dgPointer", ([owner, user1, user2, user3, random]) => {
     let slots;
+    let secondslots;
     before(async () => {
         token = await Token.new();
         pointer = await Pointer.new(token.address, name, version);
@@ -361,7 +363,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             const resultBefore = await pointer.pointsBalancer(user2);
 
-            // enableDistribtion = false;
+    
             await pointer.enableDistribtion(false);
             await pointer.enableCollecting(true);
 
@@ -429,7 +431,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             const resultBefore = await pointer.pointsBalancer(user1);
 
-            // enableDistribtion = true;
+      
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
@@ -470,7 +472,6 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             );
         });
     });
-
 
     describe("dgPointer functions", () => {
         /*
@@ -1094,10 +1095,16 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
         });
     });
 
-    describe("Game Results: Slots", () => {
+    describe("dgPointer Tokens from games", () => {
 
+    
         beforeEach(async () => {
+            const ratio = 10;
+            const ratioTwo = 20;
+            const ratioThree = 5;
+            const ratioFour = 2;
             token = await Token.new();
+            secondtoken = await Token.new();
 
             pointer = await Pointer.new(
                 token.address,
@@ -1105,9 +1112,16 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 version
             );
 
+
             treasury = await Treasury.new(
                 token.address,
                 "MANA"
+            );
+
+
+            treasury.addToken(
+                secondtoken.address,
+                "DAI"
             );
 
             slots = await Slots.new(
@@ -1119,8 +1133,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 pointer.address
             );
 
+            backgammon = await Backgammon.new(treasury.address, 1, 10, pointer.address);
+
             pointer.declareContract(owner);
             pointer.declareContract(slots.address);
+            pointer.declareContract(backgammon.address);
 
             await treasury.addGame(
                 slots.address,
@@ -1129,21 +1146,74 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 { from: owner }
             );
 
+            await treasury.addGame(
+                backgammon.address,
+                "Backgammon",
+                true,
+                { from: owner }
+            );
+
+            //slots max bets
             await treasury.setMaximumBet(
                 0,
                 0,
                 1000,
                 { from: owner }
             );
+            await treasury.setMaximumBet(
+                0,
+                1,
+                1000,
+                { from: owner }
+            );
+
+            //backgammon max bets
+            await treasury.setMaximumBet(
+                1,
+                0,
+                1000,
+                { from: owner }
+            );
+            await treasury.setMaximumBet(
+                1,
+                1,
+                1000,
+                { from: owner }
+            );
 
             await token.approve(
                 treasury.address,
-                web3.utils.toWei("100")
+                web3.utils.toWei("200")
+            );
+            await secondtoken.approve(
+                treasury.address,
+                web3.utils.toWei("200")
             );
 
+            //slots addfunds
             await treasury.addFunds(
                 0,
                 0,
+                web3.utils.toWei("100"),
+                {from: owner}
+            );
+            await treasury.addFunds(
+                0,
+                1,
+                web3.utils.toWei("100"),
+                {from: owner}
+            );
+
+            //backgammon addfunds
+            await treasury.addFunds(
+                1,
+                0,
+                web3.utils.toWei("100"),
+                {from: owner}
+            );
+            await treasury.addFunds(
+                1,
+                1,
                 web3.utils.toWei("100"),
                 {from: owner}
             );
@@ -1152,13 +1222,26 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 user1,
                 10000
             );
+            await secondtoken.transfer(
+                user1,
+                10000
+            );
 
             await token.transfer(
                 user2,
                 10000
             );
+            await secondtoken.transfer(
+                user2,
+                10000
+            );
 
             await token.approve(
+                treasury.address,
+                5000,
+                { from: user1 }
+            );
+            await secondtoken.approve(
                 treasury.address,
                 5000,
                 { from: user1 }
@@ -1169,25 +1252,38 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 5000,
                 { from: user2 }
             );
+            await secondtoken.approve(
+                treasury.address,
+                5000,
+                { from: user2 }
+            );
 
             await treasury.setTail(
                 HASH_CHAIN[0],
                 { from: owner }
             );
 
-            secondtoken = await Token.new();
 
-            newpointer = await Pointer.new(
-                secondtoken.address,
-                secondName,
-                secondVersion
-            );
+            await pointer.setPointToTokenRatio(token.address, slots.address, ratio);
+            await pointer.setPointToTokenRatio(secondtoken.address, slots.address, ratioTwo);
+            await pointer.setPointToTokenRatio(token.address, backgammon.address, ratioThree);
+            await pointer.setPointToTokenRatio(secondtoken.address, backgammon.address, ratioFour);
 
-            await newpointer.declareContract(owner);
-            await newpointer.declareContract(slots.address);
         });
 
         it("should be able to play slots", async () => {
+
+            const firstresultBefore = await pointer.pointsBalancer(user1);
+  
+            await pointer.enableDistribtion(true);
+            await pointer.enableCollecting(true);
+            
+            const defaultStake = 100;
+   
+            const playerOneWearableBonus = 0;
+            const playerTwoWearableBonus = 0;
+        
+//FIRST
             await advanceTimeAndBlock(60);
             await slots.play(
                 user1,
@@ -1199,865 +1295,72 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 0,
                 { from: owner }
             );
-        });
 
-        it("should addPoints when playing slots", async () => {
+            const firstresultAfter = await pointer.pointsBalancer(user1);
+            assert.equal(firstresultAfter.toString(),10);
 
-            const ratio = 100;
-            const betAmount = 1000;
-
-            const resultBefore = await pointer.pointsBalancer(user1);
-
-            await pointer.enableDistribtion(true);
-            await pointer.enableCollecting(true);
-
-            await pointer.setPointToTokenRatio(
-                token.address,
-                slots.address,
-                ratio
-            );
-
+//SECOND
             await advanceTimeAndBlock(60);
             await slots.play(
                 user1,
                 1,
                 2,
-                betAmount,
-                HASH_CHAIN[1],
-                0,
-                0,
-                { from: owner }
-            );
-
-            const resultAfter = await pointer.pointsBalancer(user1);
-
-            assert.equal(
-                resultBefore,
-                0
-            );
-
-            assert.equal(
-                resultAfter > 0 ,
-                true
-            );
-
-            assert.equal(
-                resultAfter.toString(),
-                betAmount / ratio
-            );
-        });
-
-        it("should addPoints when playing slots continuously", async () => {
-
-            const ratio = 200;
-            const betAmount = 1000;
-
-            await pointer.enableDistribtion(true);
-            await pointer.enableCollecting(true);
-
-            await pointer.setPointToTokenRatio(
-                token.address,
-                slots.address,
-                ratio
-            );
-
-            let beforeBetUser,
-                afterBetUser,
-                totalBet = 0,
-                winTotal = 0;
-
-            beforeBetUser = await token.balanceOf(user2);
-            pointsBefore = await pointer.pointsBalancer(user2);
-
-            for (let i = 0; i < 5; i++) {
-                totalBet += betAmount;
-                await advanceTimeAndBlock(60);
-                await slots.play(
-                    user2,
-                    1,
-                    12,
-                    betAmount,
-                    HASH_CHAIN[i + 1],
-                    0,
-                    0,
-                    { from: owner }
-                );
-
-                const { _winAmount } = await getLastEvent("GameResult", slots);
-
-                console.log(
-                    `     Play ${i + 1}: WinAmount:[${_winAmount}]`.cyan.inverse
-                );
-
-                let pointsAfter = await pointer.pointsBalancer(user2);
-
-                console.log(
-                    `     Play ${i + 1}: Points:[${pointsAfter}]`.cyan.inverse
-                );
-
-                if (_winAmount > 0) {
-                    winTotal = _winAmount;
-                }
-            }
-
-            afterBetUser = await token.balanceOf(user2);
-            pointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(
-                afterBetUser.toNumber(),
-                beforeBetUser.toNumber() + Number(winTotal) - totalBet
-            );
-
-            assert.equal(
-                pointsBefore,
-                0
-            );
-
-            assert.equal(
-                pointsAfter > 0,
-                true
-            );
-
-            assert.equal(
-                pointsAfter.toString(),
-                totalBet / ratio
-            );
-        });
-
-        it("should addPoints when playing slots continuously (with wearables)", async () => {
-
-            const ratio = 200;
-            const betAmount = 1000;
-
-            const wearableCount = 4;
-            const wearableBonus = 0.1;
-
-            await pointer.enableDistribtion(true);
-            await pointer.enableCollecting(true);
-
-            await pointer.setPointToTokenRatio(
-                token.address,
-                slots.address,
-                ratio
-            );
-
-            let beforeBetUser,
-                afterBetUser,
-                totalBet = 0,
-                winTotal = 0;
-
-            beforeBetUser = await token.balanceOf(user2);
-            pointsBefore = await pointer.pointsBalancer(user2);
-
-            for (let i = 0; i < 5; i++) {
-                totalBet += betAmount;
-                await advanceTimeAndBlock(60);
-                await slots.play(
-                    user2,  // _player
-                    1,      // _landID
-                    12,     // _machineID
-                    betAmount,
-                    HASH_CHAIN[i + 1],
-                    0, // _tokenIndex
-                    wearableCount,
-                    { from: owner }
-                );
-
-                const { _winAmount } = await getLastEvent("GameResult", slots);
-
-                console.log(
-                    `     Play ${i + 1}: WinAmount:[${_winAmount}]`.cyan.inverse
-                );
-
-                let pointsAfterWithBonus = await pointer.pointsBalancer(user2);
-
-                console.log(
-                    `     Play ${i + 1}: PointsWithBonus:[${pointsAfterWithBonus}]`.cyan.inverse
-                );
-
-                if (_winAmount > 0) {
-                    winTotal = _winAmount;
-                }
-            }
-
-            pointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(
-                pointsAfter.toString(),
-                (totalBet + (totalBet * wearableCount * wearableBonus)) / ratio
-            );
-        });
-
-        it("should ONLY allow CEO to update Pointer for slots", async () => {
-
-            await catchRevert(
-                slots.updatePointer(
-                    newpointer.address,
-                    { from: random }
-                ),
-                'revert AccessControl: CEO access denied'
-            );
-
-            await slots.updatePointer(
-                newpointer.address,
-                { from: owner }
-            );
-        });
-
-        it("should record new points for slots after updating Pointer", async () => {
-
-            const ratio = 100;
-            const betAmount = 1000;
-
-            const resultinit = await pointer.pointsBalancer(user1);
-
-            await pointer.enableDistribtion(true);
-            await pointer.enableCollecting(true);
-
-            await pointer.setPointToTokenRatio(
-                token.address,
-                slots.address,
-                ratio
-            );
-
-            await advanceTimeAndBlock(60);
-            await slots.play(
-                user1,
-                1,
-                2,
-                betAmount,
-                HASH_CHAIN[1],
-                0,
-                0,
-                { from: owner }
-            );
-
-            const resultAfterPlay = await pointer.pointsBalancer(user1);
-
-            assert.equal(
-                resultinit,
-                0
-            );
-
-            assert.equal(
-                resultAfterPlay.toString(),
-                betAmount / ratio
-            );
-
-            await slots.updatePointer(
-                newpointer.address,
-                { from: owner }
-            );
-
-            const resultNewPointerBeforePlay = await newpointer.pointsBalancer(user1);
-
-            await newpointer.enableDistribtion(true);
-            await newpointer.enableCollecting(true);
-
-            await newpointer.setPointToTokenRatio(
-                token.address,
-                slots.address,
-                ratio
-            );
-
-            await advanceTimeAndBlock(60);
-            await slots.play(
-                user1,
-                1,
-                2,
-                betAmount,
+                100,
                 HASH_CHAIN[2],
-                0,
+                1,
                 0,
                 { from: owner }
             );
 
-            const resultNewPointerAfterPlay = await newpointer.pointsBalancer(user1);
+            const secondresultAfter = await pointer.pointsBalancer(user1);
+            assert.equal(secondresultAfter.toString(),15);
 
-            assert.equal(
-                resultNewPointerBeforePlay,
-                0
-            );
-
-            assert.equal(
-                resultNewPointerAfterPlay.toString(),
-                betAmount / ratio
-            );
-        });
-
-    });
-
-    describe("Game Results: Backgammon", () => {
-
-        beforeEach(async () => {
-            token = await Token.new();
-            pointer = await Pointer.new(token.address, name, version);
-            treasury = await Treasury.new(token.address, "MANA");
-            backgammon = await Backgammon.new(treasury.address, 1, 10, pointer.address);
-            await pointer.declareContract(owner);
-            await pointer.declareContract(backgammon.address);
-            await treasury.addGame(backgammon.address, "Backgammon", true, { from: owner });
-            await treasury.setMaximumBet(0, 0, 1000, { from: owner });
-            await token.approve(treasury.address, web3.utils.toWei("100"));
-            await treasury.addFunds(0, 0, web3.utils.toWei("100"), {
-                from: owner
-            });
-            await token.transfer(user1, 10000);
-            await token.transfer(user2, 10000);
-            await token.transfer(user3, 10000);
-            await token.transfer(random, 10000);
-            await token.approve(treasury.address, 5000, { from: user1 });
-            await token.approve(treasury.address, 5000, { from: user2 });
-            await token.approve(treasury.address, 5000, { from: user3 });
-            await token.approve(treasury.address, 5000, { from: random });
-            await treasury.setTail(HASH_CHAIN[0], { from: owner });
-
-            const ratio = 10;
-
-            await pointer.enableDistribtion(true);
-            await pointer.enableCollecting(true);
-            await pointer.setPointToTokenRatio(token.address, backgammon.address, ratio);
-
-            secondpointer = await Pointer.new(token.address, secondName, secondVersion);
-            await secondpointer.declareContract(owner);
-            await secondpointer.declareContract(backgammon.address);
-
-            await secondpointer.enableDistribtion(true);
-            await secondpointer.enableCollecting(true);
-            await secondpointer.setPointToTokenRatio(token.address, backgammon.address, ratio);
-
-        });
-
-        it("should ONLY allow CEO to update Pointer for backgammon", async () => {
-
-            await catchRevert(
-                backgammon.updatePointer(
-                    newpointer.address,
-                    { from: random }
-                ),
-                'revert AccessControl: CEO access denied'
-            );
-
-            await backgammon.updatePointer(newpointer.address, { from: owner });
-        });
-
-        it("should add points after intitializing a game of backgammon", async () => {
-
-            const defaultStake = 100;
-            const ratio = 10;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
+//THIRD
             await backgammon.initializeGame(
                 defaultStake,
                 user1,
                 user2,
                 0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
                 { from: owner }
             );
 
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(
-                user1PointsBefore.toString(),
-                0
-            );
-
-            assert.equal(
-                user2PointsBefore.toString(),
-                0
-            );
-
-            assert.equal(
-                user1PointsAfter.toString(),
-                defaultStake / ratio
-            );
-
-            assert.equal(
-                user2PointsAfter.toString(),
-                defaultStake / ratio
-            );
-        });
-
-
-        it("should record new points for backgammon after updating Pointer", async () => {
-
-            const defaultStake = 100;
-            const ratio = 10;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(user1PointsBefore.toString(), 0);
-            assert.equal(user2PointsBefore.toString(), 0);
-            assert.equal(user1PointsAfter.toString(), defaultStake/ratio);
-            assert.equal(user2PointsAfter.toString(), defaultStake/ratio);
 
             const _gameID = await backgammon.getGameIdOfPlayers(user1, user2);
-
-            await backgammon.resolveGame(_gameID,user1);
-
-            await backgammon.updatePointer(secondpointer.address, { from: owner });
-           // await newpointer.setPointToTokenRatio(secondtoken.address, backgammon.address, ratio);
-
-            const resultNewPointerBeforePlayUser1 = await secondpointer.pointsBalancer(user1);
-            const resultNewPointerBeforePlayUser2 = await secondpointer.pointsBalancer(user2);
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            const resultNewPointerAfterPlayUser1 = await secondpointer.pointsBalancer(user1);
-            const resultNewPointerAfterPlayUser2 = await secondpointer.pointsBalancer(user2);
-
-            assert.equal(
-                resultNewPointerBeforePlayUser1,
-                0
-            );
-
-            assert.equal(
-                resultNewPointerBeforePlayUser2,
-                0
-            );
-
-            assert.equal(
-                resultNewPointerAfterPlayUser1.toString(),
-                defaultStake / ratio
-            );
-
-            assert.equal(
-                resultNewPointerAfterPlayUser2.toString(),
-                defaultStake / ratio
-            );
-        });
-
-        it("should not update old pointsbalancer after updating Pointer", async () => {
-
-            const defaultStake = 100;
-            const ratio = 10;
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-
-
-            assert.equal(
-                user1PointsBefore.toString(),
-                0
-            );
-
-            assert.equal(
-                user2PointsBefore.toString(),
-                0
-            );
-
-            await backgammon.updatePointer(
-                secondpointer.address,
-                { from: owner }
-            );
-
-           // await newpointer.setPointToTokenRatio(secondtoken.address, backgammon.address, ratio);
-
-            const resultNewPointerBeforePlayUser1 = await secondpointer.pointsBalancer(user1);
-            const resultNewPointerBeforePlayUser2 = await secondpointer.pointsBalancer(user2);
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-
-            const resultNewPointerAfterPlayUser1 = await secondpointer.pointsBalancer(user1);
-            const resultNewPointerAfterPlayUser2 = await secondpointer.pointsBalancer(user2);
-            const origPointerResultAfterPlayUser1 = await pointer.pointsBalancer(user1);
-            const origPointerResultAfterPlayUser2 = await pointer.pointsBalancer(user2);
-
-            assert.equal(resultNewPointerBeforePlayUser1, 0);
-            assert.equal(resultNewPointerBeforePlayUser2, 0);
-            assert.equal(resultNewPointerAfterPlayUser1.toString(), defaultStake/ratio);
-            assert.equal(resultNewPointerAfterPlayUser2.toString(), defaultStake/ratio);
-            assert.equal(origPointerResultAfterPlayUser1.toString(), 0);
-            assert.equal(origPointerResultAfterPlayUser2.toString(), 0);
-        });
-
-        it("should NOT addpoints for raising Player from raiseDouble() without callDouble", async () => {
-
-            const ratio = 10;
-            const defaultStake = 100;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            const _gameID = await backgammon.getGameIdOfPlayers(user1, user2);
-
-            await backgammon.raiseDouble(
+            await backgammon.resolveGame(
                 _gameID,
                 user1,
-                { from: owner }
+                playerOneWearableBonus,
+                playerTwoWearableBonus
             );
 
-            const { gameId, player, stake } = await getLastEvent(
-                "StakeRaised",
-                backgammon
-            );
+            const thirdresultAfter = await pointer.pointsBalancer(user1);
+            assert.equal(thirdresultAfter.toString(),19);     
 
-            assert.equal(gameId, _gameID);
-            assert.equal(player, user1);
-            assert.equal(stake, defaultStake * 3);
-
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(user1PointsBefore.toString(), 0);
-            assert.equal(user2PointsBefore.toString(), 0);
-            assert.equal(user1PointsAfter.toString(), defaultStake/ratio);
-            assert.equal(user2PointsAfter.toString(), defaultStake/ratio);
-        });
-
-        it("should add points after callDouble() of backgammon for calling Player only", async () => {
-
-            const ratio = 10;
-            const defaultStake = 100;
-            const totalRaisedStake = defaultStake * 2;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
+//FOURTH
             await backgammon.initializeGame(
                 defaultStake,
                 user1,
                 user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
+                1,
                 { from: owner }
             );
 
-            const _gameID = await backgammon.getGameIdOfPlayers(user1, user2);
 
-            await backgammon.raiseDouble(
-                _gameID,
+            const _gameIDtwo = await backgammon.getGameIdOfPlayers(user1, user2);
+            await backgammon.resolveGame(
+                _gameIDtwo,
                 user1,
-                { from: owner }
+                playerOneWearableBonus,
+                playerTwoWearableBonus
             );
 
-            await backgammon.callDouble(
-                _gameID,
-                user2,
-                { from: owner }
-            );
+            const fourthresultAfter = await pointer.pointsBalancer(user1);
+            assert.equal(fourthresultAfter.toString(),29);    
 
-            const { gameId, player, totalStaked } = await getLastEvent(
-                "StakeDoubled",
-                backgammon
-            );
 
-            assert.equal(gameId, _gameID);
-            assert.equal(player, user2);
-            assert.equal(totalStaked, defaultStake * 4);
-
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(user1PointsBefore.toString(), 0);
-            assert.equal(user2PointsBefore.toString(), 0);
-            assert.equal(user1PointsAfter.toString(), totalRaisedStake/ratio);
-            assert.equal(user2PointsAfter.toString(), totalRaisedStake/ratio);
+            assert.equal(firstresultBefore,0);
 
         });
 
-        it("should only give wearable bonus to a player that has a wearable", async () => {
-            const ratio = 10;
-            const defaultStake = 100;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-            const playerOneWearableBonus = 1;
-            const playerTwoWearableBonus = 0;
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(user1PointsBefore.toString(), 0);
-            assert.equal(user2PointsBefore.toString(), 0);
-            assert.equal(user1PointsAfter.toString(), ((defaultStake/ratio) + ((10*playerOneWearableBonus)/ratio)));
-            assert.equal(user2PointsAfter.toString(), ((defaultStake/ratio) + ((10*playerTwoWearableBonus)/ratio)));
-
-        });
-
-        it("should NOT earn points from raiseDouble if user2 drops the game without calling", async () => {
-
-            const ratio = 10;
-            const defaultStake = 100;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            const _gameID = await backgammon.getGameIdOfPlayers(user1, user2);
-
-            await backgammon.raiseDouble(
-                _gameID,
-                user1,
-                { from: owner }
-            );
-
-            await backgammon.dropGame(
-                _gameID,
-                user2,
-                { from: owner }
-            );
-
-            const { gameId, player} = await getLastEvent(
-                "PlayerDropped",
-                backgammon
-            );
-
-            assert.equal(gameId, _gameID);
-            assert.equal(player, user2);
-
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-
-            assert.equal(user1PointsBefore.toString(), 0);
-            assert.equal(user2PointsBefore.toString(), 0);
-            assert.equal(user1PointsAfter.toString(), defaultStake/ratio);
-            assert.equal(user2PointsAfter.toString(), defaultStake/ratio);
-
-        });
-
-
-        it("should addpoints if initializing multiple games", async () => {
-
-            const ratio = 10;
-            const defaultStake = 100;
-            const totalpointsFromInits = defaultStake * 3;
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-            const user3PointsBefore = await pointer.pointsBalancer(user3);
-            const randomPointsBefore = await pointer.pointsBalancer(random);
-
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user3,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                random,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-            const user3PointsAfter = await pointer.pointsBalancer(user3);
-            const randomPointsAfter = await pointer.pointsBalancer(random);
-
-            assert.equal(user1PointsBefore.toString(), 0);
-            assert.equal(user2PointsBefore.toString(), 0);
-            assert.equal(user3PointsBefore.toString(), 0);
-            assert.equal(randomPointsBefore.toString(), 0);
-
-            assert.equal(user1PointsAfter.toString(), totalpointsFromInits/ratio);
-            assert.equal(user2PointsAfter.toString(), defaultStake/ratio);
-            assert.equal(user3PointsAfter.toString(), defaultStake/ratio);
-            assert.equal(randomPointsAfter.toString(), defaultStake/ratio);
-        });
-
-        it("should addpoints if initializing multiple games", async () => {
-
-            const ratio = 10;
-            const defaultStake = 100;
-
-            const singleGameDoubledStake = defaultStake * 2;
-            const totalpointsFromInits = defaultStake * 3;
-            const doubledTotalPoints = totalpointsFromInits * 2;
-
-
-            const user1PointsBefore = await pointer.pointsBalancer(user1);
-            const user2PointsBefore = await pointer.pointsBalancer(user2);
-            const user3PointsBefore = await pointer.pointsBalancer(user3);
-            const randomPointsBefore = await pointer.pointsBalancer(random);
-
-            const playerOneWearableBonus = 0;
-            const playerTwoWearableBonus = 0;
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user2,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                user3,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            await backgammon.initializeGame(
-                defaultStake,
-                user1,
-                random,
-                0,
-                playerOneWearableBonus,
-                playerTwoWearableBonus,
-                { from: owner }
-            );
-
-            const _gameID1 = await backgammon.getGameIdOfPlayers(user1, user2);
-            const _gameID2 = await backgammon.getGameIdOfPlayers(user1, user3);
-            const _gameID3 = await backgammon.getGameIdOfPlayers(user1, random);
-
-
-            await backgammon.raiseDouble(
-                _gameID1,
-                user1,
-                { from: owner }
-            );
-            await backgammon.raiseDouble(
-                _gameID2,
-                user1,
-                { from: owner }
-            );
-            await backgammon.raiseDouble(
-                _gameID3,
-                user1,
-                { from: owner }
-            );
-
-
-            await backgammon.callDouble(
-                _gameID1,
-                user2,
-                { from: owner }
-            );
-            await backgammon.callDouble(
-                _gameID2,
-                user3,
-                { from: owner }
-            );
-            await backgammon.callDouble(
-                _gameID3,
-                random,
-                { from: owner }
-            );
-
-            const user1PointsAfter = await pointer.pointsBalancer(user1);
-            const user2PointsAfter = await pointer.pointsBalancer(user2);
-            const user3PointsAfter = await pointer.pointsBalancer(user3);
-            const randomPointsAfter = await pointer.pointsBalancer(random);
-
-            assert.equal(user1PointsBefore.toString(), 0);
-            assert.equal(user2PointsBefore.toString(), 0);
-            assert.equal(user3PointsBefore.toString(), 0);
-            assert.equal(randomPointsBefore.toString(), 0);
-
-            assert.equal(user1PointsAfter.toString(), doubledTotalPoints/ratio);
-            assert.equal(user2PointsAfter.toString(), singleGameDoubledStake/ratio);
-            assert.equal(user3PointsAfter.toString(), singleGameDoubledStake/ratio);
-            assert.equal(randomPointsAfter.toString(), singleGameDoubledStake/ratio);
-        });
     });
 });

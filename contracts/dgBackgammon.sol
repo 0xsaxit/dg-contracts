@@ -114,9 +114,7 @@ contract dgBackgammon is AccessController {
         uint128 _defaultStake,
         address _playerOneAddress,
         address _playerTwoAddress,
-        uint8 _tokenIndex,
-        uint256 _playerOneWearableBonus,
-        uint256 _playerTwoWearableBonus
+        uint8 _tokenIndex
     )
         external
         whenNotPaused
@@ -165,22 +163,6 @@ contract dgBackgammon is AccessController {
         treasury.tokenInboundTransfer(_tokenIndex, _playerOneAddress, _defaultStake);
         treasury.tokenInboundTransfer(_tokenIndex, _playerTwoAddress, _defaultStake);
 
-        pointerContract.addPoints(
-            _playerOneAddress,
-            _defaultStake,
-            treasury.getTokenAddress(_tokenIndex),
-            1,
-            _playerOneWearableBonus
-        );
-
-        pointerContract.addPoints(
-            _playerTwoAddress,
-            _defaultStake,
-            treasury.getTokenAddress(_tokenIndex),
-            1,
-            _playerTwoWearableBonus
-        );
-
         Game memory _game = Game(
             _defaultStake,
             _defaultStake.mul(2),
@@ -222,13 +204,7 @@ contract dgBackgammon is AccessController {
             ),
             'raising double transfer failed'
         );
-    /*
-        pointerContract.addPoints(
-            _playerRaising,
-            currentGames[_gameId].stake,
-            treasury.getTokenAddress(currentGames[_gameId].tokenIndex)
-        );
-    */
+
         currentGames[_gameId].state = GameState.DoublingStage;
         currentGames[_gameId].lastStaker = _playerRaising;
         currentGames[_gameId].total = currentGames[_gameId].total.add(
@@ -264,19 +240,6 @@ contract dgBackgammon is AccessController {
             'calling double transfer failed'
         );
 
-        //uses currentGames[id].lastStaker to add points to _playerRaising 
-        pointerContract.addPoints(
-            currentGames[_gameId].lastStaker,
-            currentGames[_gameId].stake,
-            treasury.getTokenAddress(currentGames[_gameId].tokenIndex)
-        );
-
-        pointerContract.addPoints(
-            _playerCalling,
-            currentGames[_gameId].stake,
-            treasury.getTokenAddress(currentGames[_gameId].tokenIndex)
-        );
-
         currentGames[_gameId].total = currentGames[_gameId].total.add(
             currentGames[_gameId].stake
         );
@@ -291,7 +254,12 @@ contract dgBackgammon is AccessController {
         );
     }
 
-    function dropGame(uint256 _gameId, address _playerDropping)
+    function dropGame(
+        uint256 _gameId,
+        address _playerDropping,
+        uint256 _playerOneWearableBonus,
+        uint256 _playerTwoWearableBonus
+    )
         external
         whenNotPaused
         onlyWorker
@@ -313,6 +281,8 @@ contract dgBackgammon is AccessController {
             'win amount transfer failed (dropGame)'
         );
 
+        applyPoints(_gameId,_playerOneWearableBonus,_playerTwoWearableBonus);
+        
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit PlayerDropped(
@@ -327,7 +297,12 @@ contract dgBackgammon is AccessController {
         ).div(100);
     }
 
-    function resolveGame(uint256 _gameId, address _winPlayer)
+    function resolveGame(
+        uint256 _gameId,
+        address _winPlayer,
+        uint256 _playerOneWearableBonus,
+        uint256 _playerTwoWearableBonus
+    )
         external
         whenNotPaused
         onlyWorker
@@ -343,11 +318,44 @@ contract dgBackgammon is AccessController {
             'win amount transfer failed (resolveGame)'
         );
 
+        applyPoints(_gameId,_playerOneWearableBonus,_playerTwoWearableBonus);
+
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit GameResolved(
             _gameId,
             _winPlayer
+        );
+    }
+
+    function applyPoints(
+        uint256 _gameId,
+        uint256 _playerOneWearableBonus,
+        uint256 _playerTwoWearableBonus
+    )
+        internal
+    {
+        uint256 pointsPerPlayerAfterFee = (
+            currentGames[_gameId].total.sub(
+                applyPercent(
+                    currentGames[_gameId].total
+                )
+            ));
+
+        pointerContract.addPoints(
+            currentGames[_gameId].playerOne,
+            pointsPerPlayerAfterFee,
+            treasury.getTokenAddress(currentGames[_gameId].tokenIndex),
+            1,
+            _playerOneWearableBonus
+        );
+
+        pointerContract.addPoints(
+            currentGames[_gameId].playerTwo,
+            pointsPerPlayerAfterFee,
+            treasury.getTokenAddress(currentGames[_gameId].tokenIndex),
+            1,
+            _playerTwoWearableBonus
         );
     }
 
