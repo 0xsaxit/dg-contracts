@@ -207,7 +207,6 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     )
         external
         onlyWorker
-        returns (bool)
     {
         require(
             affiliateData[_player] == address(0x0),
@@ -365,7 +364,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         external
         returns(uint256 tokenAmount)
     {
-        return distributeTokens(msg.sender);
+        return distributeTokens(msgSender());
     }
 
     function distributeTokensBulk(
@@ -484,7 +483,6 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     )
         external
         onlyCEO
-        returns(bool)
     {
         declaredContracts[_contract] = true;
     }
@@ -494,7 +492,6 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     )
         external
         onlyCEO
-        returns(bool)
     {
         declaredContracts[_contract] = false;
     }
