@@ -20,9 +20,6 @@ contract dgRoulette is AccessController {
 
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
 
-    mapping (address => uint) public totalBets;
-    mapping (address => uint) public totalPayout;
-
     mapping (uint => uint) public maxSquareBets;
     mapping (uint => mapping (uint => mapping (uint => uint))) public currentBets;
 
@@ -251,6 +248,14 @@ contract dgRoulette is AccessController {
                 _betAmount[i]
             );
 
+            addPoints(
+                _players[i],
+                _betAmount[i],
+                treasury.getTokenAddress(_tokenIndex[i]),
+                _playerCount,
+                _wearableBonus[i]
+            );
+
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
                 require(
@@ -270,7 +275,6 @@ contract dgRoulette is AccessController {
             _machineID
         );
 
-        // payout && points preparation
         for (i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
                 treasury.tokenOutboundTransfer(
@@ -278,52 +282,7 @@ contract dgRoulette is AccessController {
                     _players[i],
                     winAmounts[i]
                 );
-                // collecting totalPayout
-                totalPayout[_players[i]] =
-                totalPayout[_players[i]] + winAmounts[i];
             }
-            totalBets[_players[i]] =
-            totalBets[_players[i]] + _betAmount[i];
-        }
-
-        // point calculation && bonus
-        for (i = 0; i < _players.length; i++) {
-            _issuePointsAmount(
-                _players[i],
-                _tokenIndex[i],
-                _playerCount,
-                _wearableBonus[i]
-            );
-        }
-    }
-
-    function _issuePointsAmount(
-        address _player,
-        uint8 _tokenIndex,
-        uint256 _playerCount,
-        uint256 _wearableBonus
-    ) private {
-        if (totalPayout[_player] > totalBets[_player]) {
-            addPoints(
-                _player,
-                totalPayout[_player].sub(totalBets[_player]),
-                treasury.getTokenAddress(_tokenIndex),
-                _playerCount,
-                _wearableBonus
-            );
-            totalBets[_player] = 0;
-            totalPayout[_player] = 0;
-        }
-        else if (totalPayout[_player] < totalBets[_player]) {
-            addPoints(
-                _player,
-                totalBets[_player].sub(totalPayout[_player]),
-                treasury.getTokenAddress(_tokenIndex),
-                _playerCount,
-                _wearableBonus
-            );
-            totalBets[_player] = 0;
-            totalPayout[_player] = 0;
         }
     }
 
@@ -434,10 +393,14 @@ contract dgRoulette is AccessController {
         return uint128(store>>8);
     }
 
-    function updatePointer(address _newPointerAddress)
+    function updatePointer(
+        address _newPointerAddress
+    )
         external
         onlyCEO
     {
-         pointerContract = PointerInstance(_newPointerAddress);
+         pointerContract = PointerInstance(
+             _newPointerAddress
+         );
     }
 }
