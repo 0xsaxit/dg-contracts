@@ -61,7 +61,6 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
     function executeMetaTransaction(
         address userAddress,
         bytes memory functionSignature,
-        uint256 sessionDuration,
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
@@ -83,8 +82,6 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         require(success, "Treasury: Function call not successfull");
         nonces[userAddress] = nonces[userAddress] + 1;
 
-        _enableAccount(userAddress, sessionDuration);
-
         emit MetaTransactionExecuted(
             userAddress,
             msg.sender,
@@ -98,9 +95,8 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         nonce = nonces[user];
     }
 
-
     function enableAccount(uint256 _sessionDuration) external {
-        _enableAccount(msg.sender, _sessionDuration);
+        _enableAccount(msgSender(), _sessionDuration);
     }
 
     function _enableAccount(address _user, uint256 _sessionDuration) internal {
