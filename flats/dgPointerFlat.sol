@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.0;
-
-// SPDX-License-Identifier: -- 🎲 --
-
-
+pragma solidity =0.7.0;
 
 library SafeMath {
 
@@ -42,10 +38,6 @@ library SafeMath {
         return a % b;
     }
 }
-
-// SPDX-License-Identifier: -- 🎲 --
-
-
 
 contract AccessController {
 
@@ -133,9 +125,6 @@ contract AccessController {
         emit Unpaused();
     }
 }
-// SPDX-License-Identifier: -- 🎲 --
-
-
 
 interface ERC20Token {
     function totalSupply() external view returns (uint256);
@@ -157,10 +146,6 @@ interface ERC20Token {
         uint256 value
     );
 }
-
-// SPDX-License-Identifier: -- 🎲 --
-
-
 
 contract EIP712Base {
 
@@ -207,7 +192,6 @@ contract EIP712Base {
     }
 
 }
-
 
 abstract contract ExecuteMetaTransaction is EIP712Base {
 

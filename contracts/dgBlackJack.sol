@@ -1173,7 +1173,9 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         return Games[_gameId].pState[_pIndex] == PlayerState.isSplit;
     }
 
-    function updatePointer(address _newPointerAddress)
+    function updatePointer(
+        address _newPointerAddress
+    )
         external
         onlyCEO
     {

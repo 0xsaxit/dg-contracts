@@ -5,7 +5,7 @@ const privateKey = 'C7F038F9A424D7604EE05A53FED9920F4859C4D283ED9385B93913C13266
 module.exports = {
     compilers: {
         solc: {
-            version: "0.7.0",
+            version: "0.7.4",
             settings: {
                 optimizer: {
                     enabled: true,

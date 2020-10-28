@@ -58,7 +58,9 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
             );
     }
 
-    function hashMetaTransaction(MetaTransaction memory metaTx)
+    function hashMetaTransaction(
+        MetaTransaction memory metaTx
+    )
         internal
         pure
         returns (bytes32)
@@ -147,9 +149,8 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
 
     using SafeMath for uint256;
 
-    uint256 public MAX_PLAYER_BONUS = 130;
-    uint256 public constant MIN_PLAYER_BONUS = 100;
-    uint256 public MAX_WEARABLE_BONUS = 40;
+    uint256 public defaultPlayerBonus = 30;
+    uint256 public defaultWearableBonus = 40;
 
     bool public collectingEnabled;
     bool public distributionEnabled;
@@ -282,18 +283,21 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
             multiplierA = getPlayerMultiplier(
                 _playersCount,
                 playerBonuses[_playersCount],
-                MAX_PLAYER_BONUS
+                defaultPlayerBonus
             );
 
             multiplierB = getWearableMultiplier(
                 _wearablesCount,
                 wearableBonuses[_wearablesCount],
-                MAX_WEARABLE_BONUS
+                defaultWearableBonus
             );
 
             newPoints = _points
                 .div(tokenToPointRatio[msg.sender][_token])
-                .mul(multiplierA.add(multiplierB))
+                .mul(uint256(100)
+                    .add(multiplierA)
+                    .add(multiplierB)
+                )
                 .div(100);
 
             pointsBalancer[_player] =
@@ -323,30 +327,30 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     function getPlayerMultiplier(
         uint256 _playerCount,
         uint256 _playerBonus,
-        uint256 _maxPlayerBonus
+        uint256 _defaultPlayerBonus
 
     )
         internal
         pure
         returns (uint256)
     {
-        if (_playerCount == 1) return MIN_PLAYER_BONUS;
+        if (_playerCount == 1) return 0;
         return _playerCount > 0 && _playerBonus == 0
-            ? _maxPlayerBonus
-            : MIN_PLAYER_BONUS.add(_playerBonus);
+            ? _defaultPlayerBonus
+            : _playerBonus;
     }
 
     function getWearableMultiplier(
         uint256 _wearableCount,
         uint256 _wearableBonus,
-        uint256 _maxWearableBonus
+        uint256 _defaultWearableBonus
     )
         internal
         pure
         returns (uint256)
     {
         return _wearableCount > 0 && _wearableBonus == 0
-            ? _maxWearableBonus
+            ? _defaultWearableBonus
             : _wearableBonus;
     }
 
@@ -415,17 +419,16 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         );
     }
 
-    function changeMaxPlayerBonus(
-        uint256 _newMaxPlayerBonus
+    function changeDefaultPlayerBonus(
+        uint256 _newDefaultPlayerBonus
     )
         external
         onlyCEO
     {
-        MAX_PLAYER_BONUS =
-        MIN_PLAYER_BONUS + _newMaxPlayerBonus;
+        defaultPlayerBonus =_newDefaultPlayerBonus;
 
         emit updatedMaxPlayerBonus(
-            MAX_PLAYER_BONUS
+            defaultPlayerBonus
         );
     }
 
@@ -435,7 +438,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         external
         onlyCEO
     {
-        MAX_WEARABLE_BONUS = _newMaxWearableBonus;
+        defaultWearableBonus = _newMaxWearableBonus;
     }
 
     function changeDistributionToken(
@@ -449,9 +452,9 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         );
     }
 
-    function setPointToTokenRatio(
-        address _token,
+    function setTokenToPointRatio(
         address _gameAddress,
+        address _token,
         uint256 _ratio
     )
         external

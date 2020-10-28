@@ -399,8 +399,8 @@ contract dgRoulette is AccessController {
         external
         onlyCEO
     {
-         pointerContract = PointerInstance(
-             _newPointerAddress
-         );
+        pointerContract = PointerInstance(
+            _newPointerAddress
+        );
     }
 }

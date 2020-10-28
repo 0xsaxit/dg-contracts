@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity =0.7.0;
+pragma solidity ^0.7.0;
 
 contract Context {
 
@@ -29,9 +29,9 @@ contract ERC20 is Context {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    constructor (string memory name, string memory symbol) {
-        _name = name;
-        _symbol = symbol;
+    constructor (string memory dgName, string memory dgSymbol) {
+        _name = dgName;
+        _symbol = dgSymbol;
         _decimals = 18;
     }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.7.4;
 
 import "./common-contracts/SafeMath.sol";
 import "./common-contracts/ERC20Token.sol";
@@ -94,6 +94,7 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
     function getNonce(address user) public view returns(uint256 nonce) {
         nonce = nonces[user];
     }
+
 
     function enableAccount(uint256 _sessionDuration) external {
         _enableAccount(msgSender(), _sessionDuration);
@@ -526,6 +527,7 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
         );
     }
 
+    // no direct transfers
     receive() external payable {
         revert();
     }
@@ -534,8 +536,9 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
         uint8 _gameIndex,
         uint8 _tokenIndex,
         uint256 _tokenAmount
-    ) external {
-
+    )
+        external
+    {
         require(
             _gameIndex < treasuryGames.length,
             'Treasury: unregistered gameIndex'

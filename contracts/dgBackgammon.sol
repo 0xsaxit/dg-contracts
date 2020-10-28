@@ -108,7 +108,7 @@ contract dgBackgammon is AccessController {
         treasury = TreasuryInstance(
             _treasuryAddress
         );
-        
+
         pointerContract = PointerInstance(
             _pointerAddress
         );
@@ -202,6 +202,8 @@ contract dgBackgammon is AccessController {
             _playerTwoAddress,
             _tokenIndex
         );
+
+        return true;
     }
 
     function raiseDouble(
@@ -423,7 +425,11 @@ contract dgBackgammon is AccessController {
         if (
             player == currentGames[gameId].playerOne ||
             player == currentGames[gameId].playerTwo
-        ) return true;
+        ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     function changeSafeFactor(

@@ -110,9 +110,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 token.address
             );
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 owner,
+                token.address,
                 150
             );
 
@@ -142,9 +142,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 owner,
+                token.address,
                 ratio
             );
 
@@ -182,9 +182,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.declareContract(user2);
 
             // set token to point ratio
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 user2,
+                token.address,
                 ratio
             );
 
@@ -267,9 +267,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.declareContract(user2);
 
             // set ratio for user2
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 user2,
+                token.address,
                 ratio
             );
 
@@ -393,9 +393,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             await pointer.declareContract(user2);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 user2,
+                token.address,
                 ratio
             );
 
@@ -461,9 +461,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             await pointer.declareContract(user2);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 user2,
+                token.address,
                 ratio
             );
 
@@ -655,9 +655,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             await pointer.declareContract(user2);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 user2,
+                token.address,
                 ratio
             );
 
@@ -684,28 +684,27 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             );
         });
 
-        it("should ONLY allow CEO to set MAX_PLAYER_BONUS, + generate event", async () => {
+        it("should ONLY allow CEO to set defaultPlayerBonus, + generate event", async () => {
 
-            const MAX_BONUS_Before = await pointer.MAX_PLAYER_BONUS();
-            const MIN_BONUS_Before = await pointer.MIN_PLAYER_BONUS();
+            const defaultPlayerBonus = await pointer.defaultPlayerBonus();
 
             const currentBonus = 30;
             const newBonus = 50;
 
             assert.equal(
-                MAX_BONUS_Before.toNumber(),
-                MIN_BONUS_Before.toNumber() + currentBonus
+                defaultPlayerBonus.toNumber(),
+                currentBonus
             );
 
             await catchRevert(
-                pointer.changeMaxPlayerBonus(
+                pointer.changeDefaultPlayerBonus(
                     newBonus,
                     { from: random }
                 ),
                 'revert AccessControl: CEO access denied'
             );
 
-            await pointer.changeMaxPlayerBonus(
+            await pointer.changeDefaultPlayerBonus(
                 newBonus,
                 { from: owner }
             );
@@ -718,14 +717,14 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             assert.equal(
                 event.newBonus,
-                MIN_BONUS_Before.toNumber() + newBonus
+                newBonus
             );
 
-            const MAX_BONUS_After = await pointer.MAX_PLAYER_BONUS();
+            const defaultPlayerBonusAfter = await pointer.defaultPlayerBonus();
 
             assert.equal(
-                MAX_BONUS_After,
-                MIN_BONUS_Before.toNumber() + newBonus
+                defaultPlayerBonusAfter,
+                newBonus
             );
 
         });
@@ -777,9 +776,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 owner,
+                token.address,
                 ratio
             );
 
@@ -810,7 +809,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const resultBefore = await pointer.pointsBalancer(user1);
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
-            await pointer.setPointToTokenRatio(token.address, owner, ratio);
+            await pointer.setTokenToPointRatio(
+                owner,
+                token.address,
+                ratio
+            );
             await pointer.addPoints(user1, points, token.address, 1);
 
             const resultAfter = await pointer.pointsBalancer(user1);
@@ -831,9 +834,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 owner,
+                token.address,
                 ratio
             );
 
@@ -865,9 +868,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 owner,
+                token.address,
                 ratio
             );
 
@@ -907,9 +910,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 user2,
+                token.address,
                 ratio
             );
 
@@ -949,7 +952,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, user2, ratio);
+            await pointer.setTokenToPointRatio(
+                user2,
+                token.address,
+                ratio
+            );
             await pointer.addPoints(user1, points, token.address, 10, 0, {from: user2});
 
             const resultAfter = await pointer.pointsBalancer(user1);
@@ -968,7 +975,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, user2, ratio);
+            await pointer.setTokenToPointRatio(
+                user2,
+                token.address,
+                ratio
+            );
             await pointer.addPoints(user1, points, token.address, 1, 1, {from: user2});
 
             const resultAfter = await pointer.pointsBalancer(user1);
@@ -988,7 +999,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, user2, ratio);
+            await pointer.setTokenToPointRatio(
+                user2,
+                token.address,
+                ratio
+            );
             await pointer.addPoints(user1, points, token.address, 1, 2, {from: user2});
 
             const resultAfter = await pointer.pointsBalancer(user1);
@@ -1006,7 +1021,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, user2, ratio);
+            await pointer.setTokenToPointRatio(
+                user2,
+                token.address,
+                ratio
+            );
             await pointer.addPoints(user1, points, token.address, 1, 3, {from: user2});
 
             const resultAfter = await pointer.pointsBalancer(user1);
@@ -1023,7 +1042,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, user2, ratio);
+            await pointer.setTokenToPointRatio(
+                user2,
+                token.address,
+                ratio
+            );
             await pointer.addPoints(user1, points, token.address, 1, 4, {from: user2});
 
             const resultAfter = await pointer.pointsBalancer(user1);
@@ -1040,7 +1063,11 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
             await pointer.declareContract(user2);
-            await pointer.setPointToTokenRatio(token.address, user2, ratio);
+            await pointer.setTokenToPointRatio(
+                user2,
+                token.address,
+                ratio
+            );
             await pointer.addPoints(user1, points, token.address, 1, 10, {from: user2});
 
             const resultAfter = await pointer.pointsBalancer(user1);
@@ -1088,9 +1115,9 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             await pointer.declareContract(user2);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 user2,
+                token.address,
                 ratio
             );
 
@@ -1298,27 +1325,27 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             );
 
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 slots.address,
+                token.address,
                 ratio
             );
 
-            await pointer.setPointToTokenRatio(
-                secondtoken.address,
+            await pointer.setTokenToPointRatio(
                 slots.address,
+                secondtoken.address,
                 ratioTwo
             );
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 backgammon.address,
+                token.address,
                 ratioThree
             );
 
-            await pointer.setPointToTokenRatio(
-                secondtoken.address,
+            await pointer.setTokenToPointRatio(
                 backgammon.address,
+                secondtoken.address,
                 ratioFour
             );
         });
