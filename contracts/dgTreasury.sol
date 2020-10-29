@@ -472,44 +472,69 @@ contract TokenController is AccessController {
 
     function getTokenInstance(
         uint8 _tokenIndex
-    ) internal view returns (ERC20Token) {
+    )
+        internal
+        view
+        returns (ERC20Token)
+    {
         return ERC20Token(treasuryTokens[_tokenIndex].tokenAddress);
     }
 
     function getTokenAddress(
         uint8 _tokenIndex
-    ) public view returns (address) {
+    )
+        public
+        view
+        returns (address)
+    {
         return treasuryTokens[_tokenIndex].tokenAddress;
     }
 
     function getTokenName(
         uint8 _tokenIndex
-    ) external view returns (string memory) {
+    )
+        external
+        view
+        returns (string memory)
+    {
         return treasuryTokens[_tokenIndex].tokenName;
     }
 
     function updateTokenAddress(
         uint8 _tokenIndex,
         address _newTokenAddress
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         treasuryTokens[_tokenIndex].tokenAddress = _newTokenAddress;
     }
 
     function updateTokenName(
         uint8 _tokenIndex,
         string calldata _newTokenName
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         treasuryTokens[_tokenIndex].tokenName = _newTokenName;
     }
 
     function deleteToken(
         uint8 _tokenIndex
-    ) external onlyCEO {
-        ERC20Token token = getTokenInstance(_tokenIndex);
+    )
+        external
+        onlyCEO
+    {
+        ERC20Token token = getTokenInstance(
+            _tokenIndex
+        );
+
         require(
             token.balanceOf(address(this)) == 0,
             'TokenController: balance detected'
         );
+
         delete treasuryTokens[_tokenIndex];
     }
 }
