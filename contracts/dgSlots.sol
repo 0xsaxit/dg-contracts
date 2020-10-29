@@ -37,7 +37,9 @@ contract dgSlots is AccessController {
         address _pointerAddress
         )
     {
-        treasury = TreasuryInstance(_treasury);
+        treasury = TreasuryInstance(
+            _treasury
+        );
 
         require(
             factor1 > factor2 + factor3 + factor4,
@@ -48,7 +50,10 @@ contract dgSlots is AccessController {
         factors |= uint256(factor2)<<16;
         factors |= uint256(factor3)<<32;
         factors |= uint256(factor4)<<48;
-        pointerContract = PointerInstance(_pointerAddress);
+
+        pointerContract = PointerInstance(
+            _pointerAddress
+        );
     }
 
     function play(
@@ -235,6 +240,8 @@ contract dgSlots is AccessController {
         external
         onlyCEO
     {
-         pointerContract = PointerInstance(_newPointerAddress);
+         pointerContract = PointerInstance(
+            _newPointerAddress
+        );
     }
 }
