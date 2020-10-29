@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.7.4;
 
 library SafeMath {
 
@@ -162,7 +162,43 @@ interface TreasuryInstance {
     ) external returns (bool);
 }
 
-contract TreasuryBackgammon is AccessController {
+interface PointerInstance {
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers,
+        uint256 _wearableBonus
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
+}
+
+contract dgBackgammon is AccessController {
 
     using SafeMath for uint128;
     using SafeMath for uint256;
@@ -244,6 +280,7 @@ contract TreasuryBackgammon is AccessController {
     }
 
     TreasuryInstance public treasury;
+    PointerInstance public pointerContract;
 
     struct Store {
         uint8 safeFactor;
@@ -255,10 +292,20 @@ contract TreasuryBackgammon is AccessController {
     constructor(
         address _treasuryAddress,
         uint8 _safeFactor,
-        uint8 _feePercent)
+        uint8 _feePercent,
+        address _pointerAddress
+    )
     {
-        treasury = TreasuryInstance(_treasuryAddress);
+        treasury = TreasuryInstance(
+            _treasuryAddress
+        );
+
+        pointerContract = PointerInstance(
+            _pointerAddress
+        );
+
         (s.safeFactor, s.feePercent) = (_safeFactor, _feePercent);
+
     }
 
     function initializeGame(
@@ -278,7 +325,12 @@ contract TreasuryBackgammon is AccessController {
         );
 
         uint256 gameId = uint256(
-            keccak256(abi.encodePacked(_playerOneAddress, _playerTwoAddress))
+            keccak256(
+                abi.encodePacked(
+                    _playerOneAddress,
+                    _playerTwoAddress
+                )
+            )
         );
 
         require(
@@ -311,8 +363,17 @@ contract TreasuryBackgammon is AccessController {
             'exceeding maximum bet defined in treasury'
         );
 
-        treasury.tokenInboundTransfer(_tokenIndex, _playerOneAddress, _defaultStake);
-        treasury.tokenInboundTransfer(_tokenIndex, _playerTwoAddress, _defaultStake);
+        treasury.tokenInboundTransfer(
+            _tokenIndex,
+            _playerOneAddress,
+            _defaultStake
+        );
+
+        treasury.tokenInboundTransfer(
+            _tokenIndex,
+            _playerTwoAddress,
+            _defaultStake
+        );
 
         Game memory _game = Game(
             _defaultStake,
@@ -332,9 +393,14 @@ contract TreasuryBackgammon is AccessController {
             _playerTwoAddress,
             _tokenIndex
         );
+
+        return true;
     }
 
-    function raiseDouble(uint256 _gameId, address _playerRaising)
+    function raiseDouble(
+        uint256 _gameId,
+        address _playerRaising
+    )
         external
         whenNotPaused
         onlyWorker
@@ -391,11 +457,12 @@ contract TreasuryBackgammon is AccessController {
             'calling double transfer failed'
         );
 
-        currentGames[_gameId].total = currentGames[_gameId].total.add(
-            currentGames[_gameId].stake
-        );
+        currentGames[_gameId].total =
+        currentGames[_gameId].total.add(currentGames[_gameId].stake);
 
-        currentGames[_gameId].stake = currentGames[_gameId].stake.mul(2);
+        currentGames[_gameId].stake =
+        currentGames[_gameId].stake.mul(2);
+
         currentGames[_gameId].state = GameState.OnGoingGame;
 
         emit StakeDoubled(
@@ -405,7 +472,12 @@ contract TreasuryBackgammon is AccessController {
         );
     }
 
-    function dropGame(uint256 _gameId, address _playerDropping)
+    function dropGame(
+        uint256 _gameId,
+        address _playerDropping,
+        uint256 _playerOneWearableBonus,
+        uint256 _playerTwoWearableBonus
+    )
         external
         whenNotPaused
         onlyWorker
@@ -427,6 +499,12 @@ contract TreasuryBackgammon is AccessController {
             'win amount transfer failed (dropGame)'
         );
 
+        applyPoints(
+            _gameId,
+            _playerOneWearableBonus,
+            _playerTwoWearableBonus
+        );
+
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit PlayerDropped(
@@ -436,12 +514,17 @@ contract TreasuryBackgammon is AccessController {
     }
 
     function applyPercent(uint256 _value) public view returns (uint256) {
-        return _value.mul(
-            100 - uint256(s.feePercent)
-        ).div(100);
+        return _value
+            .mul(100 - uint256(s.feePercent))
+            .div(100);
     }
 
-    function resolveGame(uint256 _gameId, address _winPlayer)
+    function resolveGame(
+        uint256 _gameId,
+        address _winPlayer,
+        uint256 _playerOneWearableBonus,
+        uint256 _playerTwoWearableBonus
+    )
         external
         whenNotPaused
         onlyWorker
@@ -457,6 +540,12 @@ contract TreasuryBackgammon is AccessController {
             'win amount transfer failed (resolveGame)'
         );
 
+        applyPoints(
+            _gameId,
+            _playerOneWearableBonus,
+            _playerTwoWearableBonus
+        );
+
         currentGames[_gameId].state = GameState.GameEnded;
 
         emit GameResolved(
@@ -465,15 +554,61 @@ contract TreasuryBackgammon is AccessController {
         );
     }
 
+    function applyPoints(
+        uint256 _gameId,
+        uint256 _playerOneWearableBonus,
+        uint256 _playerTwoWearableBonus
+    )
+        internal
+    {
+        uint256 pointsPerPlayerAfterFee = (
+            currentGames[_gameId].total.sub(
+                applyPercent(
+                    currentGames[_gameId].total
+                )
+            )
+        );
+
+        pointerContract.addPoints(
+            currentGames[_gameId].playerOne,
+            pointsPerPlayerAfterFee,
+            treasury.getTokenAddress(
+                currentGames[_gameId].tokenIndex
+            ),
+            1,
+            _playerOneWearableBonus
+        );
+
+        pointerContract.addPoints(
+            currentGames[_gameId].playerTwo,
+            pointsPerPlayerAfterFee,
+            treasury.getTokenAddress(
+                currentGames[_gameId].tokenIndex
+            ),
+            1,
+            _playerTwoWearableBonus
+        );
+    }
+
     function getGameIdOfPlayers(address playerOne, address playerTwo)
         external
         pure
         returns (uint256 gameId)
     {
-        gameId = uint256(keccak256(abi.encodePacked(playerOne, playerTwo)));
+        gameId = uint256(
+            keccak256(
+                abi.encodePacked(
+                    playerOne,
+                    playerTwo
+                )
+            )
+        );
     }
 
-    function checkPlayerInGame(uint256 gameId, address player)
+    function checkPlayerInGame(
+        uint256 gameId,
+        address player
+    )
         external
         view
         returns (bool)
@@ -481,32 +616,54 @@ contract TreasuryBackgammon is AccessController {
         if (
             player == currentGames[gameId].playerOne ||
             player == currentGames[gameId].playerTwo
-        ) return true;
+        ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    function changeSafeFactor(uint8 _newFactor) external onlyCEO {
-        require(_newFactor > 0, 'must be above zero');
+    function changeSafeFactor(
+        uint8 _newFactor
+    )
+        external
+        onlyCEO
+    {
+        require(
+            _newFactor > 0,
+            'must be above zero'
+        );
         s.safeFactor = _newFactor;
     }
 
-    function changeFeePercent(uint8 _newFeePercent) external onlyCEO {
-        require(_newFeePercent < 20, 'must be below 20');
+    function changeFeePercent(
+        uint8 _newFeePercent
+    )
+        external
+        onlyCEO
+    {
+        require(
+            _newFeePercent < 20,
+            'must be below 20'
+        );
         s.feePercent = _newFeePercent;
     }
 
-    function changeTreasury(address _newTreasuryAddress) external onlyCEO {
+    function updateTreasury(
+        address _newTreasuryAddress
+    )
+        external
+        onlyCEO
+    {
         treasury = TreasuryInstance(_newTreasuryAddress);
     }
 
-    function _changeTreasury(address _newTreasuryAddress) external onlyTreasury {
-        treasury = TreasuryInstance(_newTreasuryAddress);
-    }
-
-    function migrateTreasury(address _newTreasuryAddress) external {
-        require(
-            msg.sender == address(treasury),
-            'wrong current treasury address'
-        );
-        treasury = TreasuryInstance(_newTreasuryAddress);
+    function updatePointer(
+        address _newPointerAddress
+    )
+        external
+        onlyCEO
+    {
+         pointerContract = PointerInstance(_newPointerAddress);
     }
 }
