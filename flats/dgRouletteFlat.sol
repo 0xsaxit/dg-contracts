@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.7.4;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
@@ -166,7 +166,43 @@ interface TreasuryInstance {
     ) external returns (bool);
 }
 
-contract TreasuryRoulette is AccessController {
+interface PointerInstance {
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers,
+        uint256 _wearableBonus
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
+}
+
+contract dgRoulette is AccessController {
 
     using SafeMath for uint128;
     using SafeMath for uint256;
@@ -199,35 +235,37 @@ contract TreasuryRoulette is AccessController {
     );
 
     TreasuryInstance public treasury;
+    PointerInstance public pointerContract;
 
     constructor(
         address _treasuryAddress,
         uint128 _maxSquareBetDefault,
-        uint8 _maxNumberBets
-    ) {
+        uint8 _maxNumberBets,
+        address _pointerAddress
+        )
+    {
         treasury = TreasuryInstance(_treasuryAddress);
         store |= _maxNumberBets<<0;
         store |= _maxSquareBetDefault<<8;
         store |= block.timestamp<<136;
+        pointerContract = PointerInstance(_pointerAddress);
     }
 
-    function checknow64() public view returns (uint64) {
-        return uint64(block.timestamp);
-    }
-
-    function createBet(
+    function addPoints(
         address _player,
-        uint8 _betType,
-        uint8 _number,
-        uint8 _tokenIndex,
-        uint128 _value
-    ) external whenNotPaused onlyCEO {
-        bet(
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers,
+        uint256 _wearableBonus
+    )
+        private
+    {
+        pointerContract.addPoints(
             _player,
-            _betType,
-            _number,
-            _tokenIndex,
-            _value
+            _points,
+            _token,
+            _numPlayers,
+            _wearableBonus
         );
     }
 
@@ -237,8 +275,9 @@ contract TreasuryRoulette is AccessController {
         uint8 _number,
         uint8 _tokenIndex,
         uint128 _value
-    ) internal {
-
+    )
+        internal
+    {
         currentBets[_tokenIndex][_betType][_number] += _value;
 
         uint256 _maxSquareBet = maxSquareBets[_tokenIndex] == 0
@@ -250,27 +289,32 @@ contract TreasuryRoulette is AccessController {
             'Roulette: exceeding maximum bet limit'
         );
 
-        bets.push(Bet({
-            player: _player,
-            betType: _betType,
-            number: _number,
-            tokenIndex: _tokenIndex,
-            value: _value
-        }));
-    }
-
-    function launch(
-        bytes32 _localhash
-    ) external whenNotPaused onlyCEO returns(
-        uint256[] memory,
-        uint256 number
-    ) {
-        return _launch(_localhash);
+        bets.push(
+            Bet(
+                {
+                    player: _player,
+                    betType: _betType,
+                    number: _number,
+                    tokenIndex: _tokenIndex,
+                    value: _value
+                }
+            )
+        );
     }
 
     function _launch(
-        bytes32 _localhash
-    ) private returns(uint256[] memory, uint256 number) {
+        bytes32 _localhash,
+        address[] memory _players,
+        uint8[] memory _tokenIndex,
+        uint256 _landID,
+        uint256 _machineID
+    )
+        private
+        returns(
+            uint256[] memory,
+            uint256 number
+        )
+    {
 
         require(block.timestamp > store>>136, 'Roulette: expired round');
         require(bets.length > 0, 'Roulette: must have bets');
@@ -336,7 +380,20 @@ contract TreasuryRoulette is AccessController {
         }
 
         delete bets;
-        return(winAmounts, number);
+
+        emit GameResult(
+            _players,
+            _tokenIndex,
+            _landID,
+            number,
+            _machineID,
+            winAmounts
+        );
+
+        return(
+            winAmounts,
+            number
+        );
     }
 
     function play(
@@ -347,9 +404,14 @@ contract TreasuryRoulette is AccessController {
         uint8[] memory _betValues,
         uint128[] memory _betAmount,
         bytes32 _localhash,
-        uint8[] memory _tokenIndex
-    ) public whenNotPaused onlyWorker {
-
+        uint8[] memory _tokenIndex,
+        uint8 _playerCount,
+        uint8[] memory _wearableBonus
+    )
+        public
+        whenNotPaused
+        onlyWorker
+    {
         require(
             _betIDs.length == _betValues.length,
             'Roulette: inconsistent amount of betsValues'
@@ -370,10 +432,14 @@ contract TreasuryRoulette is AccessController {
             'Roulette: maximum amount of bets reached'
         );
 
-        treasury.consumeHash(_localhash);
-        bool[5] memory checkedTokens;
+        treasury.consumeHash(
+            _localhash
+        );
 
-        for (uint8 i = 0; i < _betIDs.length; i++) {
+        bool[5] memory checkedTokens;
+        uint8 i;
+
+        for (i = 0; i < _betIDs.length; i++) {
 
             require(
                 treasury.getMaximumBet(_tokenIndex[i]) >= _betAmount[i],
@@ -394,22 +460,37 @@ contract TreasuryRoulette is AccessController {
                 _betAmount[i]
             );
 
+            addPoints(
+                _players[i],
+                _betAmount[i],
+                treasury.getTokenAddress(_tokenIndex[i]),
+                _playerCount,
+                _wearableBonus[i]
+            );
+
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
+
                 require(
                     getNecessaryBalance(_tokenIndex[i]) <= tokenFunds,
                     'Roulette: not enough tokens for payout'
                 );
+
                 checkedTokens[_tokenIndex[i]] = true;
             }
         }
 
-        delete checkedTokens;
-
         uint256 _spinResult;
-        (winAmounts, _spinResult) = _launch(_localhash);
 
-        for (uint8 i = 0; i < winAmounts.length; i++) {
+        (winAmounts, _spinResult) = _launch(
+            _localhash,
+            _players,
+            _tokenIndex,
+            _landID,
+            _machineID
+        );
+
+        for (i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
                 treasury.tokenOutboundTransfer(
                     _tokenIndex[i],
@@ -418,22 +499,16 @@ contract TreasuryRoulette is AccessController {
                 );
             }
         }
-
-        emit GameResult(
-            _players,
-            _tokenIndex,
-            _landID,
-            _spinResult,
-            _machineID,
-            winAmounts
-        );
     }
 
     function getPayoutForType(
         uint256 _betType,
         uint256 _betNumber
-    ) public pure returns(uint256) {
-
+    )
+        public
+        pure
+        returns(uint256)
+    {
         if (_betType == uint8(BetType.Single))
             return _betNumber > 36 ? 0 : 36;
         if (_betType == uint8(BetType.EvenOdd))
@@ -452,15 +527,18 @@ contract TreasuryRoulette is AccessController {
 
     function getNecessaryBalance(
         uint256 _tokenIndex
-    ) public view returns (
-        uint256 _necessaryBalance
-    ) {
-
+    )
+        public
+        view
+        returns (uint256 _necessaryBalance)
+    {
         uint256 _necessaryForBetType;
         uint256[6] memory betTypesMax;
 
         for (uint8 _i = 0; _i < bets.length; _i++) {
+
             Bet memory b = bets[_i];
+
             if (b.tokenIndex == _tokenIndex) {
 
                 uint256 _payout = getPayoutForType(b.betType, b.number);
@@ -486,53 +564,99 @@ contract TreasuryRoulette is AccessController {
         }
     }
 
-    function getBetsCountAndValue() external view returns(uint value, uint) {
+    function getBetsCountAndValue()
+        external
+        view
+        returns(uint value, uint)
+    {
         for (uint i = 0; i < bets.length; i++) {
             value += bets[i].value;
         }
+
         return (bets.length, value);
     }
 
-    function getBetsCount() external view returns (uint256) {
+    function getBetsCount()
+        external
+        view
+        returns (uint256)
+    {
         return bets.length;
     }
 
     function changeMaxSquareBet(
         uint256 _tokenIndex,
         uint256 _newMaxSquareBet
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         maxSquareBets[_tokenIndex] = _newMaxSquareBet;
     }
 
     function changeMaxSquareBetDefault(
         uint128 _newMaxSquareBetDefault
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         store ^= uint128((store>>8))<<8;
         store |= _newMaxSquareBetDefault<<8;
     }
 
     function changeMaximumBetAmount(
         uint8 _newMaximumBetAmount
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         store ^= uint8(store)<<0;
         store |= _newMaximumBetAmount<<0;
     }
 
     function changeTreasury(
         address _newTreasuryAddress
-    ) external onlyCEO {
-        treasury = TreasuryInstance(_newTreasuryAddress);
+    )
+        external
+        onlyCEO
+    {
+        treasury = TreasuryInstance(
+            _newTreasuryAddress
+        );
     }
 
-    function getNextRoundTimestamp() external view returns(uint) {
-         return store>>136;
+    function getNextRoundTimestamp()
+        external
+        view
+        returns(uint)
+    {
+        return store>>136;
     }
 
-    function checkMaximumBetAmount() public view returns (uint8) {
+    function checkMaximumBetAmount()
+        external
+        view
+        returns (uint8)
+    {
         return uint8(store>>0);
     }
 
-    function checkMaxSquareBetDefault() public view returns (uint128) {
+    function checkMaxSquareBetDefault()
+        external
+        view
+        returns (uint128)
+    {
         return uint128(store>>8);
+    }
+
+    function updatePointer(
+        address _newPointerAddress
+    )
+        external
+        onlyCEO
+    {
+        pointerContract = PointerInstance(
+            _newPointerAddress
+        );
     }
 }
