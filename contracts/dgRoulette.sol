@@ -98,13 +98,17 @@ contract dgRoulette is AccessController {
             'Roulette: exceeding maximum bet limit'
         );
 
-        bets.push(Bet({
-            player: _player,
-            betType: _betType,
-            number: _number,
-            tokenIndex: _tokenIndex,
-            value: _value
-        }));
+        bets.push(
+            Bet(
+                {
+                    player: _player,
+                    betType: _betType,
+                    number: _number,
+                    tokenIndex: _tokenIndex,
+                    value: _value
+                }
+            )
+        );
     }
 
     function _launch(
@@ -237,7 +241,9 @@ contract dgRoulette is AccessController {
             'Roulette: maximum amount of bets reached'
         );
 
-        treasury.consumeHash(_localhash);
+        treasury.consumeHash(
+            _localhash
+        );
 
         bool[5] memory checkedTokens;
         uint8 i;
@@ -273,15 +279,18 @@ contract dgRoulette is AccessController {
 
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
+
                 require(
                     getNecessaryBalance(_tokenIndex[i]) <= tokenFunds,
                     'Roulette: not enough tokens for payout'
                 );
+
                 checkedTokens[_tokenIndex[i]] = true;
             }
         }
 
         uint256 _spinResult;
+
         (winAmounts, _spinResult) = _launch(
             _localhash,
             _players,
@@ -336,7 +345,9 @@ contract dgRoulette is AccessController {
         uint256[6] memory betTypesMax;
 
         for (uint8 _i = 0; _i < bets.length; _i++) {
+
             Bet memory b = bets[_i];
+
             if (b.tokenIndex == _tokenIndex) {
 
                 uint256 _payout = getPayoutForType(b.betType, b.number);
@@ -440,7 +451,7 @@ contract dgRoulette is AccessController {
     }
 
     function checkMaxSquareBetDefault()
-        external
+        external 
         view
         returns (uint128)
     {
