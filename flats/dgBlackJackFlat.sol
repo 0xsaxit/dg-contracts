@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.7.4;
 
 interface TreasuryInstance {
 
@@ -125,48 +125,96 @@ contract AccessController {
     }
 }
 
-contract HashChain {
-    bytes32 public tail;
+contract MultiHashChain {
 
-    function _setTail(bytes32 _tail) internal {
-        tail = _tail;
+    mapping(
+        uint256 => mapping(
+            uint256 => mapping(
+                uint256 => bytes32
+            )
+        )
+    ) public tail;
+
+    function _setMultiTail(
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
+        bytes32 _tail
+    ) internal {
+        tail[_serverId][_landId][_tableId] = _tail;
     }
 
-    function _consume(bytes32 _parent) internal {
+    function _consumeMulti(
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
+        bytes32 _parent
+    ) internal {
         require(
             keccak256(
                 abi.encodePacked(_parent)
-            ) == tail,
+            ) == tail[_serverId][_landId][_tableId],
             'hash-chain: wrong parent'
         );
-        tail = _parent;
+        tail[_serverId][_landId][_tableId] = _parent;
     }
 }
 
 interface PointerInstance {
+
+    function addPoints(
+        address _player,
+        uint256 _points,
+        address _token,
+        uint256 _numPlayers,
+        uint256 _wearableBonus
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
+
     function addPoints(
         address _player,
         uint256 _points,
         address _token,
         uint256 _numPlayers
     ) external returns (
-        uint256 newPoints, uint256 multiplier);
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
 
     function addPoints(
         address _player,
         uint256 _points,
         address _token
-    ) external returns (uint256 newPoints, uint256 multiplier);
+    ) external returns (
+        uint256 newPoints,
+        uint256 multiplierA,
+        uint256 multiplierB
+    );
 }
 
 contract BlackJackHelper {
 
-    function getCardsRawData(uint8 _card) public pure returns (uint8, uint8) {
+    function getCardsRawData(
+        uint8 _card
+    )
+        public
+        pure
+        returns (uint8, uint8)
+    {
         return (_card / 13, _card % 13);
     }
 
-    function getCardsDetails(uint8 _card) public pure returns (string memory, string memory) {
-
+    function getCardsDetails(
+        uint8 _card
+    )
+        public
+        pure
+        returns (string memory, string memory)
+    {
         string[4] memory Suits = ["C", "D", "H", "S"];
         string[13] memory Vals = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K"];
 
@@ -174,7 +222,14 @@ contract BlackJackHelper {
         return (Suits[_suit], Vals[_val]);
     }
 
-    function getRandomCardIndex(bytes32 _localhash, uint256 _length) internal pure returns (uint256) {
+    function getRandomCardIndex(
+        bytes32 _localhash,
+        uint256 _length
+    )
+        internal
+        pure
+        returns (uint256)
+    {
         return uint256(
             keccak256(
                 abi.encodePacked(
@@ -184,13 +239,24 @@ contract BlackJackHelper {
         ) % _length;
     }
 
-    function getCardsPower(uint8 _card) public pure returns (uint8 power) {
+    function getCardsPower(
+        uint8 _card
+    )
+        public
+        pure
+        returns (uint8 power)
+    {
         bytes13 cardsPower = "\x0B\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0A\x0A\x0A";
         return uint8(cardsPower[_card % 13]);
     }
 
-    function getHandsPower(uint8[] memory _cards) public pure returns (uint8 powerMax) {
-
+    function getHandsPower(
+        uint8[] memory _cards
+    )
+        public
+        pure
+        returns (uint8 powerMax)
+    {
         uint8 aces;
         uint8 power;
 
@@ -212,23 +278,42 @@ contract BlackJackHelper {
         return powerMax;
     }
 
-    function isBlackJack(uint8[] memory _cards) public pure returns (bool) {
+    function isBlackJack(
+        uint8[] memory _cards
+    )
+
+        public
+        pure
+        returns (bool)
+    {
         return getHandsPower(_cards) == 21 && _cards.length == 2;
     }
 
-    function canSplitCards(uint8[] memory _cards) public pure returns (bool) {
+    function canSplitCards(
+        uint8[] memory _cards
+    )
+        public
+        pure
+        returns (bool)
+    {
         return getCardsPower(_cards[0]) == getCardsPower(_cards[1]) && _cards.length == 2;
     }
 
-    function verifyHiddenCard(bytes32 _hashChild, bytes32 _hashParent) public pure returns (bool) {
+    function verifyHiddenCard(
+        bytes32 _hashChild,
+        bytes32 _hashParent
+    )
+        public
+        pure
+        returns (bool)
+    {
         return keccak256(
             abi.encodePacked(_hashParent)
         ) == _hashChild ? true : false;
     }
-
 }
 
-contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
+contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
     enum inGameState { notJoined, Playing, EndedPlay }
     enum GameState { NewGame, OnGoingGame, EndedGame }
@@ -316,7 +401,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     event GameInitialized(
         bytes16 gameId,
-        address[] players,
         uint128[] bets,
         uint8[] tokens,
         uint256 landId,
@@ -371,8 +455,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     );
 
     event FinishedGame(
-        bytes16 gameId,
-        bytes32 localhashB
+        bytes16 gameId
     );
 
     event DoubleDown(
@@ -383,29 +466,39 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         bool
     );
 
-    PointerInstance immutable public pointerContract;
+    PointerInstance public pointerContract;
 
-    constructor(
-        address _treasuryAddress,
-        uint8 _maxPlayers,
-        address _pointerAddress
-
-    ) {
-        require(_maxPlayers < 10);
-        treasury = TreasuryInstance(_treasuryAddress);
-        maxPlayers = _maxPlayers;
-        pointerContract = PointerInstance(_pointerAddress);
+    constructor()
+    {
+        treasury = TreasuryInstance(
+            0x8562746aeab494b29394577f15E865D45F314381
+        );
+        maxPlayers = 4;
+        pointerContract = PointerInstance(
+            0x85697947b9BaC8926Bfa1e265a220436E8d0Ee84
+        );
     }
 
-    function setTail(bytes32 _localhashB) external onlyCEO {
-        _setTail(_localhashB);
+    function setMultiTail(
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
+        bytes32 _localhashB
+    ) external onlyCEO {
+        _setMultiTail(
+            _serverId,
+            _landId,
+            _tableId,
+            _localhashB
+        );
     }
 
     function _addPoints(
         address _player,
         uint256 _points,
         address _token,
-        uint256 numPlayers
+        uint256 _numPlayers,
+        uint256 _wearableBonus
     )
         private
     {
@@ -413,20 +506,31 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
             _player,
             _points,
             _token,
-            numPlayers
+            _numPlayers,
+            _wearableBonus
         );
     }
 
-    function checkPlayer(bytes16 _gameId, address _player) private {
+    function checkPlayer(
+        bytes16 _gameId,
+        address _player
+    )
+        private
+    {
         require(
             inGame[_player][_gameId] == inGameState.notJoined ||
             inGame[_player][_gameId] == inGameState.EndedPlay
         );
+
         inGame[_player][_gameId] = inGameState.Playing;
     }
 
-    function takePlayersBet(bytes16 _gameId, uint8 _playerIndex) private {
-
+    function takePlayersBet(
+        bytes16 _gameId,
+        uint8 _playerIndex
+    )
+        private
+    {
         uint8 tokenIndex = Games[_gameId].tokens[_playerIndex];
         address player = Games[_gameId].players[_playerIndex];
         uint256 betAmount = Games[_gameId].bets[_playerIndex];
@@ -444,15 +548,32 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         );
     }
 
-    function initializePlayer(bytes16 _gameId, uint8 _pIndex) private {
+    function initializePlayer(
+        bytes16 _gameId,
+        uint8 _pIndex
+    )
+        private
+    {
+        address[] memory _players = Games[_gameId].players;
+
+        checkPlayer(
+            _gameId, _players[_pIndex]
+        );
+
         Games[_gameId].pState[_pIndex] = PlayerState.notBusted;
     }
 
-    function checkForBlackJack(bytes16 _gameId, address _player, uint8 _playerIndex) private {
+    function checkForBlackJack(
+        bytes16 _gameId,
+        uint8 _playerIndex
+    )
+        private
+    {
+        address[] memory _players = Games[_gameId].players;
 
         if (
             isBlackJack(
-                    getHand(_gameId, _player, _playerIndex)
+                    getHand(_gameId, _players[_playerIndex], _playerIndex)
             )) {
             NonBustedPlayers[_gameId].push(_playerIndex);
             Games[_gameId].pState[_playerIndex] = PlayerState.hasBlackJack;
@@ -461,15 +582,11 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     function drawDealersCard(
         bytes16 _gameId,
-        bytes32 _localhashA,
-        uint256 _deckLength
+        bytes32 _localhashA
     )
         private
     {
-        uint8 _card = drawCard(_gameId, getRandomCardIndex(
-                _localhashA, _deckLength
-            )
-        );
+        uint8 _card = drawCard(_gameId, _localhashA);
 
         (
             string memory _cardsSuit,
@@ -489,17 +606,13 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     function drawPlayersCard(
         bytes16 _gameId,
         uint8 _pIndex,
-        bytes32 _localhashA,
-        uint256 _deckLength
+        bytes32 _localhashA
     )
         private
     {
         address _player = Games[_gameId].players[_pIndex];
 
-        uint8 _card = drawCard(_gameId, getRandomCardIndex(
-                _localhashA, _deckLength
-            )
-        );
+        uint8 _card = drawCard(_gameId, _localhashA);
 
         (
             string memory _cardsSuit,
@@ -526,6 +639,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         address[] calldata _players,
         uint128[] calldata _bets,
         uint8[] calldata _tokens,
+        uint256 _serverId,
         uint256 _landId,
         uint256 _tableId,
         bytes32 _localhashA,
@@ -542,10 +656,16 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
             _tokens.length == _players.length
         );
 
-        _consume(_localhashB);
-        treasury.consumeHash(_localhashA);
+        /* _consumeMulti(
+            _serverId,
+            _landId,
+            _tableId,
+            _localhashB
+        ); */
 
-        gameId = getGameId(_landId, _tableId, _players, nonce);
+        // treasury.consumeHash(_localhashA);
+
+        gameId = getGameId(_serverId, _landId, _tableId, _players, nonce);
         nonce = nonce + 1;
 
         require(
@@ -575,10 +695,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         // first card drawn to each player + take bets
         for (pIndex = 0; pIndex < _players.length; pIndex++) {
 
-            checkPlayer(
-                gameId, _players[pIndex]
-            );
-
             initializePlayer(
                 gameId, pIndex
             );
@@ -588,13 +704,13 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
             );
 
             drawPlayersCard(
-                gameId, pIndex, _localhashA, _deck.length
+                gameId, pIndex, _localhashA
             );
         }
 
         // dealers first card (visible)
         drawDealersCard(
-            gameId, _localhashA, _deck.length
+            gameId, _localhashA
         );
 
         delete NonBustedPlayers[gameId];
@@ -603,11 +719,11 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         for (pIndex = 0; pIndex < _players.length; pIndex++) {
 
             drawPlayersCard(
-                gameId, pIndex, _localhashA, _deck.length
+                gameId, pIndex, _localhashA
             );
 
             checkForBlackJack(
-                gameId, _players[pIndex], pIndex
+                gameId, pIndex
             );
         }
 
@@ -621,7 +737,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
         emit GameInitialized(
             gameId,
-            _players,
             _bets,
             _tokens,
             _landId,
@@ -631,41 +746,95 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     function manualPayout(
         bytes16 _gameId,
-        uint8[] calldata _playerIndexes,
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
         uint128[] calldata _payoutAmounts,
-        uint128[] calldata _refundAmounts
+        uint128[] calldata _refundAmounts,
+        bytes32[] calldata _localHashes,
+        uint128[] calldata _wearableBonus
     )
         external
         onlyOnGoingGame(_gameId)
         whenNotPaused
         onlyWorker
     {
-        for (uint256 i = 0; i < _payoutAmounts.length; i++) {
 
-            // winnings
+        _consumeHashes(
+            _serverId,
+            _landId,
+            _tableId,
+            _localHashes
+        );
+
+        _payout(
+            _gameId,
+            _payoutAmounts,
+            _refundAmounts,
+            _wearableBonus
+        );
+
+        emit FinishedGame(
+            _gameId
+            // _localhashB
+        );
+    }
+
+    function _payout(
+        bytes16 _gameId,
+        uint128[] calldata _payoutAmounts,
+        uint128[] calldata _refundAmounts,
+        uint128[] calldata _wearableBonus
+    )
+        internal
+    {
+        Games[_gameId].state = GameState.EndedGame;
+        for (uint8 i = 0; i < _payoutAmounts.length; i++) {
             payoutAmount(
-                Games[_gameId].tokens[_playerIndexes[i]],
-                Games[_gameId].players[_playerIndexes[i]],
-                _payoutAmounts[i]
+                Games[_gameId].tokens[i],
+                Games[_gameId].players[i],
+                _payoutAmounts[i] + _refundAmounts[i]
             );
 
-            // refunds
-            payoutAmount(
-                Games[_gameId].tokens[_playerIndexes[i]],
-                Games[_gameId].players[_playerIndexes[i]],
-                _refundAmounts[i]
-            );
+            _smartPoints(_gameId, i, _refundAmounts[i], _wearableBonus[i]);
+        }
+    }
 
-            // points
-            _addPoints(
-                Games[_gameId].players[_playerIndexes[i]],
-                Games[_gameId].bets[_playerIndexes[i]] - _refundAmounts[i],
-                treasury.getTokenAddress(Games[_gameId].tokens[_playerIndexes[i]]),
-                Games[_gameId].players.length
+    function _consumeHashes(
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
+        bytes32[] calldata _localHashes
+    )
+        internal
+    {
+        for (uint256 i = 0; i < _localHashes.length; i++) {
+            _consumeMulti(
+                _serverId,
+                _landId,
+                _tableId,
+                _localHashes[i]
             );
         }
+    }
 
-        Games[_gameId].state = GameState.EndedGame;
+    function _smartPoints(
+        bytes16 _gameId,
+        uint8 _pIndex,
+        uint128 _refundAmount,
+        uint128 _wearableBonus
+    )
+        internal
+    {
+        require(Games[_gameId].bets[_pIndex] >= _refundAmount);
+
+        _addPoints(
+            Games[_gameId].players[_pIndex],
+            Games[_gameId].bets[_pIndex] - _refundAmount,
+            treasury.getTokenAddress(Games[_gameId].tokens[_pIndex]),
+            Games[_gameId].players.length,
+            _wearableBonus
+        );
     }
 
     function prepareDeck(
@@ -682,9 +851,15 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     function drawCard(
         bytes16 _gameId,
-        uint256 _card
-    ) internal returns (uint8) {
+        bytes32 _localhashA
+    )
+        internal
+        returns (uint8)
+    {
         uint8[] storage _deck = Games[_gameId].deck;
+        uint256 _card = getRandomCardIndex(
+            _localhashA, _deck.length
+        );
         uint8 card = _deck[_card];
         _deck[_card] = _deck[_deck.length - 1];
         _deck.pop();
@@ -706,7 +881,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         treasury.consumeHash(_localhashA);
 
         drawPlayersCard(
-           _gameId, _pIndex, _localhashA, Games[_gameId].deck.length
+           _gameId, _pIndex, _localhashA
         );
 
         uint256 playersPower = getHandsPower(
@@ -740,16 +915,21 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     function revealDealersCard(
         bytes16 _gameId,
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
         bytes32 _localhashB
     )
         internal
     {
-        uint8 revealed = drawCard(_gameId, getRandomCardIndex(
-                _localhashB, Games[_gameId].deck.length
-            )
-        );
+        uint8 revealed = drawCard(_gameId, _localhashB);
 
-        _consume(_localhashB);
+        _consumeMulti(
+            _serverId,
+            _landId,
+            _tableId,
+            _localhashB
+        );
 
         (
             string memory _cardsSuit,
@@ -768,6 +948,9 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
 
     function dealersMove(
         bytes16 _gameId,
+        uint256 _serverId,
+        uint256 _landId,
+        uint256 _tableId,
         bytes32 _localhashA,
         bytes32 _localhashB
     )
@@ -790,7 +973,14 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         );
 
         treasury.consumeHash(_localhashA);
-        revealDealersCard(_gameId, _localhashB);
+
+        revealDealersCard(
+            _gameId,
+            _serverId,
+            _landId,
+            _tableId,
+            _localhashB
+        );
 
         uint8[] memory _leftPlayers = getNotBustedPlayers(_gameId);
 
@@ -814,28 +1004,20 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
                 // draw cards for dealer with _localhashA
                 while (dealersPower <= 16) {
 
-                    _card = drawCard(_gameId, getRandomCardIndex(
-                            _localhashA, Games[_gameId].deck.length
-                        )
-                    );
+                    _card = drawCard(_gameId, _localhashA);
 
                     (
                         string memory _cardsSuit,
                         string memory _cardsVal
                     ) = getCardsDetails(_card);
 
-                    DealersVisible[_gameId].push(_card);
-
-                    emit DealersCardDrawn(
+                    dealersPower = _dealerAddVisible(
                         _gameId,
                         _card,
                         _cardsSuit,
                         _cardsVal
                     );
 
-                    dealersPower = getHandsPower(
-                        DealersVisible[_gameId]
-                    );
                 }
 
                 delete _card;
@@ -855,12 +1037,40 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         Games[_gameId].state = GameState.EndedGame;
 
         emit FinishedGame(
-            _gameId,
-            _localhashB
+            _gameId
+            // _localhashB
         );
     }
 
-    function $payoutAgainstBlackJack(bytes16 _gameId, uint8[] memory _leftPlayers) private {
+    function _dealerAddVisible(
+        bytes16 _gameId,
+        uint8 _card,
+        string memory _cardsSuit,
+        string memory _cardsVal
+    )
+        internal
+        returns (uint256)
+    {
+        DealersVisible[_gameId].push(_card);
+
+        emit DealersCardDrawn(
+            _gameId,
+            _card,
+            _cardsSuit,
+            _cardsVal
+        );
+
+        return getHandsPower(
+            DealersVisible[_gameId]
+        );
+    }
+
+    function $payoutAgainstBlackJack(
+        bytes16 _gameId,
+        uint8[] memory _leftPlayers
+    )
+        private
+    {
         for (uint256 i = 0; i < _leftPlayers.length; i++) {
 
             address player = Games[_gameId].players[_leftPlayers[i]];
@@ -901,7 +1111,13 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         }
     }
 
-    function $payoutAgainstDealersHand(bytes16 _gameId, uint8[] memory _leftPlayers, uint256 _dealersPower) private {
+    function $payoutAgainstDealersHand(
+        bytes16 _gameId,
+        uint8[] memory _leftPlayers,
+        uint256 _dealersPower
+    )
+        private
+    {
         for (uint256 i = 0; i < _leftPlayers.length; i++) {
 
             uint8 pi = _leftPlayers[i]; // players index
@@ -933,11 +1149,23 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         }
     }
 
-    function getNotBustedPlayers(bytes16 _gameId) public view returns (uint8[] memory) {
+    function getNotBustedPlayers(
+        bytes16 _gameId
+    )
+        public
+        view
+        returns (uint8[] memory)
+    {
         return NonBustedPlayers[_gameId];
     }
 
-    function payoutAmount(uint8 _tokenIndex, address _player, uint128 _amount) private {
+    function payoutAmount(
+        uint8 _tokenIndex,
+        address _player,
+        uint128 _amount
+    )
+        private
+    {
         treasury.tokenOutboundTransfer(
             _tokenIndex, _player, uint256(_amount)
         );
@@ -1012,7 +1240,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
             player,
             betAmount / 2,
             treasury.getTokenAddress(tokenIndex),
-            playersCount
+            playersCount,
+            0
         );
 
         treasury.tokenInboundTransfer(
@@ -1051,7 +1280,8 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
             player,
             betAmount,
             treasury.getTokenAddress(tokenIndex),
-            playersCount
+            playersCount,
+            0
         );
 
         treasury.tokenInboundTransfer(
@@ -1079,7 +1309,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         uint8 _pIndex,
         uint128 newBetAmount
     )
-        public
+        internal
     {
         Games[_gameId].bets[_pIndex] = newBetAmount;
     }
@@ -1090,10 +1320,10 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         bytes32 _localhashA,
         uint8 _pIndex
     )
-        public
+        internal
     {
         drawPlayersCard(
-           _gameId, _pIndex, _localhashA, Games[_gameId].deck.length
+           _gameId, _pIndex, _localhashA
         );
 
         uint256 playersPower = getHandsPower(
@@ -1117,7 +1347,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     function checkDeck(
         bytes16 _gameId
     )
-        public
+        external
         view
         returns (uint8[] memory _deck)
     {
@@ -1125,6 +1355,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     }
 
     function getGameId(
+        uint256 _serverID,
         uint256 _landID,
         uint256 _tableID,
         address[] memory _players,
@@ -1136,74 +1367,10 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
     {
         gameId = bytes16(
             keccak256(
-                abi.encodePacked(_landID, _tableID, _players, _nonce)
+                abi.encodePacked(_serverID, _landID, _tableID, _players, _nonce)
             )
         );
     }
-
-    /*
-    function checkPlayerInGame(
-        bytes16 _gameId,
-        address _player
-    )
-        external
-        view
-        returns (bool)
-    {
-        return inGame[_player][_gameId] == inGameState.notJoined ? false : true;
-    }
-
-    function checkMyHand(
-        bytes16 _gameId
-    )
-        external
-        view
-        returns (uint8[] memory)
-    {
-        return checkPlayersHand(_gameId, msg.sender);
-    }
-
-    function checkMySplit(
-        bytes16 _gameId
-    )
-        external
-        view
-        returns (uint8[] memory)
-    {
-        return checkPlayerSplit(_gameId, msg.sender);
-    }
-
-    function checkDealersHand(
-        bytes16 _gameId
-    )
-        public
-        view
-        returns (uint8[] memory)
-    {
-        return DealersVisible[_gameId];
-    }
-
-    function checkPlayersHand(
-        bytes16 _gameId,
-        address _player
-    )
-        public
-        view
-        returns (uint8[] memory)
-    {
-        return PlayersHand[_player][_gameId];
-    }
-
-    function checkPlayerSplit(
-        bytes16 _gameId,
-        address _player
-    )
-        public
-        view
-        returns (uint8[] memory)
-    {
-        return PlayerSplit[_player][_gameId];
-    }*/
 
     function getHand(
         bytes16 _gameId,
@@ -1230,12 +1397,14 @@ contract dgBlackJack is AccessController, BlackJackHelper, HashChain {
         return Games[_gameId].pState[_pIndex] == PlayerState.isSplit;
     }
 
-    function changeTreasury(
-        address _newTreasuryAddress
+    function updatePointer(
+        address _newPointerAddress
     )
         external
         onlyCEO
     {
-        treasury = TreasuryInstance(_newTreasuryAddress);
+        pointerContract = PointerInstance(
+            _newPointerAddress
+        );
     }
 }
