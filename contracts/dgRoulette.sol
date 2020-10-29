@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.7.4;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
@@ -51,7 +51,8 @@ contract dgRoulette is AccessController {
         uint128 _maxSquareBetDefault,
         uint8 _maxNumberBets,
         address _pointerAddress
-    ) {
+        )
+    {
         treasury = TreasuryInstance(_treasuryAddress);
         store |= _maxNumberBets<<0;
         store |= _maxSquareBetDefault<<8;
@@ -83,8 +84,9 @@ contract dgRoulette is AccessController {
         uint8 _number,
         uint8 _tokenIndex,
         uint128 _value
-    ) internal {
-
+    )
+        internal
+    {
         currentBets[_tokenIndex][_betType][_number] += _value;
 
         uint256 _maxSquareBet = maxSquareBets[_tokenIndex] == 0
@@ -111,7 +113,13 @@ contract dgRoulette is AccessController {
         uint8[] memory _tokenIndex,
         uint256 _landID,
         uint256 _machineID
-    ) private returns(uint256[] memory, uint256 number) {
+    )
+        private
+        returns(
+            uint256[] memory,
+            uint256 number
+        )
+    {
 
         require(block.timestamp > store>>136, 'Roulette: expired round');
         require(bets.length > 0, 'Roulette: must have bets');
@@ -187,7 +195,10 @@ contract dgRoulette is AccessController {
             winAmounts
         );
 
-        return(winAmounts, number);
+        return(
+            winAmounts,
+            number
+        );
     }
 
     function play(
@@ -201,8 +212,11 @@ contract dgRoulette is AccessController {
         uint8[] memory _tokenIndex,
         uint8 _playerCount,
         uint8[] memory _wearableBonus
-    ) public whenNotPaused onlyWorker {
-
+    )
+        public
+        whenNotPaused
+        onlyWorker
+    {
         require(
             _betIDs.length == _betValues.length,
             'Roulette: inconsistent amount of betsValues'
@@ -224,6 +238,7 @@ contract dgRoulette is AccessController {
         );
 
         treasury.consumeHash(_localhash);
+
         bool[5] memory checkedTokens;
         uint8 i;
 
@@ -289,8 +304,11 @@ contract dgRoulette is AccessController {
     function getPayoutForType(
         uint256 _betType,
         uint256 _betNumber
-    ) public pure returns(uint256) {
-
+    )
+        public
+        pure
+        returns(uint256)
+    {
         if (_betType == uint8(BetType.Single))
             return _betNumber > 36 ? 0 : 36;
         if (_betType == uint8(BetType.EvenOdd))
@@ -309,10 +327,11 @@ contract dgRoulette is AccessController {
 
     function getNecessaryBalance(
         uint256 _tokenIndex
-    ) public view returns (
-        uint256 _necessaryBalance
-    ) {
-
+    )
+        public
+        view
+        returns (uint256 _necessaryBalance)
+    {
         uint256 _necessaryForBetType;
         uint256[6] memory betTypesMax;
 
@@ -343,53 +362,88 @@ contract dgRoulette is AccessController {
         }
     }
 
-    function getBetsCountAndValue() external view returns(uint value, uint) {
+    function getBetsCountAndValue()
+        external
+        view
+        returns(uint value, uint)
+    {
         for (uint i = 0; i < bets.length; i++) {
             value += bets[i].value;
         }
+
         return (bets.length, value);
     }
 
-    function getBetsCount() external view returns (uint256) {
+    function getBetsCount()
+        external
+        view
+        returns (uint256)
+    {
         return bets.length;
     }
 
     function changeMaxSquareBet(
         uint256 _tokenIndex,
         uint256 _newMaxSquareBet
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         maxSquareBets[_tokenIndex] = _newMaxSquareBet;
     }
 
     function changeMaxSquareBetDefault(
         uint128 _newMaxSquareBetDefault
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         store ^= uint128((store>>8))<<8;
         store |= _newMaxSquareBetDefault<<8;
     }
 
     function changeMaximumBetAmount(
         uint8 _newMaximumBetAmount
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         store ^= uint8(store)<<0;
         store |= _newMaximumBetAmount<<0;
     }
 
     function changeTreasury(
         address _newTreasuryAddress
-    ) external onlyCEO {
-        treasury = TreasuryInstance(_newTreasuryAddress);
+    )
+        external
+        onlyCEO
+    {
+        treasury = TreasuryInstance(
+            _newTreasuryAddress
+        );
     }
 
-    function getNextRoundTimestamp() external view returns(uint) {
-         return store>>136;
+    function getNextRoundTimestamp()
+        external
+        view
+        returns(uint)
+    {
+        return store>>136;
     }
 
-    function checkMaximumBetAmount() public view returns (uint8) {
+    function checkMaximumBetAmount()
+        external
+        view
+        returns (uint8)
+    {
         return uint8(store>>0);
     }
 
-    function checkMaxSquareBetDefault() public view returns (uint128) {
+    function checkMaxSquareBetDefault()
+        external
+        view
+        returns (uint128)
+    {
         return uint128(store>>8);
     }
 
