@@ -241,7 +241,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         address _player,
         uint256 _points,
         address _token,
-        uint256 _numPlayers
+        uint256 _playersCount
     )
         public
         returns (
@@ -254,7 +254,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
             _player,
             _points,
             _token,
-            _numPlayers,
+            _playersCount,
             0
         );
     }
