@@ -291,16 +291,22 @@ contract GameController is AccessController {
         address _newGameAddress,
         string calldata _newGameName,
         bool _isActive
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         require(
             settings[_newGameAddress].status == GameStatus.Empty,
             'Treasury: game already declared!'
         );
+
         treasuryGames.push(
-            Game({
-                gameAddress: _newGameAddress,
-                gameName: _newGameName
-            })
+            Game(
+                {
+                    gameAddress: _newGameAddress,
+                    gameName: _newGameName
+                }
+            )
         );
         settings[_newGameAddress].index = uint8(treasuryGames.length - 1);
         settings[_newGameAddress].status = _isActive == true
@@ -310,7 +316,11 @@ contract GameController is AccessController {
 
     function getGameIndex(
         address _gameAddress
-    ) internal view returns (uint8) {
+    )
+        internal
+        view
+        returns (uint8)
+    {
         require(
             settings[_gameAddress].status != GameStatus.Empty,
             'Treasury: game is not declared!'
@@ -321,8 +331,11 @@ contract GameController is AccessController {
     function updateGameAddress(
         uint8 _gameIndex,
         address _newGameAddress
-    ) external onlyCEO onlyDeclaredGame(_gameIndex) {
-
+    )
+        external
+        onlyCEO
+        onlyDeclaredGame(_gameIndex)
+    {
         require(
             settings[_newGameAddress].status == GameStatus.Empty,
             'Treasury: game with new address already declared!'
@@ -336,34 +349,54 @@ contract GameController is AccessController {
     function updateGameName(
         uint8 _gameIndex,
         string calldata _newGameName
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         treasuryGames[_gameIndex].gameName = _newGameName;
     }
 
     function enableGame(
         uint8 _gameIndex
-    ) external onlyCEO onlyDisabledGame(_gameIndex) {
-        settings[
-            treasuryGames[_gameIndex].gameAddress
-        ].status = GameStatus.Enabled;
+    )
+        external
+        onlyCEO
+        onlyDisabledGame(_gameIndex)
+    {
+        settings[treasuryGames[_gameIndex].gameAddress].status = GameStatus.Enabled;
     }
 
     function disableGame(
         uint8 _gameIndex
-    ) external onlyCEO onlyEnabledGame(_gameIndex) {
-        settings[
-            treasuryGames[_gameIndex].gameAddress
-        ].status = GameStatus.Disabled;
+    )
+        external
+        onlyCEO
+        onlyEnabledGame(_gameIndex)
+    {
+        settings[treasuryGames[_gameIndex].gameAddress].status = GameStatus.Disabled;
     }
 
-    function addGameTokens(uint8 _gameIndex, uint8 _tokenIndex, uint256 _amount) internal {
-        gameTokens[_gameIndex][_tokenIndex] = gameTokens[_gameIndex][_tokenIndex].add(_amount);
+    function addGameTokens(
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint256 _amount
+    )
+        internal
+    {
+        gameTokens[_gameIndex][_tokenIndex] =
+        gameTokens[_gameIndex][_tokenIndex].add(_amount);
     }
 
-    function subGameTokens(uint8 _gameIndex, uint8 _tokenIndex, uint256 _amount) internal {
-        gameTokens[_gameIndex][_tokenIndex] = gameTokens[_gameIndex][_tokenIndex].sub(_amount);
+    function subGameTokens(
+        uint8 _gameIndex,
+        uint8 _tokenIndex,
+        uint256 _amount
+    )
+        internal
+    {
+        gameTokens[_gameIndex][_tokenIndex] =
+        gameTokens[_gameIndex][_tokenIndex].sub(_amount);
     }
-
 }
 
 contract TokenController is AccessController {
@@ -378,11 +411,18 @@ contract TokenController is AccessController {
     function addToken(
         address _tokenAddress,
         string memory _tokenName
-    ) public onlyCEO {
-        treasuryTokens.push(Token({
-            tokenAddress: _tokenAddress,
-            tokenName: _tokenName
-        }));
+    )
+        public
+        onlyCEO
+    {
+        treasuryTokens.push(
+            Token(
+                {
+                    tokenAddress: _tokenAddress,
+                    tokenName: _tokenName
+                }
+            )
+        );
     }
 
     function getTokenInstance(
@@ -436,8 +476,13 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
     constructor(
         address _defaultTokenAddress,
         string memory _defaultTokenName
-    ) EIP712Base('Treasury', 'v3.0') {
-        addToken(_defaultTokenAddress, _defaultTokenName);
+    )
+        EIP712Base('Treasury', 'v4.0')
+    {
+        addToken(
+            _defaultTokenAddress,
+            _defaultTokenName
+        );
     }
 
     function disableAccount(
@@ -460,9 +505,21 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
     {
         uint8 _gameIndex = getGameIndex(msg.sender);
         address _token = getTokenAddress(_tokenIndex);
-        addGameTokens(_gameIndex, _tokenIndex, _amount);
-        safeTransferFrom(_token, _from, address(this), _amount);
+
+        addGameTokens(
+            _gameIndex,
+            _tokenIndex,
+            _amount
+        );
+
+        safeTransferFrom(
+            _token,
+            _from,
+            address(this), _amount
+        );
+
         enabledTill[_from] = block.timestamp.add(getTimeFrame(msg.sender));
+
         return true;
     }
 
@@ -477,8 +534,19 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
     {
         uint8 _gameIndex = getGameIndex(msg.sender);
         address _token = getTokenAddress(_tokenIndex);
-        subGameTokens(_gameIndex, _tokenIndex, _amount);
-        safeTransfer(_token, _to, _amount);
+
+        subGameTokens(
+            _gameIndex,
+            _tokenIndex,
+            _amount
+        );
+
+        safeTransfer(
+            _token,
+            _to,
+            _amount
+        );
+
         return true;
     }
 
@@ -486,30 +554,48 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
         uint8 _gameIndex,
         uint8 _tokenIndex,
         uint128 _maximumBet
-    ) external onlyCEO onlyDeclaredGame(_gameIndex) {
+    )
+        external
+        onlyCEO
+        onlyDeclaredGame(_gameIndex)
+    {
         maximumBet[_gameIndex][_tokenIndex] = _maximumBet;
     }
 
     function gameMaximumBet(
         uint8 _gameIndex,
         uint8 _tokenIndex
-    ) external view onlyDeclaredGame(_gameIndex) returns (uint256) {
+    )
+        external
+        view
+        onlyDeclaredGame(_gameIndex)
+        returns (uint256)
+    {
         return maximumBet[_gameIndex][_tokenIndex];
     }
 
     function getMaximumBet(
         uint8 _tokenIndex
-    ) external view returns (uint128) {
+    )
+        external
+        view
+        returns (uint128)
+    {
         uint8 _gameIndex = getGameIndex(msg.sender);
         return maximumBet[_gameIndex][_tokenIndex];
     }
 
     function deleteGame(
         uint8 _gameIndex
-    ) public onlyCEO {
+    )
+        public
+        onlyCEO
+    {
         for (uint8 _tokenIndex = 0; _tokenIndex < treasuryTokens.length; _tokenIndex++) {
             _withdrawGameTokens(
-                _gameIndex, _tokenIndex, gameTokens[_gameIndex][_tokenIndex]
+                _gameIndex,
+                _tokenIndex,
+                gameTokens[_gameIndex][_tokenIndex]
             );
             gameTokens[_gameIndex][_tokenIndex] = 0;
             maximumBet[_gameIndex][_tokenIndex] = 0;
@@ -520,14 +606,17 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
     function checkApproval(
         address _userAddress,
         uint8 _tokenIndex
-    ) external view returns (uint256) {
+    )
+        external
+        view
+        returns (uint256)
+    {
         return getTokenInstance(_tokenIndex).allowance(
             _userAddress,
             address(this)
         );
     }
 
-    // no direct transfers
     receive() external payable {
         revert();
     }
@@ -549,16 +638,36 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
             'Treasury: unregistered tokenIndex'
         );
 
-        ERC20Token token = getTokenInstance(_tokenIndex);
-        addGameTokens(_gameIndex, _tokenIndex, _tokenAmount);
-        token.transferFrom(msg.sender, address(this), _tokenAmount);
+        ERC20Token token = getTokenInstance(
+            _tokenIndex
+        );
+
+        addGameTokens(
+            _gameIndex,
+            _tokenIndex,
+            _tokenAmount
+        );
+
+        token.transferFrom(
+            msg.sender,
+            address(this),
+            _tokenAmount
+        );
     }
 
     function checkAllocatedTokens(
         uint8 _tokenIndex
-    ) external view returns (uint256) {
+    )
+        external
+        view
+        returns (uint256)
+    {
         uint8 _gameIndex = getGameIndex(msg.sender);
-        return _checkAllocatedTokens(_gameIndex, _tokenIndex);
+
+        return _checkAllocatedTokens(
+            _gameIndex,
+            _tokenIndex
+        );
     }
 
     function _checkAllocatedTokens(
@@ -571,61 +680,100 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
     function checkGameTokens(
         uint8 _gameIndex,
         uint8 _tokenIndex
-    ) external view returns (uint256) {
-        return _checkAllocatedTokens(_gameIndex, _tokenIndex);
+    )
+        external
+        view
+        returns (uint256)
+    {
+        return _checkAllocatedTokens(
+            _gameIndex,
+            _tokenIndex
+        );
     }
 
     function _withdrawGameTokens(
         uint8 _gameIndex,
         uint8 _tokenIndex,
         uint256 _amount
-    ) internal {
-        ERC20Token token = getTokenInstance(_tokenIndex);
-        subGameTokens(_gameIndex, _tokenIndex, _amount);
-        token.transfer(ceoAddress, _amount);
+    )
+        internal
+    {
+        ERC20Token token = getTokenInstance(
+            _tokenIndex
+        );
+
+        subGameTokens(
+            _gameIndex,
+            _tokenIndex,
+            _amount
+        );
+
+        token.transfer(
+            ceoAddress,
+            _amount
+        );
     }
 
     function withdrawGameTokens(
         uint8 _gameIndex,
         uint8 _tokenIndex,
         uint256 _amount
-    ) external onlyCEO {
-        _withdrawGameTokens(_gameIndex, _tokenIndex, _amount);
+    )
+        external
+        onlyCEO
+    {
+        _withdrawGameTokens(
+            _gameIndex,
+            _tokenIndex,
+            _amount
+        );
     }
 
     function withdrawTreasuryTokens(
         uint8 _tokenIndex
     ) public onlyCEO {
 
-        ERC20Token token = getTokenInstance(_tokenIndex);
+        ERC20Token token = getTokenInstance(
+            _tokenIndex
+        );
 
         uint256 amount = token.balanceOf(
             address(this)
         );
 
         for (uint256 i = 0; i < treasuryGames.length; i++) {
-            uint8 _gameIndex = settings[
-                treasuryGames[i].gameAddress
-            ].index;
+            uint8 _gameIndex = settings[treasuryGames[i].gameAddress].index;
             gameTokens[_gameIndex][_tokenIndex] = 0;
         }
-        token.transfer(ceoAddress, amount);
+
+        token.transfer(
+            ceoAddress,
+            amount
+        );
     }
 
     function setTail(
         bytes32 _tail
-    ) external onlyCEO {
+    )
+        external
+        onlyCEO
+    {
         _setTail(_tail);
     }
 
     function consumeHash(
         bytes32 _localhash
-    ) external returns (bool) {
+    )
+        external
+        returns (bool)
+    {
         require(
             settings[msg.sender].status == GameStatus.Enabled,
             'Treasury: active-game not present'
         );
+
         _consume(_localhash);
+
         return true;
     }
 }
