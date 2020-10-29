@@ -825,7 +825,7 @@ contract dgTreasury is GameController, TokenController, HashChain, TransferHelpe
     function setTail(
         bytes32 _tail
     )
-        external
+        external 
         onlyCEO
     {
         _setTail(_tail);
