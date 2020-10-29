@@ -64,19 +64,28 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
-    ) public returns (bytes memory) {
+    )
+        public
+        returns (bytes memory)
+    {
         MetaTransaction memory metaTx = MetaTransaction({
             nonce: nonces[userAddress],
             from: userAddress,
             functionSignature: functionSignature
         });
+
         require(
             verify(userAddress, metaTx, sigR, sigS, sigV),
             "Signer and signature do not match"
         );
+
         // Append userAddress and relayer address at the end to extract it from calling context
         (bool success, bytes memory returnData) = address(this).call(
-            abi.encodePacked(functionSignature, userAddress, msg.sender)
+            abi.encodePacked(
+                functionSignature,
+                userAddress,
+                msg.sender
+            )
         );
 
         require(success, "Treasury: Function call not successfull");
@@ -91,27 +100,55 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         return returnData;
     }
 
-    function getNonce(address user) public view returns(uint256 nonce) {
+    function getNonce(
+        address user
+    )
+        public
+        view
+        returns(uint256 nonce)
+    {
         nonce = nonces[user];
     }
 
 
-    function enableAccount(uint256 _sessionDuration) external {
-        _enableAccount(msgSender(), _sessionDuration);
-    }
-
-    function _enableAccount(address _user, uint256 _sessionDuration) internal {
-        timeFrame[_user] = _sessionDuration;
-        enabledTill[_user] = block.timestamp.add(
-            timeFrame[_user]
+    function enableAccount(
+        uint256 _sessionDuration
+    )
+        external
+    {
+        _enableAccount(
+            msgSender(),
+            _sessionDuration
         );
     }
 
-    function getTimeFrame(address _account) internal view returns (uint256) {
+    function _enableAccount(
+        address _user,
+        uint256 _sessionDuration
+    )
+        internal
+    {
+        timeFrame[_user] = _sessionDuration;
+        enabledTill[_user] = block.timestamp.add(timeFrame[_user]);
+    }
+
+    function getTimeFrame(
+        address _account
+    )
+        internal
+        view
+        returns (uint256)
+    {
         return timeFrame[_account] > 0 ? timeFrame[_account] : defaultTimeFrame;
     }
 
-    function isEnabled(address _account) public view returns (bool) {
+    function isEnabled(
+        address _account
+    )
+        public
+        view
+        returns (bool)
+    {
         return enabledTill[_account] > block.timestamp;
     }
 
@@ -121,7 +158,11 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
-    ) internal view returns (bool) {
+    )
+        internal
+        view
+        returns (bool)
+    {
         return
             signer ==
             ecrecover(
@@ -148,7 +189,11 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
             );
     }
 
-    function msgSender() internal view returns(address sender) {
+    function msgSender()
+        internal
+        view
+        returns(address sender)
+    {
         if(msg.sender == address(this)) {
             bytes memory array = msg.data;
             uint256 index = msg.data.length;
