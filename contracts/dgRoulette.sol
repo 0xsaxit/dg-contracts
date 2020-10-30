@@ -172,7 +172,7 @@ contract dgRoulette is AccessController {
                 if (b.number == 1) won = (number % 3 == 2);
                 if (b.number == 2) won = (number % 3 == 0);
             } else if (b.betType == uint(BetType.Dozen)) {
-                if (b.number == 0) won = (number <= 12);
+                if (b.number == 0) won = (number > 0 && number <= 12);
                 if (b.number == 1) won = (number > 12 && number <= 24);
                 if (b.number == 2) won = (number > 24);
             }
@@ -444,14 +444,14 @@ contract dgRoulette is AccessController {
 
     function checkMaximumBetAmount()
         external
-        view
+        view 
         returns (uint8)
     {
         return uint8(store>>0);
     }
 
     function checkMaxSquareBetDefault()
-        external 
+        external
         view
         returns (uint128)
     {
