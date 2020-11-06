@@ -27,7 +27,7 @@ contract EIP712Base {
 
     function getChainID() internal pure returns (uint256 id) {
 		assembly {
-			id := 5 // set to Goerli for now, Mainnet later
+			id := 1 // set to Goerli for now, Mainnet later
 		}
 	}
 
