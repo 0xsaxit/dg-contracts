@@ -3,13 +3,17 @@
 pragma solidity ^0.7.4;
 
 import "./common-contracts/SafeMath.sol";
+import "./common-contracts/ERC20Token.sol";
 
 contract dgKeeper {
 
     using SafeMath for uint256;
 
     address public gateKeeper;
+    address public gateOverseer;
     address public distributionToken;
+
+    uint256 public totalAvailable;
 
     mapping(address => uint256) public keeperRate;
     mapping(address => uint256) public keeperFrom;
@@ -22,7 +26,15 @@ contract dgKeeper {
     modifier onlyGateKeeper() {
         require(
             msg.sender == gateKeeper,
-            'dgKeeper: access denied!'
+            'dgKeeper: keeper denied!'
+        );
+        _;
+    }
+
+    modifier onlyGateOverseer() {
+        require(
+            msg.sender == gateOverseer,
+            'dgKeeper: overseer denied!'
         );
         _;
     }
@@ -33,9 +45,31 @@ contract dgKeeper {
         uint256 timestamp
     );
 
-    constructor(address _distributionToken) {
+    event recipientCreated (
+        address indexed recipient,
+        uint256 timeLock,
+        uint256 timeReward,
+        uint256 instantReward,
+        uint256 timestamp,
+        bool isImmutable
+    );
+
+    event recipientAdjusted (
+        address indexed recipient,
+        uint256 timeLock,
+        uint256 timeReward,
+        uint256 instantReward,
+        uint256 timestamp
+    );
+
+    constructor(
+        address _distributionToken,
+        address _gateOverseer,
+        address _gateKeeper
+    ) {
         distributionToken = _distributionToken;
-        gateKeeper = msg.sender;
+        gateOverseer = _gateOverseer;
+        gateKeeper = _gateKeeper;
     }
 
     function allocateTokensBulk(
@@ -64,7 +98,7 @@ contract dgKeeper {
         uint256 _tokensOpened,
         uint256 _tokensLocked,
         uint256 _timeFrame,
-        bool _immutable
+        bool _isImmutable
     )
         public
         onlyGateKeeper
@@ -75,42 +109,128 @@ contract dgKeeper {
         );
 
         require(
-            isImmutable[_recipient] == false,
-            'dgKeeper: immutable recepient'
+            keeperRate[_recipient] == 0,
+            'dgKeeper: _recipient is active'
+        );
+
+        totalAvailable =
+        totalAvailable
+            .add(_tokensOpened)
+            .add(_tokensLocked);
+
+        ERC20Token t = ERC20Token(
+            distributionToken
+        );
+
+        require(
+            t.balanceOf(address(this)) >= totalAvailable,
+            'dgKeeper: not enough tokens inside contract'
         );
 
         keeperFrom[_recipient] = getNow();
         keeperTill[_recipient] = getNow().add(_timeFrame);
         keeperRate[_recipient] = _tokensLocked.div(_timeFrame);
         keeperBalance[_recipient] = _tokensOpened;
-        isImmutable[_recipient] = _immutable;
+        isImmutable[_recipient] = _isImmutable;
+
+        emit recipientCreated (
+            _recipient,
+            _timeFrame,
+            _tokensLocked,
+            _tokensOpened,
+            block.timestamp,
+            _isImmutable
+        );
     }
 
-    function scrapeTokens()
+    function scrapeMyTokens()
         external
     {
-        uint256 scrapeAmount =
-        availableBalance(msg.sender);
+        _scrapeTokens(msg.sender);
+    }
 
-        keeperPayouts[msg.sender] =
-        keeperPayouts[msg.sender].add(scrapeAmount);
+    function _scrapeTokens(
+        address _recipient
+    )
+        internal
+    {
+       uint256 scrapeAmount =
+        availableBalance(_recipient);
 
-        /*
+        keeperPayouts[_recipient] =
+        keeperPayouts[_recipient].add(scrapeAmount);
+
         safeTransfer(
             distributionToken,
-            msg.sender,
+            _recipient,
             scrapeAmount
         );
-        */
+
+        totalAvailable =
+        totalAvailable.sub(scrapeAmount);
 
         emit tokensScraped (
-            msg.sender,
+            _recipient,
             scrapeAmount,
             block.timestamp
         );
     }
 
-    function availableBalance(address _recipients)
+    function adjustRecipient(
+        address _recipient,
+        uint256 _tokensOpened,
+        uint256 _tokensLocked,
+        uint256 _timeFrame
+    )
+        external
+        onlyGateOverseer
+    {
+        require(
+            keeperRate[_recipient] > 0,
+            'dgKeeper: _recipient is not active'
+        );
+
+        require(
+            isImmutable[_recipient] == false,
+            'dgKeeper: _recipient is immutable'
+        );
+
+        _scrapeTokens(_recipient);
+
+        totalAvailable =
+        totalAvailable
+            .add(_tokensOpened)
+            .add(_tokensLocked)
+            .sub(lockedBalance(_recipient));
+
+        ERC20Token t = ERC20Token(
+            distributionToken
+        );
+
+        require(
+            t.balanceOf(address(this)) >= totalAvailable,
+            'dgKeeper: not enough tokens inside contract'
+        );
+
+        keeperFrom[_recipient] = getNow();
+        keeperTill[_recipient] = getNow().add(_timeFrame);
+        keeperRate[_recipient] = _timeFrame > 0
+            ? _tokensLocked.div(_timeFrame) : 0;
+        keeperBalance[_recipient] = _tokensOpened;
+        keeperPayouts[_recipient] = 0;
+
+        emit recipientAdjusted (
+            _recipient,
+            _timeFrame,
+            _tokensLocked,
+            _tokensOpened,
+            block.timestamp
+        );
+    }
+
+    function availableBalance(
+        address _recipients
+    )
         public
         view
         returns (uint256)
@@ -129,7 +249,7 @@ contract dgKeeper {
     }
 
     function lockedBalance(address _recipients)
-        external
+        public
         view
         returns (uint256)
     {
