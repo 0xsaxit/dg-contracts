@@ -328,11 +328,9 @@ contract dgKeeper {
         );
 
         require(
-            success && (
-                data.length == 0 || abi.decode(
-                    data, (uint256)
-                ) >= _required
-            ),
+            success && abi.decode(
+                data, (uint256)
+            ) >= _required,
             'dgKeeper: BALANCEOF_FAILED'
         );
     }
