@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.4;
+pragma solidity ^0.7.5;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
@@ -19,6 +19,9 @@ contract dgRoulette is AccessController {
     uint256 private store;
 
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
+
+    mapping (address => uint) public totalBets;
+    mapping (address => uint) public totalPayout;
 
     mapping (uint => uint) public maxSquareBets;
     mapping (uint => mapping (uint => mapping (uint => uint))) public currentBets;
@@ -51,8 +54,7 @@ contract dgRoulette is AccessController {
         uint128 _maxSquareBetDefault,
         uint8 _maxNumberBets,
         address _pointerAddress
-        )
-    {
+    ) {
         treasury = TreasuryInstance(_treasuryAddress);
         store |= _maxNumberBets<<0;
         store |= _maxSquareBetDefault<<8;
@@ -98,17 +100,13 @@ contract dgRoulette is AccessController {
             'Roulette: exceeding maximum bet limit'
         );
 
-        bets.push(
-            Bet(
-                {
-                    player: _player,
-                    betType: _betType,
-                    number: _number,
-                    tokenIndex: _tokenIndex,
-                    value: _value
-                }
-            )
-        );
+        bets.push(Bet({
+            player: _player,
+            betType: _betType,
+            number: _number,
+            tokenIndex: _tokenIndex,
+            value: _value
+        }));
     }
 
     function _launch(
@@ -124,7 +122,6 @@ contract dgRoulette is AccessController {
             uint256 number
         )
     {
-
         require(block.timestamp > store>>136, 'Roulette: expired round');
         require(bets.length > 0, 'Roulette: must have bets');
 
@@ -137,14 +134,14 @@ contract dgRoulette is AccessController {
             keccak256(
                 abi.encodePacked(_localhash)
             )
-        ) % 37;
+        ) % 38;
 
         for (uint i = 0; i < bets.length; i++) {
             bool won = false;
             Bet memory b = bets[i];
             if (b.betType == uint(BetType.Single) && b.number == number) {
                 won = true;
-            } else if (b.betType == uint(BetType.EvenOdd)) {
+            } else if (b.betType == uint(BetType.EvenOdd) && number <= 36) {
                 if (number > 0 && number % 2 == b.number) {
                     won = true;
                 }
@@ -152,29 +149,33 @@ contract dgRoulette is AccessController {
                 if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 1);
                 } else {
-                    won = (number % 2 == 0);
+                    if (number > 0 && number <= 36) {
+                        won = (number % 2 == 0);
+                    }
                 }
             } else if (b.betType == uint(BetType.RedBlack) && b.number == 1) {
                 if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 0);
                 } else {
-                    won = (number % 2 == 1);
+                    if (number > 0 && number <= 36) {
+                        won = (number % 2 == 1);
+                    }
                 }
-            } else if (b.betType == uint(BetType.HighLow)) {
+            } else if (b.betType == uint(BetType.HighLow) && number <= 36) {
                 if (number >= 19 && b.number == 0) {
                     won = true;
                 }
                 if (number > 0 && number <= 18 && b.number == 1) {
                     won = true;
                 }
-            } else if (b.betType == uint(BetType.Column)) {
-                if (b.number == 0) won = (number % 3 == 1);
-                if (b.number == 1) won = (number % 3 == 2);
-                if (b.number == 2) won = (number % 3 == 0);
-            } else if (b.betType == uint(BetType.Dozen)) {
+            } else if (b.betType == uint(BetType.Column) && number <= 36) {
+                if (b.number == 0 && number > 0) won = (number % 3 == 1);
+                if (b.number == 1 && number > 0) won = (number % 3 == 2);
+                if (b.number == 2 && number > 0) won = (number % 3 == 0);
+            } else if (b.betType == uint(BetType.Dozen) && number <= 36) {
                 if (b.number == 0) won = (number > 0 && number <= 12);
                 if (b.number == 1) won = (number > 12 && number <= 24);
-                if (b.number == 2) won = (number > 24);
+                if (b.number == 2) won = (number > 24 && number <= 36);
             }
 
             if (won) {
@@ -269,28 +270,17 @@ contract dgRoulette is AccessController {
                 _betAmount[i]
             );
 
-            addPoints(
-                _players[i],
-                _betAmount[i],
-                treasury.getTokenAddress(_tokenIndex[i]),
-                _playerCount,
-                _wearableBonus[i]
-            );
-
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
-
                 require(
                     getNecessaryBalance(_tokenIndex[i]) <= tokenFunds,
                     'Roulette: not enough tokens for payout'
                 );
-
                 checkedTokens[_tokenIndex[i]] = true;
             }
         }
 
         uint256 _spinResult;
-
         (winAmounts, _spinResult) = _launch(
             _localhash,
             _players,
@@ -299,6 +289,7 @@ contract dgRoulette is AccessController {
             _machineID
         );
 
+        // payout && points preparation
         for (i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
                 treasury.tokenOutboundTransfer(
@@ -306,7 +297,52 @@ contract dgRoulette is AccessController {
                     _players[i],
                     winAmounts[i]
                 );
+                // collecting totalPayout
+                totalPayout[_players[i]] =
+                totalPayout[_players[i]] + winAmounts[i];
             }
+            totalBets[_players[i]] =
+            totalBets[_players[i]] + _betAmount[i];
+        }
+
+        // point calculation && bonus
+        for (i = 0; i < _players.length; i++) {
+            _issuePointsAmount(
+                _players[i],
+                _tokenIndex[i],
+                _playerCount,
+                _wearableBonus[i]
+            );
+        }
+    }
+
+    function _issuePointsAmount(
+        address _player,
+        uint8 _tokenIndex,
+        uint256 _playerCount,
+        uint256 _wearableBonus
+    ) private {
+        if (totalPayout[_player] > totalBets[_player]) {
+            addPoints(
+                _player,
+                totalPayout[_player].sub(totalBets[_player]),
+                treasury.getTokenAddress(_tokenIndex),
+                _playerCount,
+                _wearableBonus
+            );
+            totalBets[_player] = 0;
+            totalPayout[_player] = 0;
+        }
+        else if (totalPayout[_player] < totalBets[_player]) {
+            addPoints(
+                _player,
+                totalBets[_player].sub(totalPayout[_player]),
+                treasury.getTokenAddress(_tokenIndex),
+                _playerCount,
+                _wearableBonus
+            );
+            totalBets[_player] = 0;
+            totalPayout[_player] = 0;
         }
     }
 
@@ -345,9 +381,7 @@ contract dgRoulette is AccessController {
         uint256[6] memory betTypesMax;
 
         for (uint8 _i = 0; _i < bets.length; _i++) {
-
             Bet memory b = bets[_i];
-
             if (b.tokenIndex == _tokenIndex) {
 
                 uint256 _payout = getPayoutForType(b.betType, b.number);
@@ -444,7 +478,7 @@ contract dgRoulette is AccessController {
 
     function checkMaximumBetAmount()
         external
-        view 
+        view
         returns (uint8)
     {
         return uint8(store>>0);
