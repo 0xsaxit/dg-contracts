@@ -134,7 +134,7 @@ contract dgRoulette is AccessController {
             keccak256(
                 abi.encodePacked(_localhash)
             )
-        ) % 38;
+        ) % 37;
 
         for (uint i = 0; i < bets.length; i++) {
             bool won = false;
@@ -242,9 +242,9 @@ contract dgRoulette is AccessController {
             'Roulette: maximum amount of bets reached'
         );
 
-        treasury.consumeHash(
+        /* treasury.consumeHash(
             _localhash
-        );
+        );*/
 
         bool[5] memory checkedTokens;
         uint8 i;
