@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.4;
+pragma solidity ^0.7.5;
 
 import "./common-contracts/TreasuryInstance.sol";
 import "./common-contracts/AccessController.sol";
@@ -572,12 +572,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         onlyWorker
     {
 
-        _consumeHashes(
+        /*_consumeHashes(
             _serverId,
             _landId,
             _tableId,
             _localHashes
-        );
+        );*/
 
         _payout(
             _gameId,
