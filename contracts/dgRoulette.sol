@@ -4,7 +4,7 @@ pragma solidity ^0.7.5;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
-// Roulette - MultiPlayer - TokenIndex 2.0
+// Roulette - MultiPlayer - TokenIndex 3.0
 
 import "./common-contracts/SafeMath.sol";
 import "./common-contracts/AccessController.sol";
@@ -17,6 +17,7 @@ contract dgRoulette is AccessController {
     using SafeMath for uint256;
 
     uint256 private store;
+    uint256 public pointsCap;
 
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
 
@@ -60,6 +61,7 @@ contract dgRoulette is AccessController {
         store |= _maxSquareBetDefault<<8;
         store |= block.timestamp<<136;
         pointerContract = PointerInstance(_pointerAddress);
+        pointsCap = 2;
     }
 
     function addPoints(
@@ -316,6 +318,15 @@ contract dgRoulette is AccessController {
         }
     }
 
+    function changeCap(
+        uint256 _newPointsCap
+    )
+        external
+        onlyCEO
+    {
+        pointsCap = _newPointsCap;
+    }
+
     function _issuePointsAmount(
         address _player,
         uint8 _tokenIndex,
@@ -323,15 +334,21 @@ contract dgRoulette is AccessController {
         uint256 _wearableBonus
     ) private {
         if (totalPayout[_player] > totalBets[_player]) {
+
+            uint256 points = totalPayout[_player].sub(totalBets[_player]);
+            uint256 limits = totalBets[_player].mul(pointsCap);
+
+            points = points > limits
+                ? limits
+                : points;
+
             addPoints(
                 _player,
-                totalPayout[_player].sub(totalBets[_player]),
+                points,
                 treasury.getTokenAddress(_tokenIndex),
                 _playerCount,
                 _wearableBonus
             );
-            totalBets[_player] = 0;
-            totalPayout[_player] = 0;
         }
         else if (totalPayout[_player] < totalBets[_player]) {
             addPoints(
@@ -341,9 +358,9 @@ contract dgRoulette is AccessController {
                 _playerCount,
                 _wearableBonus
             );
-            totalBets[_player] = 0;
-            totalPayout[_player] = 0;
         }
+        totalBets[_player] = 0;
+        totalPayout[_player] = 0;
     }
 
     function getPayoutForType(
