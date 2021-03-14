@@ -21,6 +21,8 @@ contract dgPoker is AccessController {
         uint256 wageredTotal;
         uint8 tokenIndex;
         uint8 playersCount;
+        uint8 beneficiaryPercent;
+        address gameBeneficiary;
         PlayerState[] pState;
         GameState state;
     }
@@ -106,10 +108,8 @@ contract dgPoker is AccessController {
     event PlayerWon(
         bytes16 indexed gameId,
         address indexed player,
-        uint256 indexed entryBet,
         uint256 winAmount,
-        uint256 wageredAmount,
-        uint256 approvedAmount
+        uint256 wageredAmount
     );
 
     event FinishedGame(
@@ -120,18 +120,24 @@ contract dgPoker is AccessController {
 
     constructor(
         address _treasuryAddress,
+        address _pointerAddress,
         uint8 _maxPlayers,
-        uint8 _houseFee,
-        address _pointerAddress
+        uint8 _houseFee
 
     ) {
-        require(_maxPlayers < 10);
-        require(_houseFee < 10);
+        require(_maxPlayers <= 10);
+        require(_houseFee <= 10);
 
-        treasury = TreasuryInstance(_treasuryAddress);
+        treasury = TreasuryInstance(
+            _treasuryAddress
+        );
+
         globals.maxPlayers = _maxPlayers;
         globals.houseFee = _houseFee;
-        pointerContract = PointerInstance(_pointerAddress);
+
+        pointerContract = PointerInstance(
+            _pointerAddress
+        );
     }
 
     function changeHouseFee(
@@ -140,7 +146,7 @@ contract dgPoker is AccessController {
         external
         onlyCEO
     {
-        require(_newHouseFee < 10);
+        require(_newHouseFee <= 10);
         globals.houseFee = _newHouseFee;
     }
 
@@ -150,7 +156,7 @@ contract dgPoker is AccessController {
         external
         onlyCEO
     {
-        require(_newMaxPlayer < 10);
+        require(_newMaxPlayer <= 10);
         globals.maxPlayers = _newMaxPlayer;
     }
 
@@ -274,13 +280,16 @@ contract dgPoker is AccessController {
         uint8 _tokenIndex,
         uint256 _serverId,
         uint256 _landId,
-        uint256 _tableId
+        uint256 _tableId,
+        uint8 _beneficiaryPercent,
+        address _gameBeneficiary
     )
         external
         whenNotPaused
         onlyWorker
         returns (bytes16 gameId)
     {
+
         require(
             _players.length <= globals.maxPlayers &&
             _entryBets.length == _players.length &&
@@ -288,11 +297,15 @@ contract dgPoker is AccessController {
             "initializeGame: invalid length in initializeGame"
         );
 
+        require(
+            _beneficiaryPercent <= 100,
+            "initializeGame: invalid beneficiary percent"
+        );
+
         gameId = getGameId(
             _serverId,
             _landId,
             _tableId,
-            _players,
             globals.nonce
         );
 
@@ -315,6 +328,8 @@ contract dgPoker is AccessController {
             0,
             _tokenIndex,
             uint8(_players.length),
+            _beneficiaryPercent,
+            _gameBeneficiary,
             new PlayerState[](_players.length),
             GameState.OnGoingGame
         );
@@ -377,13 +392,15 @@ contract dgPoker is AccessController {
         );
     }
 
+    // entryBets [10, 10, 20]
+
     function manualPayout(
         bytes16 _gameId,
-        address _winPlayerAddress,
-        uint8 _winPlayerIndex,
-        uint256 _winAmount,
-        uint256[] calldata _wageredAmounts,
-        uint256[] calldata _refundAmounts
+        address _winPlayerAddress, // 0x...
+        uint8 _winPlayerIndex, // 2
+        uint256 _winAmount, // 950 = total wagered of all players + entry bets of all players
+        uint256[] calldata _wageredAmounts, // [100, 400, 400] shows inGameBets for each player
+        uint256[] calldata _refundAmounts // [390, 90, 80]
         // uint256[] calldata _wearableBonus
     )
         external
@@ -415,6 +432,15 @@ contract dgPoker is AccessController {
             _wageredAmounts[_winPlayerIndex]
         );
 
+        _refundPlayer(
+            _gameId,
+            Games[_gameId].tokenIndex,
+            _winPlayerIndex,
+            _winPlayerAddress,
+            _wageredAmounts[_winPlayerIndex],
+            _refundAmounts[_winPlayerIndex]
+        );
+
         Games[_gameId].state = GameState.EndedGame;
 
         emit FinishedGame(
@@ -444,15 +470,16 @@ contract dgPoker is AccessController {
                     Games[_gameId].tokenIndex,
                     i,
                     _playerAddress,
-                    _refundAmounts[i],
-                    _wageredAmounts[i]
+                    _wageredAmounts[i],
+                    _refundAmounts[i]
                 );
 
-                Games[_gameId].wageredTotal =
-                Games[_gameId].wageredTotal.add(_wageredAmounts[i]);
-
+                // wageredTotal = (all players entryBets + loss players wagered amount);
                 Games[_gameId].pState[i] = PlayerState.hasLost;
             }
+
+            Games[_gameId].wageredTotal =
+            Games[_gameId].wageredTotal.add(_wageredAmounts[i]);
         }
     }
 
@@ -460,7 +487,7 @@ contract dgPoker is AccessController {
         bytes16 _gameId,
         uint8 _playerIndex,
         address _playerAddress,
-        uint256 _winAmount,
+        uint256 _winAmount,  // = allEntryBets + allPlayers wagered
         uint256 _wageredAmount
     )
         private
@@ -469,46 +496,85 @@ contract dgPoker is AccessController {
         checkPlayerIndex(_gameId, _playerIndex, _playerAddress)
     {
         uint256 wageredTotal = Games[_gameId].wageredTotal;
-
-        uint256 returnApproval = Games[_gameId].approvals[_playerIndex];
-        uint256 returnEntryBet = Games[_gameId].entryBets[_playerIndex];
+        uint256 winnersEntryBet = Games[_gameId].entryBets[_playerIndex];
 
         require(
-            _winAmount == wageredTotal
-                .add(returnApproval)
-                .add(returnEntryBet),
+            _winAmount == wageredTotal, // (all entryBets + all inGameBets)
             "_payoutWin: invalid _winAmount"
         );
+
+        uint256 taxableAmount = _winAmount
+            .sub(winnersEntryBet)
+            .sub(_wageredAmount);
 
         _proceedWithPayout(
             _gameId,
             _playerIndex,
-            _winAmount
+            _winAmount, // totalWinAmount to return
+            taxableAmount // amount for fee calculation
         );
 
         emit PlayerWon(
             _gameId,
             _playerAddress,
-            returnEntryBet,
             _winAmount,
-            _wageredAmount,
-            returnApproval
+            _wageredAmount
         );
+    }
+
+    function _subtractHouseFee(
+        uint256 _winAmount,
+        uint256 _taxableAmount,
+        uint8 _houseFee,
+        uint8 _beneficiaryPercent
+    )
+        internal
+        pure
+        returns (
+            uint256 beneficiaryPayout,
+            uint256 winAmount
+        )
+    {
+        uint256 treasuryPayout = _taxableAmount
+            .mul(_houseFee)
+            .div(100);
+
+        beneficiaryPayout = treasuryPayout
+            .mul(_beneficiaryPercent)
+            .div(100);
+
+        winAmount = _winAmount.sub(treasuryPayout);
     }
 
     function _proceedWithPayout(
         bytes16 _gameId,
         uint8 _playerIndex,
-        uint256 _winAmount
+        uint256 _winAmount,
+        uint256 _taxableAmount
     )
         private
     {
         Games[_gameId].pState[_playerIndex] = PlayerState.hasWon;
 
+        (uint256 beneficiaryPayout, uint256 winAmount) = _subtractHouseFee(
+            _winAmount,
+            _taxableAmount,
+            globals.houseFee,
+            Games[_gameId].beneficiaryPercent
+        );
+
+        if (beneficiaryPayout > 0) {
+            treasury.tokenOutboundTransfer(
+                Games[_gameId].tokenIndex,
+                Games[_gameId].gameBeneficiary,
+                beneficiaryPayout
+            );
+        }
+
         treasury.tokenOutboundTransfer(
            Games[_gameId].tokenIndex,
            Games[_gameId].players[_playerIndex],
-           _winAmount
+           winAmount
         );
     }
 
@@ -575,7 +641,6 @@ contract dgPoker is AccessController {
         uint256 _serverID,
         uint256 _landID,
         uint256 _tableID,
-        address[] memory _players,
         uint256 _nonce
     )
         public
@@ -584,7 +649,12 @@ contract dgPoker is AccessController {
     {
         gameId = bytes16(
             keccak256(
-                abi.encodePacked(_serverID, _landID, _tableID, _players, _nonce)
+                abi.encodePacked(
+                    _serverID,
+                    _landID,
+                    _tableID,
+                    _nonce
+                )
             )
         );
     }
