@@ -503,6 +503,8 @@ contract dgPoker is AccessController {
     )
         private
     {
+        Games[_gameId].pState[_playerIndex] = PlayerState.hasWon;
+
         treasury.tokenOutboundTransfer(
            Games[_gameId].tokenIndex,
            Games[_gameId].players[_playerIndex],
