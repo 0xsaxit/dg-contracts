@@ -5,23 +5,33 @@ pragma solidity ^0.7.4;
 contract AccessController {
 
     address public ceoAddress;
-    address public workerAddress;
 
     bool public paused = false;
 
-    // mapping (address => enumRoles) accessRoles; // multiple operators idea
+    mapping (address => bool) public isWorker;
 
     event CEOSet(address newCEO);
-    event WorkerSet(address newWorker);
+    event WorkerAdded(address newWorker);
+    event WorkerRemoved(address removingWorker);
 
     event Paused();
     event Unpaused();
 
     constructor() {
-        ceoAddress = msg.sender;
-        workerAddress = msg.sender;
-        emit CEOSet(ceoAddress);
-        emit WorkerSet(workerAddress);
+
+        address creator = msg.sender;
+
+        ceoAddress = creator;
+
+        isWorker[creator] = true;
+
+        emit CEOSet(
+            creator
+        );
+
+        emit WorkerAdded(
+            creator
+        );
     }
 
     modifier onlyCEO() {
@@ -34,8 +44,16 @@ contract AccessController {
 
     modifier onlyWorker() {
         require(
-            msg.sender == workerAddress,
+            isWorker[msg.sender] == true,
             'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier nonZeroAddress(address checkingAddress) {
+        require(
+            checkingAddress != address(0x0),
+            'AccessControl: invalid address'
         );
         _;
     }
@@ -56,34 +74,114 @@ contract AccessController {
         _;
     }
 
-    function setCEO(address _newCEO) public onlyCEO {
-        require(
-            _newCEO != address(0x0),
-            'AccessControl: invalid CEO address'
-        );
+    function setCEO(
+        address _newCEO
+    )
+        external
+        nonZeroAddress(_newCEO)
+        onlyCEO
+    {
         ceoAddress = _newCEO;
-        emit CEOSet(ceoAddress);
+
+        emit CEOSet(
+            ceoAddress
+        );
     }
 
-    function setWorker(address _newWorker) external {
-        require(
-            _newWorker != address(0x0),
-            'AccessControl: invalid worker address'
+    function addWorker(
+        address _newWorker
+    )
+        external
+        onlyCEO
+    {
+        _addWorker(
+            _newWorker
         );
-        require(
-            msg.sender == ceoAddress || msg.sender == workerAddress,
-            'AccessControl: invalid worker address'
-        );
-        workerAddress = _newWorker;
-        emit WorkerSet(workerAddress);
     }
 
-    function pause() external onlyWorker whenNotPaused {
+    function addWorkerBulk(
+        address[] calldata _newWorkers
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _newWorkers.length; index++) {
+            _addWorker(_newWorkers[index]);
+        }
+    }
+
+    function _addWorker(
+        address _newWorker
+    )
+        internal
+        nonZeroAddress(_newWorker)
+    {
+        require(
+            isWorker[_newWorker] == false,
+            'AccessControl: worker already exist'
+        );
+
+        isWorker[_newWorker] = true;
+
+        emit WorkerAdded(
+            _newWorker
+        );
+    }
+
+    function removeWorker(
+        address _workerAddress
+    )
+        external
+        onlyCEO
+    {
+        _removeWorker(
+            _workerAddress
+        );
+    }
+
+    function removeWorkerBulk(
+        address[] calldata _workerArray
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _workerArray.length; index++) {
+            _removeWorker(_workerArray[index]);
+        }
+    }
+
+    function _removeWorker(
+        address _workerAddress
+    )
+        internal
+        nonZeroAddress(_workerAddress)
+    {
+        require(
+            isWorker[_workerAddress] == true,
+            "AccessControl: worker not detected"
+        );
+
+        isWorker[_workerAddress] = false;
+
+        emit WorkerRemoved(
+            _workerAddress
+        );
+    }
+
+    function pause()
+        external
+        onlyWorker
+        whenNotPaused
+    {
         paused = true;
         emit Paused();
     }
 
-    function unpause() external onlyCEO whenPaused {
+    function unpause()
+        external
+        onlyCEO
+        whenPaused
+    {
         paused = false;
         emit Unpaused();
     }
