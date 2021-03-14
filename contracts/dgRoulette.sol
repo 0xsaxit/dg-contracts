@@ -124,7 +124,7 @@ contract dgRoulette is AccessController {
             uint256 number
         )
     {
-        require(block.timestamp > store>>136, 'Roulette: expired round');
+        // require(block.timestamp > store>>136, 'Roulette: expired round');
         require(bets.length > 0, 'Roulette: must have bets');
 
         delete winAmounts;
