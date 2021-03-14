@@ -12,7 +12,7 @@ contract AccessController {
 
     event CEOSet(address newCEO);
     event WorkerAdded(address newWorker);
-    event WorkerRemoved(address removingWorker);
+    event WorkerRemoved(address existingWorker);
 
     event Paused();
     event Unpaused();
@@ -129,13 +129,13 @@ contract AccessController {
     }
 
     function removeWorker(
-        address _workerAddress
+        address _existingWorker
     )
         external
         onlyCEO
     {
         _removeWorker(
-            _workerAddress
+            _existingWorker
         );
     }
 
@@ -151,20 +151,20 @@ contract AccessController {
     }
 
     function _removeWorker(
-        address _workerAddress
+        address _existingWorker
     )
         internal
-        nonZeroAddress(_workerAddress)
+        nonZeroAddress(_existingWorker)
     {
         require(
-            isWorker[_workerAddress] == true,
+            isWorker[_existingWorker] == true,
             "AccessControl: worker not detected"
         );
 
-        isWorker[_workerAddress] = false;
+        isWorker[_existingWorker] = false;
 
         emit WorkerRemoved(
-            _workerAddress
+            _existingWorker
         );
     }
 
