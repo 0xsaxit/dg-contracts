@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.4;
+pragma solidity ^0.7.5;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
-// Roulette - MultiPlayer - TokenIndex 2.0
+// Roulette - MultiPlayer - TokenIndex 3.0
+
+// SPDX-License-Identifier: -- 🎲 --
+
+
 
 library SafeMath {
 
@@ -43,26 +47,40 @@ library SafeMath {
     }
 }
 
+// SPDX-License-Identifier: -- 🎲 --
+
+
+
 contract AccessController {
 
     address public ceoAddress;
-    address public workerAddress;
 
     bool public paused = false;
 
-    // mapping (address => enumRoles) accessRoles; // multiple operators idea
+    mapping (address => bool) public isWorker;
 
     event CEOSet(address newCEO);
-    event WorkerSet(address newWorker);
+    event WorkerAdded(address newWorker);
+    event WorkerRemoved(address existingWorker);
 
     event Paused();
     event Unpaused();
 
     constructor() {
-        ceoAddress = msg.sender;
-        workerAddress = msg.sender;
-        emit CEOSet(ceoAddress);
-        emit WorkerSet(workerAddress);
+
+        address creator = msg.sender;
+
+        ceoAddress = creator;
+
+        isWorker[creator] = true;
+
+        emit CEOSet(
+            creator
+        );
+
+        emit WorkerAdded(
+            creator
+        );
     }
 
     modifier onlyCEO() {
@@ -75,8 +93,16 @@ contract AccessController {
 
     modifier onlyWorker() {
         require(
-            msg.sender == workerAddress,
+            isWorker[msg.sender] == true,
             'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier nonZeroAddress(address checkingAddress) {
+        require(
+            checkingAddress != address(0x0),
+            'AccessControl: invalid address'
         );
         _;
     }
@@ -97,38 +123,121 @@ contract AccessController {
         _;
     }
 
-    function setCEO(address _newCEO) public onlyCEO {
-        require(
-            _newCEO != address(0x0),
-            'AccessControl: invalid CEO address'
-        );
+    function setCEO(
+        address _newCEO
+    )
+        external
+        nonZeroAddress(_newCEO)
+        onlyCEO
+    {
         ceoAddress = _newCEO;
-        emit CEOSet(ceoAddress);
+
+        emit CEOSet(
+            ceoAddress
+        );
     }
 
-    function setWorker(address _newWorker) external {
-        require(
-            _newWorker != address(0x0),
-            'AccessControl: invalid worker address'
+    function addWorker(
+        address _newWorker
+    )
+        external
+        onlyCEO
+    {
+        _addWorker(
+            _newWorker
         );
-        require(
-            msg.sender == ceoAddress || msg.sender == workerAddress,
-            'AccessControl: invalid worker address'
-        );
-        workerAddress = _newWorker;
-        emit WorkerSet(workerAddress);
     }
 
-    function pause() external onlyWorker whenNotPaused {
+    function addWorkerBulk(
+        address[] calldata _newWorkers
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _newWorkers.length; index++) {
+            _addWorker(_newWorkers[index]);
+        }
+    }
+
+    function _addWorker(
+        address _newWorker
+    )
+        internal
+        nonZeroAddress(_newWorker)
+    {
+        require(
+            isWorker[_newWorker] == false,
+            'AccessControl: worker already exist'
+        );
+
+        isWorker[_newWorker] = true;
+
+        emit WorkerAdded(
+            _newWorker
+        );
+    }
+
+    function removeWorker(
+        address _existingWorker
+    )
+        external
+        onlyCEO
+    {
+        _removeWorker(
+            _existingWorker
+        );
+    }
+
+    function removeWorkerBulk(
+        address[] calldata _workerArray
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _workerArray.length; index++) {
+            _removeWorker(_workerArray[index]);
+        }
+    }
+
+    function _removeWorker(
+        address _existingWorker
+    )
+        internal
+        nonZeroAddress(_existingWorker)
+    {
+        require(
+            isWorker[_existingWorker] == true,
+            "AccessControl: worker not detected"
+        );
+
+        isWorker[_existingWorker] = false;
+
+        emit WorkerRemoved(
+            _existingWorker
+        );
+    }
+
+    function pause()
+        external
+        onlyWorker
+        whenNotPaused
+    {
         paused = true;
         emit Paused();
     }
 
-    function unpause() external onlyCEO whenPaused {
+    function unpause()
+        external
+        onlyCEO
+        whenPaused
+    {
         paused = false;
         emit Unpaused();
     }
 }
+// SPDX-License-Identifier: -- 🎲 --
+
+
 
 interface TreasuryInstance {
 
@@ -165,6 +274,10 @@ interface TreasuryInstance {
         bytes32 _localhash
     ) external returns (bool);
 }
+
+// SPDX-License-Identifier: -- 🎲 --
+
+
 
 interface PointerInstance {
 
@@ -208,8 +321,12 @@ contract dgRoulette is AccessController {
     using SafeMath for uint256;
 
     uint256 private store;
+    uint256 public pointsCap;
 
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
+
+    mapping (address => uint) public totalBets;
+    mapping (address => uint) public totalPayout;
 
     mapping (uint => uint) public maxSquareBets;
     mapping (uint => mapping (uint => mapping (uint => uint))) public currentBets;
@@ -242,13 +359,13 @@ contract dgRoulette is AccessController {
         uint128 _maxSquareBetDefault,
         uint8 _maxNumberBets,
         address _pointerAddress
-        )
-    {
+    ) {
         treasury = TreasuryInstance(_treasuryAddress);
         store |= _maxNumberBets<<0;
         store |= _maxSquareBetDefault<<8;
         store |= block.timestamp<<136;
         pointerContract = PointerInstance(_pointerAddress);
+        pointsCap = 2;
     }
 
     function addPoints(
@@ -289,17 +406,13 @@ contract dgRoulette is AccessController {
             'Roulette: exceeding maximum bet limit'
         );
 
-        bets.push(
-            Bet(
-                {
-                    player: _player,
-                    betType: _betType,
-                    number: _number,
-                    tokenIndex: _tokenIndex,
-                    value: _value
-                }
-            )
-        );
+        bets.push(Bet({
+            player: _player,
+            betType: _betType,
+            number: _number,
+            tokenIndex: _tokenIndex,
+            value: _value
+        }));
     }
 
     function _launch(
@@ -315,8 +428,7 @@ contract dgRoulette is AccessController {
             uint256 number
         )
     {
-
-        require(block.timestamp > store>>136, 'Roulette: expired round');
+        // require(block.timestamp > store>>136, 'Roulette: expired round');
         require(bets.length > 0, 'Roulette: must have bets');
 
         delete winAmounts;
@@ -335,7 +447,7 @@ contract dgRoulette is AccessController {
             Bet memory b = bets[i];
             if (b.betType == uint(BetType.Single) && b.number == number) {
                 won = true;
-            } else if (b.betType == uint(BetType.EvenOdd)) {
+            } else if (b.betType == uint(BetType.EvenOdd) && number <= 36) {
                 if (number > 0 && number % 2 == b.number) {
                     won = true;
                 }
@@ -343,29 +455,33 @@ contract dgRoulette is AccessController {
                 if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 1);
                 } else {
-                    won = (number % 2 == 0);
+                    if (number > 0 && number <= 36) {
+                        won = (number % 2 == 0);
+                    }
                 }
             } else if (b.betType == uint(BetType.RedBlack) && b.number == 1) {
                 if ((number > 0 && number <= 10) || (number >= 19 && number <= 28)) {
                     won = (number % 2 == 0);
                 } else {
-                    won = (number % 2 == 1);
+                    if (number > 0 && number <= 36) {
+                        won = (number % 2 == 1);
+                    }
                 }
-            } else if (b.betType == uint(BetType.HighLow)) {
+            } else if (b.betType == uint(BetType.HighLow) && number <= 36) {
                 if (number >= 19 && b.number == 0) {
                     won = true;
                 }
                 if (number > 0 && number <= 18 && b.number == 1) {
                     won = true;
                 }
-            } else if (b.betType == uint(BetType.Column)) {
-                if (b.number == 0) won = (number % 3 == 1);
-                if (b.number == 1) won = (number % 3 == 2);
-                if (b.number == 2) won = (number % 3 == 0);
-            } else if (b.betType == uint(BetType.Dozen)) {
-                if (b.number == 0) won = (number <= 12);
+            } else if (b.betType == uint(BetType.Column) && number <= 36) {
+                if (b.number == 0 && number > 0) won = (number % 3 == 1);
+                if (b.number == 1 && number > 0) won = (number % 3 == 2);
+                if (b.number == 2 && number > 0) won = (number % 3 == 0);
+            } else if (b.betType == uint(BetType.Dozen) && number <= 36) {
+                if (b.number == 0) won = (number > 0 && number <= 12);
                 if (b.number == 1) won = (number > 12 && number <= 24);
-                if (b.number == 2) won = (number > 24);
+                if (b.number == 2) won = (number > 24 && number <= 36);
             }
 
             if (won) {
@@ -432,9 +548,9 @@ contract dgRoulette is AccessController {
             'Roulette: maximum amount of bets reached'
         );
 
-        treasury.consumeHash(
+        /* treasury.consumeHash(
             _localhash
-        );
+        );*/
 
         bool[5] memory checkedTokens;
         uint8 i;
@@ -460,28 +576,17 @@ contract dgRoulette is AccessController {
                 _betAmount[i]
             );
 
-            addPoints(
-                _players[i],
-                _betAmount[i],
-                treasury.getTokenAddress(_tokenIndex[i]),
-                _playerCount,
-                _wearableBonus[i]
-            );
-
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
-
                 require(
                     getNecessaryBalance(_tokenIndex[i]) <= tokenFunds,
                     'Roulette: not enough tokens for payout'
                 );
-
                 checkedTokens[_tokenIndex[i]] = true;
             }
         }
 
         uint256 _spinResult;
-
         (winAmounts, _spinResult) = _launch(
             _localhash,
             _players,
@@ -490,6 +595,7 @@ contract dgRoulette is AccessController {
             _machineID
         );
 
+        // payout && points preparation
         for (i = 0; i < winAmounts.length; i++) {
             if (winAmounts[i] > 0) {
                 treasury.tokenOutboundTransfer(
@@ -497,8 +603,68 @@ contract dgRoulette is AccessController {
                     _players[i],
                     winAmounts[i]
                 );
+                // collecting totalPayout
+                totalPayout[_players[i]] =
+                totalPayout[_players[i]] + winAmounts[i];
             }
+            totalBets[_players[i]] =
+            totalBets[_players[i]] + _betAmount[i];
         }
+
+        // point calculation && bonus
+        for (i = 0; i < _players.length; i++) {
+            _issuePointsAmount(
+                _players[i],
+                _tokenIndex[i],
+                _playerCount,
+                _wearableBonus[i]
+            );
+        }
+    }
+
+    function changeCap(
+        uint256 _newPointsCap
+    )
+        external
+        onlyCEO
+    {
+        pointsCap = _newPointsCap;
+    }
+
+    function _issuePointsAmount(
+        address _player,
+        uint8 _tokenIndex,
+        uint256 _playerCount,
+        uint256 _wearableBonus
+    ) private {
+        if (totalPayout[_player] > totalBets[_player]) {
+
+            uint256 points = totalPayout[_player].sub(totalBets[_player]);
+            uint256 limits = totalBets[_player].mul(pointsCap);
+
+            points = points > limits
+                ? limits
+                : points;
+
+            addPoints(
+                _player,
+                points,
+                treasury.getTokenAddress(_tokenIndex),
+                _playerCount,
+                _wearableBonus
+            );
+        }
+        else if (totalPayout[_player] < totalBets[_player]) {
+            addPoints(
+                _player,
+                totalBets[_player].sub(totalPayout[_player]),
+                treasury.getTokenAddress(_tokenIndex),
+                _playerCount,
+                _wearableBonus
+            );
+        }
+        totalBets[_player] = 0;
+        totalPayout[_player] = 0;
     }
 
     function getPayoutForType(
@@ -536,9 +702,7 @@ contract dgRoulette is AccessController {
         uint256[6] memory betTypesMax;
 
         for (uint8 _i = 0; _i < bets.length; _i++) {
-
             Bet memory b = bets[_i];
-
             if (b.tokenIndex == _tokenIndex) {
 
                 uint256 _payout = getPayoutForType(b.betType, b.number);
