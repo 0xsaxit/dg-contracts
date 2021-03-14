@@ -6,10 +6,6 @@ pragma solidity ^0.7.5;
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
 // Roulette - MultiPlayer - TokenIndex 3.0
 
-// SPDX-License-Identifier: -- 🎲 --
-
-
-
 library SafeMath {
 
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -46,10 +42,6 @@ library SafeMath {
         return a % b;
     }
 }
-
-// SPDX-License-Identifier: -- 🎲 --
-
-
 
 contract AccessController {
 
@@ -235,9 +227,6 @@ contract AccessController {
         emit Unpaused();
     }
 }
-// SPDX-License-Identifier: -- 🎲 --
-
-
 
 interface TreasuryInstance {
 
@@ -274,10 +263,6 @@ interface TreasuryInstance {
         bytes32 _localhash
     ) external returns (bool);
 }
-
-// SPDX-License-Identifier: -- 🎲 --
-
-
 
 interface PointerInstance {
 
