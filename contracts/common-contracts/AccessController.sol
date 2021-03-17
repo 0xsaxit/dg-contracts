@@ -10,9 +10,17 @@ contract AccessController {
 
     mapping (address => bool) public isWorker;
 
-    event CEOSet(address newCEO);
-    event WorkerAdded(address newWorker);
-    event WorkerRemoved(address existingWorker);
+    event CEOSet(
+        address newCEO
+    );
+
+    event WorkerAdded(
+        address newWorker
+    );
+
+    event WorkerRemoved(
+        address existingWorker
+    );
 
     event Paused();
     event Unpaused();

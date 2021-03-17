@@ -4,7 +4,6 @@ pragma solidity ^0.7.5;
 
 import "./common-contracts/TreasuryInstance.sol";
 import "./common-contracts/AccessController.sol";
-import "./common-contracts/MultiHashChain.sol";
 import "./common-contracts/PointerInstance.sol";
 
 contract BlackJackHelper {
@@ -124,7 +123,7 @@ contract BlackJackHelper {
     }
 }
 
-contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
+contract dgBlackJack is AccessController, BlackJackHelper {
 
     enum inGameState { notJoined, Playing, EndedPlay }
     enum GameState { NewGame, OnGoingGame, EndedGame }
@@ -269,6 +268,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         bytes16 gameId
     );
 
+    event FinishedGameDetails(
+        uint256 serverId,
+        uint256 landId,
+        uint256 tableId
+    );
+
     event DoubleDown(
         uint256 powerAfter
     );
@@ -291,7 +296,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         pointerContract = PointerInstance(_pointerAddress);
     }
 
-    function setMultiTail(
+    /* function setMultiTail(
         uint256 _serverId,
         uint256 _landId,
         uint256 _tableId,
@@ -303,7 +308,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             _tableId,
             _localhashB
         );
-    }
+    } */
 
     function _addPoints(
         address _player,
@@ -563,7 +568,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         uint256 _tableId,
         uint128[] calldata _payoutAmounts,
         uint128[] calldata _refundAmounts,
-        bytes32[] calldata _localHashes,
         uint128[] calldata _wearableBonus
     )
         external
@@ -590,6 +594,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             _gameId
             // _localhashB
         );
+
+        emit FinishedGameDetails(
+            _serverId,
+            _landId,
+            _tableId
+        );
     }
 
     function _payout(
@@ -612,7 +622,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         }
     }
 
-    function _consumeHashes(
+    /* function _consumeHashes(
         uint256 _serverId,
         uint256 _landId,
         uint256 _tableId,
@@ -628,7 +638,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
                 _localHashes[i]
             );
         }
-    }
+    } */
 
     function _smartPoints(
         bytes16 _gameId,
@@ -690,7 +700,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         onlyNonBustedOrSplit(_gameId, _pIndex)
         ifPlayerInGame(_gameId, _player, _pIndex)
     {
-        treasury.consumeHash(_localhashA);
+        // treasury.consumeHash(_localhashA);
 
         drawPlayersCard(
            _gameId, _pIndex, _localhashA
@@ -727,21 +737,21 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
     function revealDealersCard(
         bytes16 _gameId,
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
+        // uint256 _serverId,
+        // uint256 _landId,
+        // uint256 _tableId,
         bytes32 _localhashB
     )
         internal
     {
         uint8 revealed = drawCard(_gameId, _localhashB);
 
-        _consumeMulti(
+        /*_consumeMulti(
             _serverId,
             _landId,
             _tableId,
             _localhashB
-        );
+        );*/
 
         (
             string memory _cardsSuit,
@@ -760,9 +770,9 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
     function dealersMove(
         bytes16 _gameId,
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
+        // uint256 _serverId,
+        // uint256 _landId,
+        // uint256 _tableId,
         bytes32 _localhashA,
         bytes32 _localhashB
     )
@@ -784,15 +794,15 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             ) == true
         );
 
-        treasury.consumeHash(_localhashA);
+        // treasury.consumeHash(_localhashA);
 
-        revealDealersCard(
+        /* revealDealersCard(
             _gameId,
             _serverId,
             _landId,
             _tableId,
             _localhashB
-        );
+        ); */
 
         uint8[] memory _leftPlayers = getNotBustedPlayers(_gameId);
 
@@ -1081,7 +1091,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             PlayersHand[_player][_gameId].length == 2
         );
 
-        treasury.consumeHash(_localhashA);
+        // treasury.consumeHash(_localhashA);
 
         uint8 tokenIndex = Games[_gameId].tokens[_pIndex];
         address player = Games[_gameId].players[_pIndex];
