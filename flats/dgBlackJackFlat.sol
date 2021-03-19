@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.4;
+pragma solidity ^0.7.5;
 
 interface TreasuryInstance {
 
@@ -41,23 +41,41 @@ interface TreasuryInstance {
 contract AccessController {
 
     address public ceoAddress;
-    address public workerAddress;
 
     bool public paused = false;
 
-    // mapping (address => enumRoles) accessRoles; // multiple operators idea
+    mapping (address => bool) public isWorker;
 
-    event CEOSet(address newCEO);
-    event WorkerSet(address newWorker);
+    event CEOSet(
+        address newCEO
+    );
+
+    event WorkerAdded(
+        address newWorker
+    );
+
+    event WorkerRemoved(
+        address existingWorker
+    );
 
     event Paused();
     event Unpaused();
 
     constructor() {
-        ceoAddress = msg.sender;
-        workerAddress = msg.sender;
-        emit CEOSet(ceoAddress);
-        emit WorkerSet(workerAddress);
+
+        address creator = msg.sender;
+
+        ceoAddress = creator;
+
+        isWorker[creator] = true;
+
+        emit CEOSet(
+            creator
+        );
+
+        emit WorkerAdded(
+            creator
+        );
     }
 
     modifier onlyCEO() {
@@ -70,8 +88,16 @@ contract AccessController {
 
     modifier onlyWorker() {
         require(
-            msg.sender == workerAddress,
+            isWorker[msg.sender] == true,
             'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier nonZeroAddress(address checkingAddress) {
+        require(
+            checkingAddress != address(0x0),
+            'AccessControl: invalid address'
         );
         _;
     }
@@ -92,71 +118,116 @@ contract AccessController {
         _;
     }
 
-    function setCEO(address _newCEO) public onlyCEO {
-        require(
-            _newCEO != address(0x0),
-            'AccessControl: invalid CEO address'
-        );
+    function setCEO(
+        address _newCEO
+    )
+        external
+        nonZeroAddress(_newCEO)
+        onlyCEO
+    {
         ceoAddress = _newCEO;
-        emit CEOSet(ceoAddress);
+
+        emit CEOSet(
+            ceoAddress
+        );
     }
 
-    function setWorker(address _newWorker) external {
-        require(
-            _newWorker != address(0x0),
-            'AccessControl: invalid worker address'
+    function addWorker(
+        address _newWorker
+    )
+        external
+        onlyCEO
+    {
+        _addWorker(
+            _newWorker
         );
-        require(
-            msg.sender == ceoAddress || msg.sender == workerAddress,
-            'AccessControl: invalid worker address'
-        );
-        workerAddress = _newWorker;
-        emit WorkerSet(workerAddress);
     }
 
-    function pause() external onlyWorker whenNotPaused {
+    function addWorkerBulk(
+        address[] calldata _newWorkers
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _newWorkers.length; index++) {
+            _addWorker(_newWorkers[index]);
+        }
+    }
+
+    function _addWorker(
+        address _newWorker
+    )
+        internal
+        nonZeroAddress(_newWorker)
+    {
+        require(
+            isWorker[_newWorker] == false,
+            'AccessControl: worker already exist'
+        );
+
+        isWorker[_newWorker] = true;
+
+        emit WorkerAdded(
+            _newWorker
+        );
+    }
+
+    function removeWorker(
+        address _existingWorker
+    )
+        external
+        onlyCEO
+    {
+        _removeWorker(
+            _existingWorker
+        );
+    }
+
+    function removeWorkerBulk(
+        address[] calldata _workerArray
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _workerArray.length; index++) {
+            _removeWorker(_workerArray[index]);
+        }
+    }
+
+    function _removeWorker(
+        address _existingWorker
+    )
+        internal
+        nonZeroAddress(_existingWorker)
+    {
+        require(
+            isWorker[_existingWorker] == true,
+            "AccessControl: worker not detected"
+        );
+
+        isWorker[_existingWorker] = false;
+
+        emit WorkerRemoved(
+            _existingWorker
+        );
+    }
+
+    function pause()
+        external
+        onlyWorker
+        whenNotPaused
+    {
         paused = true;
         emit Paused();
     }
 
-    function unpause() external onlyCEO whenPaused {
+    function unpause()
+        external
+        onlyCEO
+        whenPaused
+    {
         paused = false;
         emit Unpaused();
-    }
-}
-
-contract MultiHashChain {
-
-    mapping(
-        uint256 => mapping(
-            uint256 => mapping(
-                uint256 => bytes32
-            )
-        )
-    ) public tail;
-
-    function _setMultiTail(
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
-        bytes32 _tail
-    ) internal {
-        tail[_serverId][_landId][_tableId] = _tail;
-    }
-
-    function _consumeMulti(
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
-        bytes32 _parent
-    ) internal {
-        require(
-            keccak256(
-                abi.encodePacked(_parent)
-            ) == tail[_serverId][_landId][_tableId],
-            'hash-chain: wrong parent'
-        );
-        tail[_serverId][_landId][_tableId] = _parent;
     }
 }
 
@@ -313,7 +384,7 @@ contract BlackJackHelper {
     }
 }
 
-contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
+contract dgBlackJack is AccessController, BlackJackHelper {
 
     enum inGameState { notJoined, Playing, EndedPlay }
     enum GameState { NewGame, OnGoingGame, EndedGame }
@@ -458,6 +529,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         bytes16 gameId
     );
 
+    event FinishedGameDetails(
+        uint256 serverId,
+        uint256 landId,
+        uint256 tableId
+    );
+
     event DoubleDown(
         uint256 powerAfter
     );
@@ -468,18 +545,19 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
     PointerInstance public pointerContract;
 
-    constructor()
-    {
-        treasury = TreasuryInstance(
-            0x8562746aeab494b29394577f15E865D45F314381
-        );
-        maxPlayers = 4;
-        pointerContract = PointerInstance(
-            0x85697947b9BaC8926Bfa1e265a220436E8d0Ee84
-        );
+    constructor(
+        address _treasuryAddress,
+        uint8 _maxPlayers,
+        address _pointerAddress
+
+    ) {
+        require(_maxPlayers < 10);
+        treasury = TreasuryInstance(_treasuryAddress);
+        maxPlayers = _maxPlayers;
+        pointerContract = PointerInstance(_pointerAddress);
     }
 
-    function setMultiTail(
+    /* function setMultiTail(
         uint256 _serverId,
         uint256 _landId,
         uint256 _tableId,
@@ -491,7 +569,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             _tableId,
             _localhashB
         );
-    }
+    } */
 
     function _addPoints(
         address _player,
@@ -751,7 +829,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         uint256 _tableId,
         uint128[] calldata _payoutAmounts,
         uint128[] calldata _refundAmounts,
-        bytes32[] calldata _localHashes,
         uint128[] calldata _wearableBonus
     )
         external
@@ -760,12 +837,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         onlyWorker
     {
 
-        _consumeHashes(
+        /*_consumeHashes(
             _serverId,
             _landId,
             _tableId,
             _localHashes
-        );
+        );*/
 
         _payout(
             _gameId,
@@ -777,6 +854,12 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         emit FinishedGame(
             _gameId
             // _localhashB
+        );
+
+        emit FinishedGameDetails(
+            _serverId,
+            _landId,
+            _tableId
         );
     }
 
@@ -800,7 +883,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         }
     }
 
-    function _consumeHashes(
+    /* function _consumeHashes(
         uint256 _serverId,
         uint256 _landId,
         uint256 _tableId,
@@ -816,7 +899,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
                 _localHashes[i]
             );
         }
-    }
+    } */
 
     function _smartPoints(
         bytes16 _gameId,
@@ -878,7 +961,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         onlyNonBustedOrSplit(_gameId, _pIndex)
         ifPlayerInGame(_gameId, _player, _pIndex)
     {
-        treasury.consumeHash(_localhashA);
+        // treasury.consumeHash(_localhashA);
 
         drawPlayersCard(
            _gameId, _pIndex, _localhashA
@@ -915,21 +998,21 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
     function revealDealersCard(
         bytes16 _gameId,
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
+        // uint256 _serverId,
+        // uint256 _landId,
+        // uint256 _tableId,
         bytes32 _localhashB
     )
         internal
     {
         uint8 revealed = drawCard(_gameId, _localhashB);
 
-        _consumeMulti(
+        /*_consumeMulti(
             _serverId,
             _landId,
             _tableId,
             _localhashB
-        );
+        );*/
 
         (
             string memory _cardsSuit,
@@ -948,9 +1031,9 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
 
     function dealersMove(
         bytes16 _gameId,
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
+        // uint256 _serverId,
+        // uint256 _landId,
+        // uint256 _tableId,
         bytes32 _localhashA,
         bytes32 _localhashB
     )
@@ -972,15 +1055,15 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             ) == true
         );
 
-        treasury.consumeHash(_localhashA);
+        // treasury.consumeHash(_localhashA);
 
-        revealDealersCard(
+        /* revealDealersCard(
             _gameId,
             _serverId,
             _landId,
             _tableId,
             _localhashB
-        );
+        ); */
 
         uint8[] memory _leftPlayers = getNotBustedPlayers(_gameId);
 
@@ -1269,7 +1352,7 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
             PlayersHand[_player][_gameId].length == 2
         );
 
-        treasury.consumeHash(_localhashA);
+        // treasury.consumeHash(_localhashA);
 
         uint8 tokenIndex = Games[_gameId].tokens[_pIndex];
         address player = Games[_gameId].players[_pIndex];
@@ -1372,6 +1455,70 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         );
     }
 
+    /*
+    function checkPlayerInGame(
+        bytes16 _gameId,
+        address _player
+    )
+        external
+        view
+        returns (bool)
+    {
+        return inGame[_player][_gameId] == inGameState.notJoined ? false : true;
+    }
+
+    function checkMyHand(
+        bytes16 _gameId
+    )
+        external
+        view
+        returns (uint8[] memory)
+    {
+        return checkPlayersHand(_gameId, msg.sender);
+    }
+
+    function checkMySplit(
+        bytes16 _gameId
+    )
+        external
+        view
+        returns (uint8[] memory)
+    {
+        return checkPlayerSplit(_gameId, msg.sender);
+    }
+
+    function checkDealersHand(
+        bytes16 _gameId
+    )
+        public
+        view
+        returns (uint8[] memory)
+    {
+        return DealersVisible[_gameId];
+    }
+
+    function checkPlayersHand(
+        bytes16 _gameId,
+        address _player
+    )
+        public
+        view
+        returns (uint8[] memory)
+    {
+        return PlayersHand[_player][_gameId];
+    }
+
+    function checkPlayerSplit(
+        bytes16 _gameId,
+        address _player
+    )
+        public
+        view
+        returns (uint8[] memory)
+    {
+        return PlayerSplit[_player][_gameId];
+    }*/
+
     function getHand(
         bytes16 _gameId,
         address _player,
@@ -1403,8 +1550,6 @@ contract dgBlackJack is AccessController, BlackJackHelper, MultiHashChain {
         external
         onlyCEO
     {
-        pointerContract = PointerInstance(
-            _newPointerAddress
-        );
+        pointerContract = PointerInstance(_newPointerAddress);
     }
 }
