@@ -6,8 +6,9 @@ import "./common-contracts/SafeMath.sol";
 import "./common-contracts/AccessController.sol";
 import "./common-contracts/ERC20Token.sol";
 import "./common-contracts/EIP712Base.sol";
+import "./common-contracts/TransferHelper.sol";
 
-abstract contract EIP712MetaTransaction is EIP712Base {
+abstract contract EIP712MetaTransactionForPointer is EIP712Base {
 
     using SafeMath for uint256;
 
@@ -160,9 +161,20 @@ abstract contract EIP712MetaTransaction is EIP712Base {
     }
 }
 
-contract dgPointer is AccessController, EIP712MetaTransaction {
+interface OldPointer {
+    function affiliateData(
+        address player
+    )
+        external
+        view
+        returns (address);
+}
+
+contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionForPointer {
 
     using SafeMath for uint256;
+
+    address constant ZERO_ADDRESS = address(0x0);
 
     uint256 public defaultPlayerBonus = 30;
     uint256 public defaultWearableBonus = 40;
@@ -170,14 +182,23 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
     bool public collectingEnabled;
     bool public distributionEnabled;
 
-    ERC20Token public distributionToken;
+    // should be DG token address
+    address public immutable distributionToken;
 
+    // stores addresses that allowed to addPoints
     mapping(address => bool) public declaredContracts;
-    mapping(address => uint256) public pointsBalancer;
-    mapping(address => mapping(address => uint256)) public tokenToPointRatio;
+
+    // stores amount that address can withdraw for specific token (player > payoutToken > amount )
+    mapping(address => mapping(address => uint256)) public pointsBalancer;
+
+    // stores ratio between input token to output token for each game (game > inputToken > outputToken)
+    mapping(address => mapping(address => mapping(address => uint256))) public tokenToPointRatio;
+
     mapping(uint256 => uint256) public playerBonuses;
     mapping(uint256 => uint256) public wearableBonuses;
     mapping(address => address) public affiliateData;
+
+    OldPointer public immutable oldPointer;
 
     uint256 public affiliateBonus;
     uint256 public wearableBonusPerObject;
@@ -197,15 +218,16 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
 
     constructor(
         address _distributionToken,
+        address _oldPointerAddress,
         string memory name,
         string memory version
     ) EIP712Base(name, version) {
 
-        distributionToken = ERC20Token(
+        distributionToken = (
             _distributionToken
         );
 
-        affiliateBonus = 10;
+        affiliateBonus = 100;
 
         playerBonuses[2] = 10;
         playerBonuses[3] = 20;
@@ -215,6 +237,10 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
         wearableBonuses[2] = 20;
         wearableBonuses[3] = 30;
         wearableBonuses[4] = 40;
+
+        oldPointer = OldPointer(
+            _oldPointerAddress
+        );
     }
 
     function assignAffiliate(
@@ -225,9 +251,19 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
         onlyWorker
     {
         require(
-            affiliateData[_player] == address(0x0),
+            _affiliate != _player,
+            'Pointer: self-referral'
+        );
+
+        _checkAffiliatesInOldPointer(
+            _player
+        );
+
+        require(
+            affiliateData[_player] == ZERO_ADDRESS,
             'Pointer: player already affiliated'
         );
+
         affiliateData[_player] = _affiliate;
     }
 
@@ -283,7 +319,7 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
     )
         public
         returns (
-            uint256 newPoints,
+            uint256 playerPoints,
             uint256 multiplierA,
             uint256 multiplierB
         )
@@ -307,36 +343,74 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
                 defaultWearableBonus
             );
 
-            newPoints = _points
-                .div(tokenToPointRatio[msg.sender][_token])
-                .mul(uint256(100)
-                    .add(multiplierA)
-                    .add(multiplierB)
-                )
-                .div(100);
+            playerPoints = _calculatePoints(
+                _points,
+                tokenToPointRatio[msg.sender][_token][distributionToken],
+                multiplierA,
+                multiplierB
+            );
 
-            pointsBalancer[_player] =
-            pointsBalancer[_player].add(newPoints);
+            pointsBalancer[_player][distributionToken] =
+            pointsBalancer[_player][distributionToken].add(playerPoints);
 
             _applyAffiliatePoints(
                 _player,
-                newPoints
+                _token,
+                _points,
+                multiplierA,
+                multiplierB
             );
         }
     }
 
     function _applyAffiliatePoints(
         address _player,
-        uint256 _points
+        address _token,
+        uint256 _points,
+        uint256 _multiplierA,
+        uint256 _multiplierB
     )
         internal
     {
+        _checkAffiliatesInOldPointer(
+            _player
+        );
+
         if (_isAffiliated(_player)) {
-            pointsBalancer[affiliateData[_player]] =
-            pointsBalancer[affiliateData[_player]] + _points
-                .mul(affiliateBonus)
-                .div(100);
+
+            address affiliate = affiliateData[_player];
+
+            pointsBalancer[affiliate][_token] =
+            pointsBalancer[affiliate][_token].add(
+                _calculatePoints(
+                    _points,
+                    tokenToPointRatio[msg.sender][_token][_token],
+                    _multiplierA,
+                    _multiplierB
+                )
+            )
+            .mul(affiliateBonus)
+            .div(100);
         }
+    }
+
+    function _calculatePoints(
+        uint256 _points,
+        uint256 _ratio,
+        uint256 _multiplierA,
+        uint256 _multiplierB
+    )
+        internal
+        pure
+        returns (uint256)
+    {
+        return _points
+            .div(_ratio)
+            .mul(uint256(100)
+                .add(_multiplierA)
+                .add(_multiplierB)
+            )
+            .div(100);
     }
 
     function getPlayerMultiplier(
@@ -369,6 +443,26 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
             : _wearableBonus;
     }
 
+    function _checkAffiliatesInOldPointer(
+        address _player
+    )
+        internal
+    {
+        if (address(oldPointer) != ZERO_ADDRESS) {
+
+            address affiliate = oldPointer.affiliateData(
+                _player
+            );
+
+            if (
+                affiliate != ZERO_ADDRESS &&
+                affiliateData[_player] == ZERO_ADDRESS
+            ) {
+                affiliateData[_player] = affiliate;
+            }
+        }
+    }
+
     function _isAffiliated(
         address _player
     )
@@ -376,54 +470,72 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
         view
         returns (bool)
     {
-        return affiliateData[_player] != address(0x0);
+        return affiliateData[_player] != ZERO_ADDRESS;
     }
 
-    function getMyTokens()
-        external
-        returns(uint256 tokenAmount)
-    {
-        return distributeTokens(msgSender());
-    }
-
-    function distributeTokensBulk(
-        address[] memory _player
+    function distributeAllTokens(
+        address _player,
+        address[] calldata _token
     )
         external
     {
-        for(uint i = 0; i < _player.length; i++) {
-            distributeTokens(_player[i]);
+        for (uint8 _tokenIndex = 0; _tokenIndex < _token.length; _tokenIndex++) {
+            _distributePayout(
+                _player,
+                _token[_tokenIndex]
+            );
         }
     }
 
-    function distributeTokens(
-        address _player
+    function distributeTokensForAffiliate(
+        address _affiliate,
+        address _token
     )
-        public
+        external
+    {
+        _distributePayout(
+            _affiliate,
+            _token
+        );
+    }
+
+    function _distributePayout(
+        address _payoutAddress,
+        address _payoutToken
+    )
+        internal
         returns (uint256 tokenAmount)
     {
         require(
             distributionEnabled == true,
             'Pointer: distribution disabled'
         );
-        tokenAmount = pointsBalancer[_player];
-        pointsBalancer[_player] = 0;
-        distributionToken.transfer(_player, tokenAmount);
-    }
 
-    function changePlayerBonus(uint256 _bonusIndex, uint256 _newBonus)
-        external
-        onlyCEO
-    {
-        playerBonuses[_bonusIndex] = _newBonus;
+        tokenAmount = pointsBalancer[_payoutAddress][_payoutToken];
+        pointsBalancer[_payoutAddress][_payoutToken] = 0;
 
-        emit updatedPlayerBonus(
-          _bonusIndex,
-          playerBonuses[_bonusIndex]
+        safeTransfer(
+            _payoutToken,
+            _payoutAddress,
+            tokenAmount
         );
     }
 
-    function changeAffiliateBonus(uint256 _newAffiliateBonus)
+    function distributeTokensForPlayer(
+        address _player
+    )
+        external
+        returns (uint256)
+    {
+        return _distributePayout(
+            _player,
+            distributionToken
+        );
+    }
+
+    function changeAffiliateBonus(
+        uint256 _newAffiliateBonus
+    )
         external
         onlyCEO
     {
@@ -434,13 +546,28 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
         );
     }
 
+    function changePlayerBonus(
+        uint256 _bonusIndex,
+        uint256 _newBonus
+    )
+        external
+        onlyCEO
+    {
+        playerBonuses[_bonusIndex] = _newBonus;
+
+        emit updatedPlayerBonus(
+            _bonusIndex,
+            playerBonuses[_bonusIndex]
+        );
+    }
+
     function changeDefaultPlayerBonus(
         uint256 _newDefaultPlayerBonus
     )
         external
         onlyCEO
     {
-        defaultPlayerBonus =_newDefaultPlayerBonus;
+        defaultPlayerBonus = _newDefaultPlayerBonus;
 
         emit updatedMaxPlayerBonus(
             defaultPlayerBonus
@@ -456,26 +583,16 @@ contract dgPointer is AccessController, EIP712MetaTransaction {
         defaultWearableBonus = _newMaxWearableBonus;
     }
 
-    function changeDistributionToken(
-        address _newDistributionToken
-    )
-        external
-        onlyCEO
-    {
-        distributionToken = ERC20Token(
-            _newDistributionToken
-        );
-    }
-
     function setTokenToPointRatio(
-        address _gameAddress,
-        address _token,
+        address _game,
+        address _tokenIn,
+        address _tokenOut,
         uint256 _ratio
     )
         external
         onlyCEO
     {
-        tokenToPointRatio[_gameAddress][_token] = _ratio;
+        tokenToPointRatio[_game][_tokenIn][_tokenOut] = _ratio;
     }
 
     function enableCollecting(
