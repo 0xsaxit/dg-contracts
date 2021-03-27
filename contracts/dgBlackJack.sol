@@ -197,7 +197,7 @@ contract dgBlackJack is AccessController, BlackJackHelper {
     TreasuryInstance public treasury;
 
     uint8 maxPlayers;
-    uint256 nonce;
+    // uint256 nonce;
 
     event BetPlaced(
         uint8 tokenIndex,
@@ -210,11 +210,12 @@ contract dgBlackJack is AccessController, BlackJackHelper {
     );
 
     event GameInitialized(
-        bytes16 gameId,
+        bytes16 indexed gameId,
         uint128[] bets,
         uint8[] tokens,
-        uint256 landId,
-        uint256 tableId
+        uint256 serverId,
+        uint256 indexed landId,
+        uint256 indexed tableId
     );
 
     event PlayerCardDrawn(
@@ -453,19 +454,19 @@ contract dgBlackJack is AccessController, BlackJackHelper {
     }
 
     function initializeGame(
+        bytes16 _gameId,
         address[] calldata _players,
         uint128[] calldata _bets,
         uint8[] calldata _tokens,
         uint256 _serverId,
         uint256 _landId,
-        uint256 _tableId,
-        bytes32 _localhashA,
-        bytes32 _localhashB
+        uint256 _tableId
+        // bytes32 _localhashA,
+        // bytes32 _localhashB
     )
         external
         whenNotPaused
         onlyWorker
-        returns (bytes16 gameId)
     {
         require(
             _players.length <= maxPlayers &&
@@ -482,18 +483,20 @@ contract dgBlackJack is AccessController, BlackJackHelper {
 
         // treasury.consumeHash(_localhashA);
 
-        gameId = getGameId(_serverId, _landId, _tableId, _players, nonce);
-        nonce = nonce + 1;
+        // gameId = getGameId(_serverId, _landId, _tableId, _players, nonce);
+        // nonce = nonce + 1;
 
         require(
-            Games[gameId].state == GameState.NewGame ||
-            Games[gameId].state == GameState.EndedGame
+            Games[_gameId].state == GameState.NewGame ||
+            Games[_gameId].state == GameState.EndedGame
         );
 
         // starting to initialize game
-        emit GameInitializing(gameId);
+        emit GameInitializing(_gameId);
 
-        uint8[] storage _deck = prepareDeck(gameId);
+        uint8[] storage _deck = prepareDeck(
+            _gameId
+        );
 
         Game memory _game = Game(
             _players,
@@ -505,7 +508,7 @@ contract dgBlackJack is AccessController, BlackJackHelper {
             GameState.OnGoingGame
         );
 
-        Games[gameId] = _game;
+        Games[_gameId] = _game;
 
         uint8 pIndex; // playersIndex
 
@@ -513,49 +516,50 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         for (pIndex = 0; pIndex < _players.length; pIndex++) {
 
             initializePlayer(
-                gameId, pIndex
+                _gameId, pIndex
             );
 
             takePlayersBet(
-                gameId, pIndex
+                _gameId, pIndex
             );
 
-            drawPlayersCard(
-                gameId, pIndex, _localhashA
-            );
+            /* drawPlayersCard(
+                _gameId, pIndex, _localhashA
+            );*/
         }
 
         // dealers first card (visible)
-        drawDealersCard(
-            gameId, _localhashA
-        );
+        /*drawDealersCard(
+            _gameId, _localhashA
+        );*/
 
-        delete NonBustedPlayers[gameId];
+        delete NonBustedPlayers[_gameId];
 
         // players second cards (visible)
         for (pIndex = 0; pIndex < _players.length; pIndex++) {
 
-            drawPlayersCard(
-                gameId, pIndex, _localhashA
-            );
+            /*drawPlayersCard(
+                _gameId, pIndex, _localhashA
+            );*/
 
             checkForBlackJack(
-                gameId, pIndex
+                _gameId, pIndex
             );
         }
 
         delete pIndex;
 
-        DealersHidden[gameId] =
+        /*DealersHidden[_gameId] =
             HiddenCard({
                 hashChild: _localhashB,
                 hashParent: 0x0
-            });
+        });*/
 
         emit GameInitialized(
-            gameId,
+            _gameId,
             _bets,
             _tokens,
+            _serverId,
             _landId,
             _tableId
         );
@@ -618,7 +622,12 @@ contract dgBlackJack is AccessController, BlackJackHelper {
                 _payoutAmounts[i] + _refundAmounts[i]
             );
 
-            _smartPoints(_gameId, i, _refundAmounts[i], _wearableBonus[i]);
+            _smartPoints(
+                _gameId,
+                i,
+                _refundAmounts[i],
+                _wearableBonus[i]
+            );
         }
     }
 
