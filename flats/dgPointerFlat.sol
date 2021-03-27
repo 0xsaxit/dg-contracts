@@ -42,23 +42,41 @@ library SafeMath {
 contract AccessController {
 
     address public ceoAddress;
-    address public workerAddress;
 
     bool public paused = false;
 
-    // mapping (address => enumRoles) accessRoles; // multiple operators idea
+    mapping (address => bool) public isWorker;
 
-    event CEOSet(address newCEO);
-    event WorkerSet(address newWorker);
+    event CEOSet(
+        address newCEO
+    );
+
+    event WorkerAdded(
+        address newWorker
+    );
+
+    event WorkerRemoved(
+        address existingWorker
+    );
 
     event Paused();
     event Unpaused();
 
     constructor() {
-        ceoAddress = msg.sender;
-        workerAddress = msg.sender;
-        emit CEOSet(ceoAddress);
-        emit WorkerSet(workerAddress);
+
+        address creator = msg.sender;
+
+        ceoAddress = creator;
+
+        isWorker[creator] = true;
+
+        emit CEOSet(
+            creator
+        );
+
+        emit WorkerAdded(
+            creator
+        );
     }
 
     modifier onlyCEO() {
@@ -71,8 +89,16 @@ contract AccessController {
 
     modifier onlyWorker() {
         require(
-            msg.sender == workerAddress,
+            isWorker[msg.sender] == true,
             'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier nonZeroAddress(address checkingAddress) {
+        require(
+            checkingAddress != address(0x0),
+            'AccessControl: invalid address'
         );
         _;
     }
@@ -93,34 +119,114 @@ contract AccessController {
         _;
     }
 
-    function setCEO(address _newCEO) public onlyCEO {
-        require(
-            _newCEO != address(0x0),
-            'AccessControl: invalid CEO address'
-        );
+    function setCEO(
+        address _newCEO
+    )
+        external
+        nonZeroAddress(_newCEO)
+        onlyCEO
+    {
         ceoAddress = _newCEO;
-        emit CEOSet(ceoAddress);
+
+        emit CEOSet(
+            ceoAddress
+        );
     }
 
-    function setWorker(address _newWorker) external {
-        require(
-            _newWorker != address(0x0),
-            'AccessControl: invalid worker address'
+    function addWorker(
+        address _newWorker
+    )
+        external
+        onlyCEO
+    {
+        _addWorker(
+            _newWorker
         );
-        require(
-            msg.sender == ceoAddress || msg.sender == workerAddress,
-            'AccessControl: invalid worker address'
-        );
-        workerAddress = _newWorker;
-        emit WorkerSet(workerAddress);
     }
 
-    function pause() external onlyWorker whenNotPaused {
+    function addWorkerBulk(
+        address[] calldata _newWorkers
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _newWorkers.length; index++) {
+            _addWorker(_newWorkers[index]);
+        }
+    }
+
+    function _addWorker(
+        address _newWorker
+    )
+        internal
+        nonZeroAddress(_newWorker)
+    {
+        require(
+            isWorker[_newWorker] == false,
+            'AccessControl: worker already exist'
+        );
+
+        isWorker[_newWorker] = true;
+
+        emit WorkerAdded(
+            _newWorker
+        );
+    }
+
+    function removeWorker(
+        address _existingWorker
+    )
+        external
+        onlyCEO
+    {
+        _removeWorker(
+            _existingWorker
+        );
+    }
+
+    function removeWorkerBulk(
+        address[] calldata _workerArray
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _workerArray.length; index++) {
+            _removeWorker(_workerArray[index]);
+        }
+    }
+
+    function _removeWorker(
+        address _existingWorker
+    )
+        internal
+        nonZeroAddress(_existingWorker)
+    {
+        require(
+            isWorker[_existingWorker] == true,
+            "AccessControl: worker not detected"
+        );
+
+        isWorker[_existingWorker] = false;
+
+        emit WorkerRemoved(
+            _existingWorker
+        );
+    }
+
+    function pause()
+        external
+        onlyWorker
+        whenNotPaused
+    {
         paused = true;
         emit Paused();
     }
 
-    function unpause() external onlyCEO whenPaused {
+    function unpause()
+        external
+        onlyCEO
+        whenPaused
+    {
         paused = false;
         emit Unpaused();
     }
@@ -172,7 +278,7 @@ contract EIP712Base {
 
     function getChainID() internal pure returns (uint256 id) {
 		assembly {
-			id := 5 // set to Goerli for now, Mainnet later
+			id := 1 // set to Goerli for now, Mainnet later
 		}
 	}
 
@@ -193,9 +299,88 @@ contract EIP712Base {
 
 }
 
-abstract contract ExecuteMetaTransaction is EIP712Base {
+contract TransferHelper {
+
+    bytes4 private constant TRANSFER = bytes4(
+        keccak256(
+            bytes(
+                'transfer(address,uint256)' // 0xa9059cbb
+            )
+        )
+    );
+
+    bytes4 private constant TRANSFER_FROM = bytes4(
+        keccak256(
+            bytes(
+                'transferFrom(address,address,uint256)' // 0x23b872dd
+            )
+        )
+    );
+
+    function safeTransfer(
+        address _token,
+        address _to,
+        uint256 _value
+    )
+        internal
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                TRANSFER, // 0xa9059cbb
+                _to,
+                _value
+            )
+        );
+
+        require(
+            success && (
+                data.length == 0 || abi.decode(
+                    data, (bool)
+                )
+            ),
+            'TransferHelper: TRANSFER_FAILED'
+        );
+    }
+
+    function safeTransferFrom(
+        address _token,
+        address _from,
+        address _to,
+        uint _value
+    )
+        internal
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                TRANSFER_FROM,
+                _from,
+                _to,
+                _value
+            )
+        );
+
+        require(
+            success && (
+                data.length == 0 || abi.decode(
+                    data, (bool)
+                )
+            ),
+            'TransferHelper: TRANSFER_FROM_FAILED'
+        );
+    }
+
+}
+
+abstract contract EIP712MetaTransactionForPointer is EIP712Base {
 
     using SafeMath for uint256;
+
+    bytes32 private constant META_TRANSACTION_TYPEHASH =
+        keccak256(
+            bytes(
+                "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
+            )
+        );
 
     event MetaTransactionExecuted(
         address userAddress,
@@ -203,88 +388,18 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         bytes functionSignature
     );
 
-    bytes32 internal constant META_TRANSACTION_TYPEHASH = keccak256(
-        bytes(
-            "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
-        )
-    );
-
     mapping(address => uint256) internal nonces;
 
+    /*
+     * Meta transaction structure.
+     * No point of including value field here as if user is doing value transfer then he has the funds to pay for gas
+     * He should call the desired function directly in that case.
+     */
     struct MetaTransaction {
 		uint256 nonce;
 		address from;
         bytes functionSignature;
 	}
-
-    function getNonce(
-        address user
-    )
-        public
-        view
-        returns(uint256 nonce)
-    {
-        nonce = nonces[user];
-    }
-
-    function verify(
-        address signer,
-        MetaTransaction memory metaTx,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
-    ) internal view returns (bool) {
-        return
-            signer ==
-            ecrecover(
-                toTypedMessageHash(hashMetaTransaction(metaTx)),
-                sigV,
-                sigR,
-                sigS
-            );
-    }
-
-    function hashMetaTransaction(
-        MetaTransaction memory metaTx
-    )
-        internal
-        pure
-        returns (bytes32)
-    {
-        return
-            keccak256(
-                abi.encode(
-                    META_TRANSACTION_TYPEHASH,
-                    metaTx.nonce,
-                    metaTx.from,
-                    keccak256(metaTx.functionSignature)
-                )
-            );
-    }
-
-    function msgSender()
-        internal
-        view
-        returns(address sender)
-    {
-        if (msg.sender == address(this)) {
-
-            bytes memory array = msg.data;
-            uint256 index = msg.data.length;
-            assembly {
-                sender := and(
-                    mload(add(array, index)),
-                    0xffffffffffffffffffffffffffffffffffffffff
-                )
-            }
-
-        } else {
-
-            sender = msg.sender;
-
-        }
-        return sender;
-    }
 
     function executeMetaTransaction(
         address userAddress,
@@ -292,34 +407,44 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
         bytes32 sigR,
         bytes32 sigS,
         uint8 sigV
-    ) public returns (bytes memory) {
-
-        MetaTransaction memory metaTx = MetaTransaction({
-            nonce: nonces[userAddress],
-            from: userAddress,
-            functionSignature: functionSignature
-        });
-
-        require(
-            verify(userAddress, metaTx, sigR, sigS, sigV),
-            'Signer and signature do not match'
+    )
+        public
+        payable
+        returns(bytes memory)
+    {
+        MetaTransaction memory metaTx = MetaTransaction(
+            {
+                nonce: nonces[userAddress],
+                from: userAddress,
+                functionSignature: functionSignature
+            }
         );
 
+        require(
+            verify(
+                userAddress,
+                metaTx,
+                sigR,
+                sigS,
+                sigV
+            ), "Signer and signature do not match"
+        );
+
+	    nonces[userAddress] =
+	    nonces[userAddress].add(1);
+
+        // Append userAddress at the end to extract it from calling context
         (bool success, bytes memory returnData) = address(this).call(
             abi.encodePacked(
                 functionSignature,
-                userAddress,
-                msg.sender
+                userAddress
             )
         );
 
         require(
             success,
-            'dgPointer: Function call not successfull'
+            'Function call not successful'
         );
-
-        nonces[userAddress] =
-        nonces[userAddress] + 1;
 
         emit MetaTransactionExecuted(
             userAddress,
@@ -329,11 +454,90 @@ abstract contract ExecuteMetaTransaction is EIP712Base {
 
         return returnData;
     }
+
+    function hashMetaTransaction(
+        MetaTransaction memory metaTx
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+		return keccak256(
+		    abi.encode(
+                META_TRANSACTION_TYPEHASH,
+                metaTx.nonce,
+                metaTx.from,
+                keccak256(metaTx.functionSignature)
+            )
+        );
+	}
+
+    function getNonce(
+        address user
+    )
+        external
+        view
+        returns(uint256 nonce)
+    {
+        nonce = nonces[user];
+    }
+
+    function verify(
+        address user,
+        MetaTransaction memory metaTx,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    )
+        internal
+        view
+        returns (bool)
+    {
+        address signer = ecrecover(
+            toTypedMessageHash(
+                hashMetaTransaction(metaTx)
+            ),
+            sigV,
+            sigR,
+            sigS
+        );
+
+        require(
+            signer != address(0x0),
+            'Invalid signature'
+        );
+		return signer == user;
+	}
+
+    function msgSender() internal view returns(address sender) {
+        if(msg.sender == address(this)) {
+            bytes memory array = msg.data;
+            uint256 index = msg.data.length;
+            assembly {
+                // Load the 32 bytes word from memory with the address on the lower 20 bytes, and mask those.
+                sender := and(mload(add(array, index)), 0xffffffffffffffffffffffffffffffffffffffff)
+            }
+        } else {
+            sender = msg.sender;
+        }
+        return sender;
+    }
 }
 
-contract dgPointer is AccessController, ExecuteMetaTransaction {
+interface OldPointer {
+    function affiliateData(
+        address player
+    )
+        external
+        view
+        returns (address);
+}
+
+contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionForPointer {
 
     using SafeMath for uint256;
+
+    address constant ZERO_ADDRESS = address(0x0);
 
     uint256 public defaultPlayerBonus = 30;
     uint256 public defaultWearableBonus = 40;
@@ -341,14 +545,23 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     bool public collectingEnabled;
     bool public distributionEnabled;
 
-    ERC20Token public distributionToken;
+    // should be DG token address
+    address public immutable distributionToken;
 
+    // stores addresses that allowed to addPoints
     mapping(address => bool) public declaredContracts;
-    mapping(address => uint256) public pointsBalancer;
-    mapping(address => mapping(address => uint256)) public tokenToPointRatio;
+
+    // stores amount that address can withdraw for specific token (player > payoutToken > amount )
+    mapping(address => mapping(address => uint256)) public pointsBalancer;
+
+    // stores ratio between input token to output token for each game (game > inputToken > outputToken)
+    mapping(address => mapping(address => mapping(address => uint256))) public tokenToPointRatio;
+
     mapping(uint256 => uint256) public playerBonuses;
     mapping(uint256 => uint256) public wearableBonuses;
     mapping(address => address) public affiliateData;
+
+    OldPointer public immutable oldPointer;
 
     uint256 public affiliateBonus;
     uint256 public wearableBonusPerObject;
@@ -368,15 +581,16 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
 
     constructor(
         address _distributionToken,
+        address _oldPointerAddress,
         string memory name,
         string memory version
     ) EIP712Base(name, version) {
 
-        distributionToken = ERC20Token(
+        distributionToken = (
             _distributionToken
         );
 
-        affiliateBonus = 10;
+        affiliateBonus = 100;
 
         playerBonuses[2] = 10;
         playerBonuses[3] = 20;
@@ -386,6 +600,10 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         wearableBonuses[2] = 20;
         wearableBonuses[3] = 30;
         wearableBonuses[4] = 40;
+
+        oldPointer = OldPointer(
+            _oldPointerAddress
+        );
     }
 
     function assignAffiliate(
@@ -396,9 +614,19 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         onlyWorker
     {
         require(
-            affiliateData[_player] == address(0x0),
+            _affiliate != _player,
+            'Pointer: self-referral'
+        );
+
+        _checkAffiliatesInOldPointer(
+            _player
+        );
+
+        require(
+            affiliateData[_player] == ZERO_ADDRESS,
             'Pointer: player already affiliated'
         );
+
         affiliateData[_player] = _affiliate;
     }
 
@@ -454,7 +682,7 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
     )
         public
         returns (
-            uint256 newPoints,
+            uint256 playerPoints,
             uint256 multiplierA,
             uint256 multiplierB
         )
@@ -478,36 +706,74 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
                 defaultWearableBonus
             );
 
-            newPoints = _points
-                .div(tokenToPointRatio[msg.sender][_token])
-                .mul(uint256(100)
-                    .add(multiplierA)
-                    .add(multiplierB)
-                )
-                .div(100);
+            playerPoints = _calculatePoints(
+                _points,
+                tokenToPointRatio[msg.sender][_token][distributionToken],
+                multiplierA,
+                multiplierB
+            );
 
-            pointsBalancer[_player] =
-            pointsBalancer[_player].add(newPoints);
+            pointsBalancer[_player][distributionToken] =
+            pointsBalancer[_player][distributionToken].add(playerPoints);
 
             _applyAffiliatePoints(
                 _player,
-                newPoints
+                _token,
+                _points,
+                multiplierA,
+                multiplierB
             );
         }
     }
 
     function _applyAffiliatePoints(
         address _player,
-        uint256 _points
+        address _token,
+        uint256 _points,
+        uint256 _multiplierA,
+        uint256 _multiplierB
     )
         internal
     {
+        _checkAffiliatesInOldPointer(
+            _player
+        );
+
         if (_isAffiliated(_player)) {
-            pointsBalancer[affiliateData[_player]] =
-            pointsBalancer[affiliateData[_player]] + _points
-                .mul(affiliateBonus)
-                .div(100);
+
+            address affiliate = affiliateData[_player];
+
+            pointsBalancer[affiliate][_token] =
+            pointsBalancer[affiliate][_token].add(
+                _calculatePoints(
+                    _points,
+                    tokenToPointRatio[msg.sender][_token][_token],
+                    _multiplierA,
+                    _multiplierB
+                )
+            )
+            .mul(affiliateBonus)
+            .div(100);
         }
+    }
+
+    function _calculatePoints(
+        uint256 _points,
+        uint256 _ratio,
+        uint256 _multiplierA,
+        uint256 _multiplierB
+    )
+        internal
+        pure
+        returns (uint256)
+    {
+        return _points
+            .div(_ratio)
+            .mul(uint256(100)
+                .add(_multiplierA)
+                .add(_multiplierB)
+            )
+            .div(100);
     }
 
     function getPlayerMultiplier(
@@ -540,6 +806,26 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
             : _wearableBonus;
     }
 
+    function _checkAffiliatesInOldPointer(
+        address _player
+    )
+        internal
+    {
+        if (address(oldPointer) != ZERO_ADDRESS) {
+
+            address affiliate = oldPointer.affiliateData(
+                _player
+            );
+
+            if (
+                affiliate != ZERO_ADDRESS &&
+                affiliateData[_player] == ZERO_ADDRESS
+            ) {
+                affiliateData[_player] = affiliate;
+            }
+        }
+    }
+
     function _isAffiliated(
         address _player
     )
@@ -547,54 +833,72 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         view
         returns (bool)
     {
-        return affiliateData[_player] != address(0x0);
+        return affiliateData[_player] != ZERO_ADDRESS;
     }
 
-    function getMyTokens()
-        external
-        returns(uint256 tokenAmount)
-    {
-        return distributeTokens(msgSender());
-    }
-
-    function distributeTokensBulk(
-        address[] memory _player
+    function distributeAllTokens(
+        address _player,
+        address[] calldata _token
     )
         external
     {
-        for(uint i = 0; i < _player.length; i++) {
-            distributeTokens(_player[i]);
+        for (uint8 _tokenIndex = 0; _tokenIndex < _token.length; _tokenIndex++) {
+            _distributePayout(
+                _player,
+                _token[_tokenIndex]
+            );
         }
     }
 
-    function distributeTokens(
-        address _player
+    function distributeTokensForAffiliate(
+        address _affiliate,
+        address _token
     )
-        public
+        external
+    {
+        _distributePayout(
+            _affiliate,
+            _token
+        );
+    }
+
+    function _distributePayout(
+        address _payoutAddress,
+        address _payoutToken
+    )
+        internal
         returns (uint256 tokenAmount)
     {
         require(
             distributionEnabled == true,
             'Pointer: distribution disabled'
         );
-        tokenAmount = pointsBalancer[_player];
-        pointsBalancer[_player] = 0;
-        distributionToken.transfer(_player, tokenAmount);
-    }
 
-    function changePlayerBonus(uint256 _bonusIndex, uint256 _newBonus)
-        external
-        onlyCEO
-    {
-        playerBonuses[_bonusIndex] = _newBonus;
+        tokenAmount = pointsBalancer[_payoutAddress][_payoutToken];
+        pointsBalancer[_payoutAddress][_payoutToken] = 0;
 
-        emit updatedPlayerBonus(
-          _bonusIndex,
-          playerBonuses[_bonusIndex]
+        safeTransfer(
+            _payoutToken,
+            _payoutAddress,
+            tokenAmount
         );
     }
 
-    function changeAffiliateBonus(uint256 _newAffiliateBonus)
+    function distributeTokensForPlayer(
+        address _player
+    )
+        external
+        returns (uint256)
+    {
+        return _distributePayout(
+            _player,
+            distributionToken
+        );
+    }
+
+    function changeAffiliateBonus(
+        uint256 _newAffiliateBonus
+    )
         external
         onlyCEO
     {
@@ -605,13 +909,28 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         );
     }
 
+    function changePlayerBonus(
+        uint256 _bonusIndex,
+        uint256 _newBonus
+    )
+        external
+        onlyCEO
+    {
+        playerBonuses[_bonusIndex] = _newBonus;
+
+        emit updatedPlayerBonus(
+            _bonusIndex,
+            playerBonuses[_bonusIndex]
+        );
+    }
+
     function changeDefaultPlayerBonus(
         uint256 _newDefaultPlayerBonus
     )
         external
         onlyCEO
     {
-        defaultPlayerBonus =_newDefaultPlayerBonus;
+        defaultPlayerBonus = _newDefaultPlayerBonus;
 
         emit updatedMaxPlayerBonus(
             defaultPlayerBonus
@@ -627,26 +946,16 @@ contract dgPointer is AccessController, ExecuteMetaTransaction {
         defaultWearableBonus = _newMaxWearableBonus;
     }
 
-    function changeDistributionToken(
-        address _newDistributionToken
-    )
-        external
-        onlyCEO
-    {
-        distributionToken = ERC20Token(
-            _newDistributionToken
-        );
-    }
-
     function setTokenToPointRatio(
-        address _gameAddress,
-        address _token,
+        address _game,
+        address _tokenIn,
+        address _tokenOut,
         uint256 _ratio
     )
         external
         onlyCEO
     {
-        tokenToPointRatio[_gameAddress][_token] = _ratio;
+        tokenToPointRatio[_game][_tokenIn][_tokenOut] = _ratio;
     }
 
     function enableCollecting(
