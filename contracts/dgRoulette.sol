@@ -19,6 +19,7 @@ contract dgRoulette is AccessController {
     uint256 private store;
     uint256 public pointsCap;
 
+    enum GameState { NewGame, OnGoingGame, EndedGame }
     enum BetType { Single, EvenOdd, RedBlack, HighLow, Column, Dozen }
 
     mapping (address => uint) public totalBets;
@@ -26,6 +27,21 @@ contract dgRoulette is AccessController {
 
     mapping (uint => uint) public maxSquareBets;
     mapping (uint => mapping (uint => mapping (uint => uint))) public currentBets;
+
+    struct Game {
+        address[] players;
+        uint256 landID;
+        uint256 machineID;
+        uint8[] betIDs;
+        uint8[] betValues;
+        uint128[] betAmount;
+        uint8[] tokenIndex;
+        uint8 playersCount;
+        uint8[] wearableBonus;
+        GameState state;
+    }
+
+    mapping(bytes16 => Game) public Games;
 
     Bet[] public bets;
     uint256[] winAmounts;
@@ -124,8 +140,10 @@ contract dgRoulette is AccessController {
             uint256 number
         )
     {
-        // require(block.timestamp > store>>136, 'Roulette: expired round');
-        require(bets.length > 0, 'Roulette: must have bets');
+        require(
+            bets.length > 0,
+            'Roulette: must have bets'
+        );
 
         delete winAmounts;
 
@@ -134,7 +152,9 @@ contract dgRoulette is AccessController {
 
         number = uint(
             keccak256(
-                abi.encodePacked(_localhash)
+                abi.encodePacked(
+                    _localhash
+                )
             )
         ) % 37;
 
@@ -208,14 +228,14 @@ contract dgRoulette is AccessController {
         );
     }
 
-    function play(
+    function placeBets(
+        bytes16 _gameId,
         address[] memory _players,
         uint256 _landID,
         uint256 _machineID,
         uint8[] memory _betIDs,
         uint8[] memory _betValues,
         uint128[] memory _betAmount,
-        bytes32 _localhash,
         uint8[] memory _tokenIndex,
         uint8 _playerCount,
         uint8[] memory _wearableBonus
@@ -244,9 +264,26 @@ contract dgRoulette is AccessController {
             'Roulette: maximum amount of bets reached'
         );
 
-        /* treasury.consumeHash(
-            _localhash
-        );*/
+        require(
+            Games[_gameId].state == GameState.NewGame ||
+            Games[_gameId].state == GameState.EndedGame,
+            'Roulette: ongoing game detected'
+        );
+
+        Game memory _game = Game(
+            _players,
+            _landID,
+            _machineID,
+            _betIDs,
+            _betValues,
+            _betAmount,
+            _tokenIndex,
+            _playerCount,
+            _wearableBonus,
+            GameState.OnGoingGame
+        );
+
+        Games[_gameId] = _game;
 
         bool[5] memory checkedTokens;
         uint8 i;
@@ -264,14 +301,6 @@ contract dgRoulette is AccessController {
                 _betAmount[i]
             );
 
-            bet(
-                _players[i],
-                _betIDs[i],
-                _betValues[i],
-                _tokenIndex[i],
-                _betAmount[i]
-            );
-
             if (!checkedTokens[_tokenIndex[i]]) {
                 uint256 tokenFunds = treasury.checkAllocatedTokens(_tokenIndex[i]);
                 require(
@@ -281,39 +310,66 @@ contract dgRoulette is AccessController {
                 checkedTokens[_tokenIndex[i]] = true;
             }
         }
+    }
+
+    function resolveGame(
+        bytes16 _gameId,
+        bytes32 _localhash
+    )
+        public
+        whenNotPaused
+        onlyWorker
+    {
+        require(
+            Games[_gameId].state == GameState.OnGoingGame,
+            'dgRoulette: not ongoing game detected'
+        );
+
+        Games[_gameId].state = GameState.EndedGame;
+
+        for (uint8 i = 0; i < Games[_gameId].betIDs.length; i++) {
+            bet(
+                Games[_gameId].players[i],
+                Games[_gameId].betIDs[i],
+                Games[_gameId].betValues[i],
+                Games[_gameId].tokenIndex[i],
+                Games[_gameId].betAmount[i]
+            );
+        }
 
         uint256 _spinResult;
         (winAmounts, _spinResult) = _launch(
             _localhash,
-            _players,
-            _tokenIndex,
-            _landID,
-            _machineID
+            Games[_gameId].players,
+            Games[_gameId].tokenIndex,
+            Games[_gameId].landID,
+            Games[_gameId].machineID
         );
 
         // payout && points preparation
-        for (i = 0; i < winAmounts.length; i++) {
+        for (uint8 i = 0; i < winAmounts.length; i++) {
+            address player = Games[_gameId].players[i];
             if (winAmounts[i] > 0) {
                 treasury.tokenOutboundTransfer(
-                    _tokenIndex[i],
-                    _players[i],
+                    Games[_gameId].tokenIndex[i],
+                    Games[_gameId].players[i],
                     winAmounts[i]
                 );
                 // collecting totalPayout
-                totalPayout[_players[i]] =
-                totalPayout[_players[i]] + winAmounts[i];
+                totalPayout[player] =
+                totalPayout[player] + winAmounts[i];
             }
-            totalBets[_players[i]] =
-            totalBets[_players[i]] + _betAmount[i];
+            totalBets[player] =
+            totalBets[player] + Games[_gameId].betAmount[i];
         }
 
         // point calculation && bonus
-        for (i = 0; i < _players.length; i++) {
+        for (uint8 i = 0; i < Games[_gameId].players.length; i++) {
             _issuePointsAmount(
-                _players[i],
-                _tokenIndex[i],
-                _playerCount,
-                _wearableBonus[i]
+                Games[_gameId].players[i],
+                Games[_gameId].tokenIndex[i],
+                Games[_gameId].playersCount,
+                Games[_gameId].wearableBonus[i]
             );
         }
     }
