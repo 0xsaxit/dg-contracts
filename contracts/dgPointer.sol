@@ -202,6 +202,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
     mapping(address => mapping(uint256 => address)) public affiliatePlayer;
     mapping(address => mapping(address => uint256)) public affiliateProfit;
+    mapping(address => mapping(address => uint256)) public affiliateHistoryProfit;
 
     OldPointer public immutable oldPointer;
 
@@ -291,12 +292,12 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
         affiliateData[_player] = _affiliate;
 
+        affiliateCounts[_affiliate] =
+        affiliateCounts[_affiliate] + 1;
+
         uint256 affiliateNonce =
         affiliateCounts[_affiliate];
         affiliatePlayer[_affiliate][affiliateNonce] = _player;
-
-        affiliateCounts[_affiliate] =
-        affiliateCounts[_affiliate] + 1;
 
         emit AffiliateAssigned(
             _affiliate,
@@ -469,12 +470,51 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
             pointsBalancer[affiliate][_token] =
             pointsBalancer[affiliate][_token].add(pointsToAdd);
 
+            affiliateHistoryProfit[affiliate][_token] =
+            affiliateHistoryProfit[affiliate][_token].add(pointsToAdd);
+
             emit PointsAdded(
                 affiliate,
                 _player,
                 pointsToAdd,
                 pointsBalancer[affiliate][_token]
             );
+        }
+    }
+
+    function profitPagination(
+        address _affiliate,
+        address _token,
+        uint256 _offset,
+        uint256 _length
+    )
+        external
+        view
+        returns (
+            uint256[] memory _profits,
+            address[] memory _players
+        )
+    {
+        uint256 start = _offset > 0 &&
+            affiliateCounts[_affiliate] > _offset ?
+            affiliateCounts[_affiliate] - _offset : affiliateCounts[_affiliate];
+
+        uint256 finish = _length > 0 &&
+            start > _length ?
+            start - _length : 0;
+
+        uint256 i;
+
+        _players = new address[](start - finish);
+        _profits = new uint256[](start - finish);
+
+        for (uint256 _playerIndex = start; _playerIndex > finish; _playerIndex--) {
+            address player = affiliatePlayer[_affiliate][_playerIndex];
+            if (player != address(0x0)) {
+                _players[i] = player;
+                _profits[i] = affiliateProfit[player][_token];
+                i++;
+            }
         }
     }
 
