@@ -196,7 +196,12 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
     mapping(uint256 => uint256) public playerBonuses;
     mapping(uint256 => uint256) public wearableBonuses;
+
     mapping(address => address) public affiliateData;
+    mapping(address => uint256) public affiliateCounts;
+
+    mapping(address => mapping(uint256 => address)) public affiliatePlayer;
+    mapping(address => mapping(address => uint256)) public affiliateProfit;
 
     OldPointer public immutable oldPointer;
 
@@ -265,6 +270,13 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
         );
 
         affiliateData[_player] = _affiliate;
+
+        uint256 affiliateNonce =
+        affiliateCounts[_affiliate];
+        affiliatePlayer[_affiliate][affiliateNonce] = _player;
+
+        affiliateCounts[_affiliate] =
+        affiliateCounts[_affiliate] + 1;
     }
 
     function addPoints(
@@ -310,6 +322,25 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
         );
     }
 
+    function decimalDiff(
+        address _tokenFrom,
+        address _tokenTo
+    )
+        public
+        returns (uint256, bool)
+    {
+        uint8 tokenFromDecimals = ERC20Token(_tokenFrom).decimals();
+        uint8 tokenToDecimals = ERC20Token(_tokenTo).decimals();
+
+        bool reverseOrder = tokenFromDecimals > tokenToDecimals;
+
+        uint256 differenceCount = reverseOrder
+            ? ERC20Token(_tokenFrom).decimals() - ERC20Token(_tokenTo).decimals()
+            : ERC20Token(_tokenTo).decimals() - ERC20Token(_tokenFrom).decimals();
+
+        return (differenceCount, reverseOrder);
+    }
+
     function addPoints(
         address _player,
         uint256 _points,
@@ -343,9 +374,16 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
                 defaultWearableBonus
             );
 
+            (uint256 diff, bool reverse) = decimalDiff(
+                _token,
+                distributionToken
+            );
+
             playerPoints = _calculatePoints(
                 _points,
                 tokenToPointRatio[msg.sender][_token][distributionToken],
+                diff,
+                reverse,
                 multiplierA,
                 multiplierB
             );
@@ -379,32 +417,44 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
         if (_isAffiliated(_player)) {
 
             address affiliate = affiliateData[_player];
+            uint256 points = _calculatePoints(
+                _points,
+                tokenToPointRatio[msg.sender][_token][_token],
+                0,
+                false,
+                _multiplierA,
+                _multiplierB
+            );
+
+            affiliateProfit[_player][_token] =
+            affiliateProfit[_player][_token]
+                .add(points);
 
             pointsBalancer[affiliate][_token] =
-            pointsBalancer[affiliate][_token].add(
-                _calculatePoints(
-                    _points,
-                    tokenToPointRatio[msg.sender][_token][_token],
-                    _multiplierA,
-                    _multiplierB
-                )
-            )
-            .mul(affiliateBonus)
-            .div(100);
+            pointsBalancer[affiliate][_token]
+                .add(points)
+                .mul(affiliateBonus)
+                .div(100);
         }
     }
 
     function _calculatePoints(
         uint256 _points,
         uint256 _ratio,
+        uint256 _diff,
+        bool _reverse,
         uint256 _multiplierA,
         uint256 _multiplierB
     )
-        internal
+        public
         pure
         returns (uint256)
     {
-        return _points
+        uint256 pointsBase = _reverse
+            ? _points.div(10 ** _diff)
+            : _points.mul(10 ** _diff);
+
+        return pointsBase
             .div(_ratio)
             .mul(uint256(100)
                 .add(_multiplierA)
