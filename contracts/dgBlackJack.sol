@@ -133,7 +133,7 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         address[] players;
         uint128[] bets;
         uint8[] tokens;
-        uint8[] deck;
+        // uint8[] deck;
         uint8 playersCount;
         PlayerState[] pState;
         GameState state;
@@ -465,13 +465,13 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         // bytes32 _localhashB
     )
         external
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
     {
         require(
             _players.length <= maxPlayers &&
-            _bets.length == _tokens.length &&
-            _tokens.length == _players.length
+            _bets.length == _players.length
+            // _tokens.length == _players.length
         );
 
         /* _consumeMulti(
@@ -494,15 +494,15 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         // starting to initialize game
         emit GameInitializing(_gameId);
 
-        uint8[] storage _deck = prepareDeck(
+        /* uint8[] storage _deck = prepareDeck(
             _gameId
-        );
+        );*/
 
         Game memory _game = Game(
             _players,
             _bets,
             _tokens,
-            _deck,
+            // _deck,
             uint8(_players.length),
             new PlayerState[](_players.length),
             GameState.OnGoingGame
@@ -510,10 +510,10 @@ contract dgBlackJack is AccessController, BlackJackHelper {
 
         Games[_gameId] = _game;
 
-        uint8 pIndex; // playersIndex
+        // uint8 pIndex; // playersIndex
 
         // first card drawn to each player + take bets
-        for (pIndex = 0; pIndex < _players.length; pIndex++) {
+        for (uint8 pIndex = 0; pIndex < _players.length; pIndex++) {
 
             initializePlayer(
                 _gameId, pIndex
@@ -533,21 +533,21 @@ contract dgBlackJack is AccessController, BlackJackHelper {
             _gameId, _localhashA
         );*/
 
-        delete NonBustedPlayers[_gameId];
+        // delete NonBustedPlayers[_gameId];
 
         // players second cards (visible)
-        for (pIndex = 0; pIndex < _players.length; pIndex++) {
+        // for (pIndex = 0; pIndex < _players.length; pIndex++) {
 
             /*drawPlayersCard(
                 _gameId, pIndex, _localhashA
             );*/
 
-            checkForBlackJack(
+            /* checkForBlackJack(
                 _gameId, pIndex
-            );
-        }
+            );*/
+        // }
 
-        delete pIndex;
+        // delete pIndex;
 
         /*DealersHidden[_gameId] =
             HiddenCard({
@@ -576,7 +576,7 @@ contract dgBlackJack is AccessController, BlackJackHelper {
     )
         external
         onlyOnGoingGame(_gameId)
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
     {
 
@@ -674,7 +674,9 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         internal
         returns (uint8[] storage _deck)
     {
-        _deck = Games[_gameId].deck;
+        _deck = prepareDeck(
+            _gameId
+        );
         for (uint8 i = 0; i < 52; i++) {
             _deck.push(i);
         }
@@ -687,7 +689,9 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         internal
         returns (uint8)
     {
-        uint8[] storage _deck = Games[_gameId].deck;
+        uint8[] storage _deck = prepareDeck(
+            _gameId
+        );
         uint256 _card = getRandomCardIndex(
             _localhashA, _deck.length
         );
@@ -1179,10 +1183,11 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         bytes16 _gameId
     )
         external
-        view
         returns (uint8[] memory _deck)
     {
-        return Games[_gameId].deck;
+        return prepareDeck(
+            _gameId
+        );
     }
 
     function getGameId(
