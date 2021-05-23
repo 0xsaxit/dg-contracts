@@ -125,3 +125,72 @@ truffle-flattener TreasuryBackgammon.sol > TreasuryBackgammonFlat.sol  (flat the
 
 
 
+# Introduction
+
+---
+
+### DgPointer
+
+This contract stores and assigns points to players and affilates.
+Constructor parameters:
+- _distributionToken - token address (points is charged to players in this token);
+- _oldPointerAddress - old dgPointer contract address for tracking existing affiliates;
+- name - contract name;
+- version - contract version.
+
+### dgPoker
+
+This contract implements poker game.
+Constructor parameters:
+- _treasuryAddress - dgTreasure contract address;
+- _pointerAddress - dgPointer contract address;
+- _maxPlayers - maximum number of players who can play in one game;
+- _houseFee - percentage of winnings sent to treasury;
+- _tokenCount - number of available tokens in treasury.
+
+
+# Deployment
+
+---
+
+### Deploy with [Remix - Ethereum IDE](https://remix.ethereum.org/) and [Metamask](https://metamask.io/)
+1. Load contract and dependencies to IDE or use [remixd](https://remix-ide.readthedocs.io/en/latest/remixd.html)
+2. [Compile contract](https://remix-ide.readthedocs.io/en/latest/compile.html) ("Solidity compiler" tab), if necessary choose compiler version.
+3. Choose network in Metamask.
+4. [Open "Deploy & run transactions" tab](https://remix-ide.readthedocs.io/en/latest/run.html) and choose "injected Web3".
+5. Press "Deploy" button and approve operation in Metamask.
+
+### Deploy with truffle migrations
+
+Migration files locate in ***./migrations*** folder. For running migration enter command ***truffle migrate --network <network>***.
+
+# Testing
+
+---
+
+Before test running enter console command in project directory - ***npm run chain***
+For testing use commands:
+- **npm run test-pointer** - for dgPointer;
+- **npm run test-poker** - for dgPoker.
+
+
+# Usage
+
+---
+
+### dgPoker
+
+**Before starting the game, players must approve the required number of tokens to the treasury contract.**
+
+**For the start game, use ***initializeGame*** function. Description for input parameters are described in smart-contract code.**
+
+**For the end game, use ***manualPayout*** function. Description for input parameters are described in smart-contract code.**
+
+Important parameters:
+
+- _gameBeneficiary, _beneficiaryPercent - for each game, you can specify the beneficiary and percentage of houseFee which beneficiary will receive from the winnings;
+- _wageredAmounts - array that contains of sums of the bets for each player (includes entry bets);
+- _refundAmounts - array that contains the number of tokens to refund to players (difference between approval and wageredAmount).
+
+
+
