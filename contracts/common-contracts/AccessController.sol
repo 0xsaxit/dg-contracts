@@ -6,8 +6,6 @@ contract AccessController {
 
     address public ceoAddress;
 
-    bool public paused = false;
-
     mapping (address => bool) public isWorker;
 
     event CEOSet(
@@ -21,9 +19,6 @@ contract AccessController {
     event WorkerRemoved(
         address existingWorker
     );
-
-    event Paused();
-    event Unpaused();
 
     constructor() {
 
@@ -62,22 +57,6 @@ contract AccessController {
         require(
             checkingAddress != address(0x0),
             'AccessControl: invalid address'
-        );
-        _;
-    }
-
-    modifier whenNotPaused() {
-        require(
-            !paused,
-            'AccessControl: currently paused'
-        );
-        _;
-    }
-
-    modifier whenPaused {
-        require(
-            paused,
-            'AccessControl: currenlty not paused'
         );
         _;
     }
@@ -174,23 +153,5 @@ contract AccessController {
         emit WorkerRemoved(
             _existingWorker
         );
-    }
-
-    function pause()
-        external
-        onlyWorker
-        whenNotPaused
-    {
-        paused = true;
-        emit Paused();
-    }
-
-    function unpause()
-        external
-        onlyCEO
-        whenPaused
-    {
-        paused = false;
-        emit Unpaused();
     }
 }

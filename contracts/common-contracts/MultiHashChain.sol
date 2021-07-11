@@ -1,38 +1,30 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.4;
+pragma solidity ^0.8.0;
 
 contract MultiHashChain {
 
-    mapping(
-        uint256 => mapping(
-            uint256 => mapping(
-                uint256 => bytes32
-            )
-        )
-    ) public tail;
+    mapping(uint256 => bytes32) public tail;
 
-    function _setMultiTail(
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
+    function _setMachineTail(
+        uint256 _machineId,
         bytes32 _tail
     ) internal {
-        tail[_serverId][_landId][_tableId] = _tail;
+        tail[_machineId] = _tail;
     }
 
-    function _consumeMulti(
-        uint256 _serverId,
-        uint256 _landId,
-        uint256 _tableId,
+    function _consumeMachineHash(
+        uint256 _machineId,
         bytes32 _parent
     ) internal {
         require(
             keccak256(
-                abi.encodePacked(_parent)
-            ) == tail[_serverId][_landId][_tableId],
-            'hash-chain: wrong parent'
+                abi.encodePacked(
+                    _parent
+                )
+            ) == tail[_machineId],
+            'MultiHashChain: invalid hash for machine'
         );
-        tail[_serverId][_landId][_tableId] = _parent;
+        tail[_machineId] = _parent;
     }
 }
