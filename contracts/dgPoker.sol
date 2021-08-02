@@ -19,6 +19,8 @@ contract dgPoker is AccessController {
         uint256[] entryBets;
         uint256[] approvals;
         uint256 wageredTotal; // sum of all bets per game includes entryBets
+        uint256 refundTotal; // sum of all refund amounts
+        uint256 approvedTotal; // sum of all approved amounts
         uint8 tokenIndex;
         uint8 playersCount;
         uint8 beneficiaryPercent;
@@ -55,8 +57,8 @@ contract dgPoker is AccessController {
 
     TreasuryInstance public treasury;
 
-    uint8[] public maxBet;
-    uint8[] public maxApproval;
+    uint256[] public maxBet;
+    uint256[] public maxApproval;
 
     struct Globals {
         uint256 nonce;
@@ -167,7 +169,7 @@ contract dgPoker is AccessController {
 
     function changeMaxBet(
         uint8 _tokenIndex,
-        uint8 _newMaxBet
+        uint256 _newMaxBet
     )
         external
         onlyCEO
@@ -180,7 +182,7 @@ contract dgPoker is AccessController {
 
     function changeMaxApproval(
         uint8 _tokenIndex,
-        uint8 _newMaxApproval
+        uint256 _newMaxApproval
     )
         external
         onlyCEO
@@ -313,6 +315,7 @@ contract dgPoker is AccessController {
       * @param _gameBeneficiary beneficiary address
     */
     function initializeGame(
+        bytes16 _gameId,
         address[] calldata _players,
         uint256[] calldata _entryBets,
         uint256[] calldata _approvals,
@@ -325,7 +328,6 @@ contract dgPoker is AccessController {
     )
         external
         onlyWorker
-        returns (bytes16 gameId)
     {
         require(
             _players.length <= globals.maxPlayers &&
@@ -333,12 +335,13 @@ contract dgPoker is AccessController {
             "initializeGame: invalid length in initializeGame"
         );
 
-        gameId = getGameId(
-            _serverId,
-            _landId,
-            _tableId,
-            globals.nonce
-        );
+        bytes16 gameId = _gameId;
+        // gameId = getGameId(
+        //     _serverId,
+        //     _landId,
+        //     _tableId,
+        //     globals.nonce
+        // );
 
         globals.nonce = globals.nonce + 1;
 
@@ -356,6 +359,8 @@ contract dgPoker is AccessController {
             _players,
             _entryBets,
             _approvals,
+            0,
+            0,
             0,
             _tokenIndex,
             uint8(_players.length),
@@ -446,13 +451,14 @@ contract dgPoker is AccessController {
             "manualPayout: invalid playersCount"
         );
 
-        require(
-            _checkWinnerWageredAmount(
-                _wageredAmounts,
-                _winPlayerIndex
-            ),
-            "manualPayout: low wagered amount for winner"
-        );
+        
+        // require(
+        //     _checkWinnerWageredAmount(
+        //         _wageredAmounts,
+        //         _winPlayerIndex
+        //     ),
+        //     "manualPayout: low wagered amount for winner"
+        // );
 
         _refundPlayer(
             _gameId,
@@ -503,6 +509,7 @@ contract dgPoker is AccessController {
     )
         private
     {
+        uint256 refundTotal;
         for (uint8 i = 0; i < _refundAmounts.length; i++) {
 
             address _playerAddress = Games[_gameId].players[i];
@@ -526,6 +533,10 @@ contract dgPoker is AccessController {
 
             Games[_gameId].wageredTotal =
             Games[_gameId].wageredTotal.add(_wageredAmounts[i]);
+            Games[_gameId].refundTotal = 
+            Games[_gameId].refundTotal.add(_refundAmounts[i]);
+            Games[_gameId].approvedTotal = 
+            Games[_gameId].approvedTotal.add(Games[_gameId].approvals[i]);
         }
     }
 
@@ -540,14 +551,16 @@ contract dgPoker is AccessController {
         returns (uint256)
     {
         uint256 wageredTotal = Games[_gameId].wageredTotal;
+        uint256 totalAmount = Games[_gameId].refundTotal.add(_winAmount);
 
         require(
-            _winAmount == wageredTotal, // all entryBets + all inGameBets
-            "_payoutWin: invalid _winAmount"
+            totalAmount == Games[_gameId].approvedTotal,
+            "_payoutWin: invalid totalAmount"
         );
 
-        uint256 taxableAmount = _winAmount
-            .sub(_wageredAmount);
+        uint256 taxableAmount = _winAmount > 0 
+            ? _winAmount.sub(_wageredAmount) 
+            : 0;
 
         uint256 treasuryPayout = _proceedWithPayout(
             _gameId,
@@ -606,19 +619,21 @@ contract dgPoker is AccessController {
             uint256 winAmount
         )
     {
-        treasuryPayout = _taxableAmount
-            .mul(_houseFee)
-            .div(100);
+        if (_winAmount > 0) {
+            treasuryPayout = _taxableAmount
+                .mul(_houseFee)
+                .div(100);
 
-        treasuryPayout = treasuryPayout > _threshold
-            ? _threshold
-            : treasuryPayout;
+            treasuryPayout = treasuryPayout > _threshold
+                ? _threshold
+                : treasuryPayout;
 
-        beneficiaryPayout = treasuryPayout
-            .mul(Games[_gameId].beneficiaryPercent)
-            .div(100);
+            beneficiaryPayout = treasuryPayout
+                .mul(Games[_gameId].beneficiaryPercent)
+                .div(100);
 
-        winAmount = _winAmount.sub(treasuryPayout);
+            winAmount = _winAmount.sub(treasuryPayout);
+        }
     }
 
     function _proceedWithPayout(
@@ -655,11 +670,13 @@ contract dgPoker is AccessController {
             );
         }
 
-        treasury.tokenOutboundTransfer(
-           Games[_gameId].tokenIndex,
-           Games[_gameId].players[_playerIndex],
-           winAmount
-        );
+        if (winAmount > 0) {
+            treasury.tokenOutboundTransfer(
+                Games[_gameId].tokenIndex,
+                Games[_gameId].players[_playerIndex],
+                winAmount
+            );
+        }
 
         return treasuryPayout;
     }
@@ -682,10 +699,10 @@ contract dgPoker is AccessController {
 
         uint256 approvedAmount = Games[_gameId].approvals[_playerIndex];
 
-        require(
-            _refundAmount == approvedAmount.sub(_wageredAmount),
-            "_refundPlayer: invalid _refundAmount"
-        );
+        // require(
+        //     _refundAmount == approvedAmount.sub(_wageredAmount),
+        //     "_refundPlayer: invalid _refundAmount"
+        // );
 
         treasury.tokenOutboundTransfer(
             _tokenIndex, _playerAddress, _refundAmount
