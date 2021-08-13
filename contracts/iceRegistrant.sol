@@ -58,7 +58,7 @@ contract iceRegistrant is AccessController, TransferHelper {
     }
 
     struct Delegate {
-        uint256 delegateAmount;
+        uint256 delegatePercent;
         address delegateAddress;
     }
 
@@ -96,9 +96,9 @@ contract iceRegistrant is AccessController, TransferHelper {
 
     event Delegated (
         uint256 tokenId,
-        uint256 tokenAddress,
-        uint256 delegatePercent,
+        address tokenAddress,
         address delegateAddress,
+        uint256 delegatePercent,
         address tokenOwner
     );
 
@@ -354,6 +354,44 @@ contract iceRegistrant is AccessController, TransferHelper {
             address(this),
             tokenOwner,
             _newTokenId
+        );
+    }
+
+    function delegateToken(
+        address _tokenAddress,
+        uint256 _tokenId,
+        address _delegateAddress,
+        uint256 _delegatePercent
+    )
+        external
+    {
+        require(
+            _delegatePercent <= 100,
+            'iceRegistrant: invalid percent'
+        );
+
+        ERC721 tokenNFT = ERC721(_tokenAddress);
+        address tokenOwner = msg.sender;
+
+        require(
+            tokenNFT.ownerOf(_tokenId) == tokenOwner,
+            'iceRegistrant: invalid owner'
+        );
+
+        bytes32 tokenHash = getHash(
+            _tokenAddress,
+            _tokenId
+        );
+
+        delegate[tokenOwner][tokenHash].delegateAddress = _delegateAddress;
+        delegate[tokenOwner][tokenHash].delegatePercent = _delegatePercent;
+
+        emit Delegated(
+            _tokenId,
+            _tokenAddress,
+            _delegateAddress,
+            _delegatePercent,
+            tokenOwner
         );
     }
 
