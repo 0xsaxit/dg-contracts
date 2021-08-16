@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./common-contracts-0.8/AccessController.sol";
 import "./common-contracts-0.8/TransferHelper.sol";
+import "./common-contracts-0.8/EIP712Base.sol";
 
 interface ERC721 {
 
@@ -30,17 +31,163 @@ interface ERC20 {
         returns (bool);
 }
 
-contract iceRegistrant is AccessController, TransferHelper {
+abstract contract EIP712MetaTransaction is EIP712Base {
 
+    bytes32 private constant META_TRANSACTION_TYPEHASH =
+        keccak256(
+            bytes(
+                "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
+            )
+        );
+
+    event MetaTransactionExecuted(
+        address userAddress,
+        address payable relayerAddress,
+        bytes functionSignature
+    );
+
+    mapping(address => uint256) internal nonces;
+
+    /*
+     * Meta transaction structure.
+     * No point of including value field here as if user is doing value transfer then he has the funds to pay for gas
+     * He should call the desired function directly in that case.
+     */
+    struct MetaTransaction {
+		uint256 nonce;
+		address from;
+        bytes functionSignature;
+	}
+
+    function executeMetaTransaction(
+        address userAddress,
+        bytes memory functionSignature,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    )
+        public
+        payable
+        returns(bytes memory)
+    {
+        MetaTransaction memory metaTx = MetaTransaction(
+            {
+                nonce: nonces[userAddress],
+                from: userAddress,
+                functionSignature: functionSignature
+            }
+        );
+
+        require(
+            verify(
+                userAddress,
+                metaTx,
+                sigR,
+                sigS,
+                sigV
+            ), "Signer and signature do not match"
+        );
+
+	    nonces[userAddress] =
+	    nonces[userAddress] + 1;
+
+        // Append userAddress at the end to extract it from calling context
+        (bool success, bytes memory returnData) = address(this).call(
+            abi.encodePacked(
+                functionSignature,
+                userAddress
+            )
+        );
+
+        require(
+            success,
+            'Function call not successful'
+        );
+
+        emit MetaTransactionExecuted(
+            userAddress,
+            payable(msg.sender),
+            functionSignature
+        );
+
+        return returnData;
+    }
+
+    function hashMetaTransaction(
+        MetaTransaction memory metaTx
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+		return keccak256(
+		    abi.encode(
+                META_TRANSACTION_TYPEHASH,
+                metaTx.nonce,
+                metaTx.from,
+                keccak256(metaTx.functionSignature)
+            )
+        );
+	}
+
+    function verify(
+        address user,
+        MetaTransaction memory metaTx,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    )
+        internal
+        view
+        returns (bool)
+    {
+        address signer = ecrecover(
+            toTypedMessageHash(
+                hashMetaTransaction(metaTx)
+            ),
+            sigV,
+            sigR,
+            sigS
+        );
+
+        require(
+            signer != address(0x0),
+            'Invalid signature'
+        );
+		return signer == user;
+	}
+
+    function msgSender() internal view returns(address sender) {
+        if(msg.sender == address(this)) {
+            bytes memory array = msg.data;
+            uint256 index = msg.data.length;
+            assembly {
+                // Load the 32 bytes word from memory with the address on the lower 20 bytes, and mask those.
+                sender := and(mload(add(array, index)), 0xffffffffffffffffffffffffffffffffffffffff)
+            }
+        } else {
+            sender = msg.sender;
+        }
+        return sender;
+    }
+}
+
+contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransaction {
+
+    uint256 public upgradeCount;
+    uint256 public reRollCount;
     uint256 public maxUpgradeLevel;
     uint256 public upgradeRequestCount;
 
-    address public dgTokenAddress;
-    address public iceTokenAddress;
+    address public tokenAddressDG;
+    address public tokenAddressICE;
+    address public depositAddress;
 
     struct Level {
-        uint256 dgAmount;
-        uint256 iceAmount;
+        uint256 costAmountDG;
+        uint256 rollAmountDG;
+        uint256 costAmountICE;
+        uint256 rollAmountICE;
         uint256 minBonus;
         uint256 maxBonus;
         bool isActive;
@@ -58,8 +205,8 @@ contract iceRegistrant is AccessController, TransferHelper {
     }
 
     struct Delegate {
-        uint256 delegatePercent;
         address delegateAddress;
+        uint256 delegatePercent;
     }
 
     mapping (uint256 => Level) public levels;
@@ -104,8 +251,10 @@ contract iceRegistrant is AccessController, TransferHelper {
 
     event LevelEdit(
         uint256 indexed level,
-        uint256 dgAmount,
-        uint256 iceAmount,
+        uint256 dgCostAmount,
+        uint256 iceCostAmount,
+        uint256 dgReRollAmount,
+        uint256 iceReRollAmount,
         bool isActive
     );
 
@@ -117,13 +266,24 @@ contract iceRegistrant is AccessController, TransferHelper {
     );
 
     constructor(
-        address _dgTokenAddress,
-        address _iceTokenAddress,
+        address _tokenAddressDG,
+        address _tokenAddressICE,
         uint256 _maxUpgradeLevel
-    ) {
-        dgTokenAddress = _dgTokenAddress;
-        iceTokenAddress = _iceTokenAddress;
+    )
+        EIP712Base('IceRegistrant', 'v1.0')
+    {
+        tokenAddressDG = _tokenAddressDG;
+        tokenAddressICE = _tokenAddressICE;
         maxUpgradeLevel = _maxUpgradeLevel;
+    }
+
+    function changeDepositAddress(
+        address _newDepositAddress
+    )
+        external
+        onlyCEO
+    {
+        depositAddress = _newDepositAddress;
     }
 
     function changeMaxUpgradeLevel(
@@ -137,8 +297,10 @@ contract iceRegistrant is AccessController, TransferHelper {
 
     function manageLevel(
         uint256 _level,
-        uint256 _dgAmount,
-        uint256 _iceAmount,
+        uint256 _costAmountDG,
+        uint256 _rollAmountDG,
+        uint256 _costAmountICE,
+        uint256 _rollAmountICE,
         uint256 _minBonus,
         uint256 _maxBonus,
         bool _isActive
@@ -147,12 +309,15 @@ contract iceRegistrant is AccessController, TransferHelper {
         onlyCEO
     {
         require(
-            _level < maxUpgradeLevel,
+            _level <= maxUpgradeLevel,
             'iceRegistrant: invalid level'
         );
 
-        levels[_level].dgAmount = _dgAmount;
-        levels[_level].iceAmount = _iceAmount;
+        levels[_level].costAmountDG = _costAmountDG;
+        levels[_level].rollAmountDG = _rollAmountDG;
+
+        levels[_level].costAmountICE = _costAmountICE;
+        levels[_level].rollAmountICE = _rollAmountICE;
 
         levels[_level].minBonus = _minBonus;
         levels[_level].maxBonus = _maxBonus;
@@ -161,10 +326,62 @@ contract iceRegistrant is AccessController, TransferHelper {
 
         emit LevelEdit(
             _level,
-            _dgAmount,
-            _iceAmount,
+            _costAmountDG,
+            _rollAmountDG,
+            _costAmountICE,
+            _rollAmountICE,
             _isActive
         );
+    }
+
+    function reRollBonus(
+        address _tokenAddress,
+        uint256 _tokenId
+    )
+        external
+    {
+        ERC721 tokenNFT = ERC721(_tokenAddress);
+        address tokenOwner = msg.sender;
+
+        require(
+            tokenNFT.ownerOf(_tokenId) == tokenOwner,
+            'iceRegistrant: invalid owner'
+        );
+
+        bytes32 tokenHash = getHash(
+            _tokenAddress,
+            _tokenId
+        );
+
+        uint256 currentLevel = registrer[tokenOwner][tokenHash].level;
+
+        require(
+            currentLevel > 0,
+            'iceRegistrant: invalid level'
+        );
+
+        require(
+            currentLevel < maxUpgradeLevel,
+            'iceRegistrant: invalid level'
+        );
+
+        _takePayment(
+            tokenOwner,
+            levels[currentLevel].rollAmountDG,
+            levels[currentLevel].rollAmountICE
+        );
+
+        registrer[tokenOwner][tokenHash].bonus = getNumber(
+            levels[currentLevel].minBonus,
+            levels[currentLevel].maxBonus,
+            block.timestamp,
+            reRollCount
+        );
+
+        reRollCount =
+        reRollCount + 1;
+
+        // emit event
     }
 
     function upgradeNFT(
@@ -194,30 +411,27 @@ contract iceRegistrant is AccessController, TransferHelper {
             'iceRegistrant: inactive level'
         );
 
-        safeTransferFrom(
-            dgTokenAddress,
-            tokenOwner,
-            ceoAddress,
-            levels[nextLevel].dgAmount
+        require(
+            nextLevel < maxUpgradeLevel,
+            'iceRegistrant: invalid level'
         );
 
-        safeTransferFrom(
-            iceTokenAddress,
+        _takePayment(
             tokenOwner,
-            address(this),
-            levels[nextLevel].iceAmount
+            levels[nextLevel].costAmountDG,
+            levels[nextLevel].costAmountICE
         );
-
-        ERC20 iceToken = ERC20(iceTokenAddress);
-        iceToken.burn(levels[nextLevel].iceAmount);
 
         registrer[tokenOwner][tokenHash].level = nextLevel;
         registrer[tokenOwner][tokenHash].bonus = getNumber(
             levels[nextLevel].minBonus,
             levels[nextLevel].maxBonus,
-            block.difficulty,
-            gasleft()
+            upgradeCount,
+            block.timestamp
         );
+
+        upgradeCount =
+        upgradeCount + 1;
 
         emit TokenUpgrade(
             tokenOwner,
@@ -225,6 +439,33 @@ contract iceRegistrant is AccessController, TransferHelper {
             _tokenId,
             nextLevel
         );
+    }
+
+    function _takePayment(
+        address _payer,
+        uint256 _dgAmount,
+        uint256 _iceAmount
+    )
+        internal
+    {
+        safeTransferFrom(
+            tokenAddressDG,
+            _payer,
+            depositAddress,
+            _dgAmount
+        );
+
+        safeTransferFrom(
+            tokenAddressICE,
+            _payer,
+            address(this),
+            _iceAmount
+        );
+
+        ERC20 iceToken = ERC20(tokenAddressICE);
+        iceToken.burn(_iceAmount);
+
+        // emit event
     }
 
     function requestMaxUpgrade(
@@ -334,6 +575,8 @@ contract iceRegistrant is AccessController, TransferHelper {
 
         delete registrer[tokenOwner][originalHash];
 
+        // needs to burn ice + get DG (same as in upgradeNFT())
+
         // return original token
         ERC721(tokenAddress).transferFrom(
             address(this),
@@ -347,7 +590,15 @@ contract iceRegistrant is AccessController, TransferHelper {
         );
 
         registrer[tokenOwner][newHash].level = maxUpgradeLevel;
-        // registrer[tokenOwner][newHash].bonus = maxUpgradeLevel;
+        registrer[tokenOwner][newHash].bonus = getNumber(
+            levels[maxUpgradeLevel].minBonus,
+            levels[maxUpgradeLevel].maxBonus,
+            upgradeCount,
+            block.timestamp
+        );
+
+        upgradeCount =
+        upgradeCount + 1;
 
         // issue new tokens
         ERC721(_newTokenAddress).transferFrom(
@@ -355,6 +606,7 @@ contract iceRegistrant is AccessController, TransferHelper {
             tokenOwner,
             _newTokenId
         );
+        // event
     }
 
     function delegateToken(
@@ -498,13 +750,13 @@ contract iceRegistrant is AccessController, TransferHelper {
     function getNumber(
         uint256 _minValue,
         uint256 _maxValue,
-        uint256 _sourceValue,
+        uint256 _nonceValue,
         uint256 _randomValue
     )
         public
         pure
         returns (uint256)
     {
-        return _minValue + _maxValue + _randomValue + _sourceValue % _maxValue;
+        return _minValue + uint256(keccak256(abi.encodePacked(_nonceValue, _randomValue))) % (_maxValue + 1);
     }
 }
