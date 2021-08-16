@@ -176,6 +176,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
     uint256 public upgradeCount;
     uint256 public reRollCount;
+
     uint256 public maxUpgradeLevel;
     uint256 public upgradeRequestCount;
 
@@ -371,6 +372,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             levels[currentLevel].rollAmountICE
         );
 
+        // consider using oracle instead of getNumber();
         registrer[tokenOwner][tokenHash].bonus = getNumber(
             levels[currentLevel].minBonus,
             levels[currentLevel].maxBonus,
@@ -511,6 +513,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         upgradeRequestCount =
         upgradeRequestCount + 1;
 
+        //emit event
+
         return requestIndex;
     }
 
@@ -575,12 +579,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         delete registrer[tokenOwner][originalHash];
 
-        // needs to burn ice + get DG (same as in upgradeNFT())
+        _takePayment(
+            tokenOwner,
+            levels[maxUpgradeLevel].costAmountDG,
+            levels[maxUpgradeLevel].costAmountICE
+        );
 
-        // return original token
+        // return or not to return original token (DEBATE)
         ERC721(tokenAddress).transferFrom(
             address(this),
-            tokenOwner,
+            depositAddress, // change where to send exactly (onlyCEO can decide)
             tokenId
         );
 
@@ -600,7 +608,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         upgradeCount =
         upgradeCount + 1;
 
-        // issue new tokens
+        // issue new tokens upgraded to level5
         ERC721(_newTokenAddress).transferFrom(
             address(this),
             tokenOwner,
