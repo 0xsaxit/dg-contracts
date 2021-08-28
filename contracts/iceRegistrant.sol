@@ -2,193 +2,31 @@
 
 pragma solidity ^0.8.0;
 
+import "./common-contracts-0.8/EIP712MetaTransaction.sol";
 import "./common-contracts-0.8/AccessController.sol";
 import "./common-contracts-0.8/TransferHelper.sol";
-import "./common-contracts-0.8/EIP712Base.sol";
+import "./common-contracts-0.8/Interfaces.sol";
+import "./common-contracts-0.8/Events.sol";
 
-interface ERC721 {
-
-    function ownerOf(
-        uint256 _tokenId
-    )
-        external
-        view
-        returns (address);
-
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _tokenId
-    ) external;
-}
-
-interface ERC20 {
-
-    function burn(
-        uint256 _amount
-    )
-        external
-        returns (bool);
-}
-
-abstract contract EIP712MetaTransaction is EIP712Base {
-
-    bytes32 private constant META_TRANSACTION_TYPEHASH =
-        keccak256(
-            bytes(
-                "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
-            )
-        );
-
-    event MetaTransactionExecuted(
-        address userAddress,
-        address payable relayerAddress,
-        bytes functionSignature
-    );
-
-    mapping(address => uint256) internal nonces;
-
-    /*
-     * Meta transaction structure.
-     * No point of including value field here as if user is doing value transfer then he has the funds to pay for gas
-     * He should call the desired function directly in that case.
-     */
-    struct MetaTransaction {
-		uint256 nonce;
-		address from;
-        bytes functionSignature;
-	}
-
-    function executeMetaTransaction(
-        address userAddress,
-        bytes memory functionSignature,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
-    )
-        public
-        payable
-        returns(bytes memory)
-    {
-        MetaTransaction memory metaTx = MetaTransaction(
-            {
-                nonce: nonces[userAddress],
-                from: userAddress,
-                functionSignature: functionSignature
-            }
-        );
-
-        require(
-            verify(
-                userAddress,
-                metaTx,
-                sigR,
-                sigS,
-                sigV
-            ), "Signer and signature do not match"
-        );
-
-	    nonces[userAddress] =
-	    nonces[userAddress] + 1;
-
-        // Append userAddress at the end to extract it from calling context
-        (bool success, bytes memory returnData) = address(this).call(
-            abi.encodePacked(
-                functionSignature,
-                userAddress
-            )
-        );
-
-        require(
-            success,
-            'Function call not successful'
-        );
-
-        emit MetaTransactionExecuted(
-            userAddress,
-            payable(msg.sender),
-            functionSignature
-        );
-
-        return returnData;
-    }
-
-    function hashMetaTransaction(
-        MetaTransaction memory metaTx
-    )
-        internal
-        pure
-        returns (bytes32)
-    {
-		return keccak256(
-		    abi.encode(
-                META_TRANSACTION_TYPEHASH,
-                metaTx.nonce,
-                metaTx.from,
-                keccak256(metaTx.functionSignature)
-            )
-        );
-	}
-
-    function verify(
-        address user,
-        MetaTransaction memory metaTx,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
-    )
-        internal
-        view
-        returns (bool)
-    {
-        address signer = ecrecover(
-            toTypedMessageHash(
-                hashMetaTransaction(metaTx)
-            ),
-            sigV,
-            sigR,
-            sigS
-        );
-
-        require(
-            signer != address(0x0),
-            'Invalid signature'
-        );
-		return signer == user;
-	}
-
-    function msgSender() internal view returns(address sender) {
-        if(msg.sender == address(this)) {
-            bytes memory array = msg.data;
-            uint256 index = msg.data.length;
-            assembly {
-                // Load the 32 bytes word from memory with the address on the lower 20 bytes, and mask those.
-                sender := and(mload(add(array, index)), 0xffffffffffffffffffffffffffffffffffffffff)
-            }
-        } else {
-            sender = msg.sender;
-        }
-        return sender;
-    }
-}
-
-contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransaction {
+contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransaction, Events {
 
     uint256 public upgradeCount;
-    uint256 public reRollCount;
-
-    uint256 public maxUpgradeLevel;
     uint256 public upgradeRequestCount;
+    uint256 public delegateCountLimit;
 
     address public tokenAddressDG;
     address public tokenAddressICE;
-    address public depositAddress;
+
+    address public depositAddressDG;
+    address public depositAddressNFT;
+
+    DGAccessories public acessoriesContract;
 
     struct Level {
         uint256 costAmountDG;
-        uint256 rollAmountDG;
+        uint256 moveAmountDG;
         uint256 costAmountICE;
-        uint256 rollAmountICE;
+        uint256 moveAmountICE;
         uint256 minBonus;
         uint256 maxBonus;
         bool isActive;
@@ -216,92 +54,59 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     mapping (address => mapping (bytes32 => Upgrade)) public registrer;
     mapping (address => mapping (bytes32 => Delegate)) public delegate;
 
-    event TokenUpgrade(
-        address indexed tokenOwner,
-        address indexed tokenAddress,
-        uint256 indexed tokenId,
-        uint256 upgradeLevel
-    );
-
-    event UpgradeRequest(
-        address indexed tokenOwner,
-        uint256 indexed tokenAddress,
-        uint256 indexed tokenId,
-        uint256 upgradeIndex
-    );
-
-    event UpgradeCancel(
-        address indexed tokenOwner,
-        address indexed tokenAddress,
-        uint256 indexed tokenId,
-        uint256 upgradeIndex
-    );
-
-    event UpgradeResolved(
-        address indexed tokenOwner,
-        uint256 indexed upgradeIndex
-    );
-
-    event Delegated (
-        uint256 tokenId,
-        address tokenAddress,
-        address delegateAddress,
-        uint256 delegatePercent,
-        address tokenOwner
-    );
-
-    event LevelEdit(
-        uint256 indexed level,
-        uint256 dgCostAmount,
-        uint256 iceCostAmount,
-        uint256 dgReRollAmount,
-        uint256 iceReRollAmount,
-        bool isActive
-    );
-
-    event IceLevelTransfer(
-        address oldOwner,
-        address indexed newOwner,
-        address indexed tokenAddress,
-        uint256 indexed tokenId
-    );
-
     constructor(
         address _tokenAddressDG,
         address _tokenAddressICE,
-        uint256 _maxUpgradeLevel
+        address _acessoriesContract,
+        uint256 _delegateCountLmit
     )
         EIP712Base('IceRegistrant', 'v1.0')
     {
         tokenAddressDG = _tokenAddressDG;
         tokenAddressICE = _tokenAddressICE;
-        maxUpgradeLevel = _maxUpgradeLevel;
+
+        acessoriesContract = DGAccessories(
+            _acessoriesContract
+        );
+
+        delegateCountLimit = _delegateCountLmit;
     }
 
-    function changeDepositAddress(
-        address _newDepositAddress
+    function changeDepositAddressDG(
+        address _newDepositAddressDG
     )
         external
         onlyCEO
     {
-        depositAddress = _newDepositAddress;
+        depositAddressDG = _newDepositAddressDG;
     }
 
-    function changeMaxUpgradeLevel(
-        uint256 _newMaxUpgradeLevel
+    function changeDepositAddressNFT(
+        address _newDepositAddressNFT
     )
         external
         onlyCEO
     {
-        maxUpgradeLevel = _newMaxUpgradeLevel;
+        depositAddressNFT = _newDepositAddressNFT;
+    }
+
+    function changeAcessoriesDG(
+        address _newAcessoriesContract
+    )
+        external
+        onlyCEO
+    {
+        acessoriesContract = DGAccessories(
+            _newAcessoriesContract
+        );
     }
 
     function manageLevel(
         uint256 _level,
         uint256 _costAmountDG,
-        uint256 _rollAmountDG,
+        uint256 _moveAmountDG,
         uint256 _costAmountICE,
-        uint256 _rollAmountICE,
+        uint256 _moveAmountICE,
         uint256 _minBonus,
         uint256 _maxBonus,
         bool _isActive
@@ -309,16 +114,11 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         external
         onlyCEO
     {
-        require(
-            _level <= maxUpgradeLevel,
-            'iceRegistrant: invalid level'
-        );
-
         levels[_level].costAmountDG = _costAmountDG;
-        levels[_level].rollAmountDG = _rollAmountDG;
+        levels[_level].moveAmountDG = _moveAmountDG;
 
         levels[_level].costAmountICE = _costAmountICE;
-        levels[_level].rollAmountICE = _rollAmountICE;
+        levels[_level].moveAmountICE = _moveAmountICE;
 
         levels[_level].minBonus = _minBonus;
         levels[_level].maxBonus = _maxBonus;
@@ -328,149 +128,14 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         emit LevelEdit(
             _level,
             _costAmountDG,
-            _rollAmountDG,
+            _moveAmountDG,
             _costAmountICE,
-            _rollAmountICE,
+            _moveAmountICE,
             _isActive
         );
     }
 
-    function reRollBonus(
-        address _tokenAddress,
-        uint256 _tokenId
-    )
-        external
-    {
-        ERC721 tokenNFT = ERC721(_tokenAddress);
-        address tokenOwner = msg.sender;
-
-        require(
-            tokenNFT.ownerOf(_tokenId) == tokenOwner,
-            'iceRegistrant: invalid owner'
-        );
-
-        bytes32 tokenHash = getHash(
-            _tokenAddress,
-            _tokenId
-        );
-
-        uint256 currentLevel = registrer[tokenOwner][tokenHash].level;
-
-        require(
-            currentLevel > 0,
-            'iceRegistrant: invalid level'
-        );
-
-        require(
-            currentLevel < maxUpgradeLevel,
-            'iceRegistrant: invalid level'
-        );
-
-        _takePayment(
-            tokenOwner,
-            levels[currentLevel].rollAmountDG,
-            levels[currentLevel].rollAmountICE
-        );
-
-        // consider using oracle instead of getNumber();
-        registrer[tokenOwner][tokenHash].bonus = getNumber(
-            levels[currentLevel].minBonus,
-            levels[currentLevel].maxBonus,
-            block.timestamp,
-            reRollCount
-        );
-
-        reRollCount =
-        reRollCount + 1;
-
-        // emit event
-    }
-
-    function upgradeNFT(
-        address _tokenAddress,
-        uint256 _tokenId
-    )
-        external
-    {
-        ERC721 tokenNFT = ERC721(_tokenAddress);
-        address tokenOwner = msg.sender;
-
-        require(
-            tokenNFT.ownerOf(_tokenId) == tokenOwner,
-            'iceRegistrant: invalid owner'
-        );
-
-        bytes32 tokenHash = getHash(
-            _tokenAddress,
-            _tokenId
-        );
-
-        uint256 currentLevel = registrer[tokenOwner][tokenHash].level;
-        uint256 nextLevel = currentLevel + 1;
-
-        require(
-            levels[nextLevel].isActive,
-            'iceRegistrant: inactive level'
-        );
-
-        require(
-            nextLevel < maxUpgradeLevel,
-            'iceRegistrant: invalid level'
-        );
-
-        _takePayment(
-            tokenOwner,
-            levels[nextLevel].costAmountDG,
-            levels[nextLevel].costAmountICE
-        );
-
-        registrer[tokenOwner][tokenHash].level = nextLevel;
-        registrer[tokenOwner][tokenHash].bonus = getNumber(
-            levels[nextLevel].minBonus,
-            levels[nextLevel].maxBonus,
-            upgradeCount,
-            block.timestamp
-        );
-
-        upgradeCount =
-        upgradeCount + 1;
-
-        emit TokenUpgrade(
-            tokenOwner,
-            _tokenAddress,
-            _tokenId,
-            nextLevel
-        );
-    }
-
-    function _takePayment(
-        address _payer,
-        uint256 _dgAmount,
-        uint256 _iceAmount
-    )
-        internal
-    {
-        safeTransferFrom(
-            tokenAddressDG,
-            _payer,
-            depositAddress,
-            _dgAmount
-        );
-
-        safeTransferFrom(
-            tokenAddressICE,
-            _payer,
-            address(this),
-            _iceAmount
-        );
-
-        ERC20 iceToken = ERC20(tokenAddressICE);
-        iceToken.burn(_iceAmount);
-
-        // emit event
-    }
-
-    function requestMaxUpgrade(
+    function requestUpgrade(
         address _tokenAddress,
         uint256 _tokenId
     )
@@ -478,7 +143,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         returns (uint256 requestIndex)
     {
         ERC721 tokenNFT = ERC721(_tokenAddress);
-        address tokenOwner = msg.sender;
+        address tokenOwner = msgSender();
 
         require(
             tokenNFT.ownerOf(_tokenId) == tokenOwner,
@@ -490,12 +155,14 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _tokenId
         );
 
-        uint256 currentLevel = registrer[tokenOwner][tokenHash].level;
-        uint256 nextLevel = currentLevel + 1;
+        uint256 nextLevel = getLevel(
+            tokenOwner,
+            tokenHash
+        ) + 1;
 
         require(
-            nextLevel == maxUpgradeLevel,
-            'iceRegistrant: invalid level'
+            levels[nextLevel].isActive,
+            'iceRegistrant: inactive level'
         );
 
         requestIndex = upgradeRequestCount;
@@ -510,15 +177,20 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         requests[requestIndex].tokenAddress = _tokenAddress;
         requests[requestIndex].tokenOwner = tokenOwner;
 
-        upgradeRequestCount =
-        upgradeRequestCount + 1;
+        unchecked {
+            upgradeRequestCount =
+            upgradeRequestCount + 1;
+        }
 
-        //emit event
-
-        return requestIndex;
+        emit UpgradeRequest(
+            tokenOwner,
+            _tokenAddress,
+            _tokenId,
+            requestIndex
+        );
     }
 
-    function cancelMaxUpgrade(
+    function cancelUpgrade(
         uint256 _requestIndex
     )
         external
@@ -528,22 +200,12 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address tokenOwner = requests[_requestIndex].tokenOwner;
 
         require(
-            msg.sender == tokenOwner,
+            msgSender() == tokenOwner,
             'iceRegistrant: invalid owner'
         );
 
-        // clear request data
         delete requests[_requestIndex];
 
-        bytes32 tokenHash = getHash(
-            tokenAddress,
-            tokenId
-        );
-
-        // clear token registration
-        delete registrer[tokenOwner][tokenHash];
-
-        // return original token
         ERC721(tokenAddress).transferFrom(
             address(this),
             tokenOwner,
@@ -558,7 +220,84 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    function resolveMaxUpgrade(
+    function resolveUpgradeMint(
+        uint256 _requestIndex,
+        uint256 _itemId
+    )
+        external
+        onlyWorker
+    {
+        uint256 tokenId = requests[_requestIndex].tokenId;
+        address tokenAddress = requests[_requestIndex].tokenAddress;
+        address tokenOwner = requests[_requestIndex].tokenOwner;
+
+        delete requests[_requestIndex];
+
+        bytes32 tokenHash = getHash(
+            tokenAddress,
+            tokenId
+        );
+
+        uint256 nextLevel = getLevel(
+            tokenOwner,
+            tokenHash
+        ) + 1;
+
+        delete registrer[tokenOwner][tokenHash];
+
+        _takePayment(
+            tokenOwner,
+            levels[nextLevel].costAmountDG,
+            levels[nextLevel].costAmountICE
+        );
+
+        ERC721(tokenAddress).transferFrom(
+            address(this),
+            depositAddressNFT,
+            tokenId
+        );
+
+        uint256 newTokenId = acessoriesContract.encodeTokenId(
+            _itemId,
+            getSupply(_itemId) + 1
+        );
+
+        bytes32 newHash = getHash(
+            tokenAddress,
+            newTokenId
+        );
+
+        registrer[tokenOwner][newHash].level = nextLevel;
+        registrer[tokenOwner][newHash].bonus = getNumber(
+            levels[nextLevel].minBonus,
+            levels[nextLevel].maxBonus,
+            upgradeCount,
+            block.timestamp
+        );
+
+        unchecked {
+            upgradeCount =
+            upgradeCount + 1;
+        }
+
+        address[] memory beneficiaries;
+        beneficiaries[0] = tokenOwner;
+
+        uint256[] memory itemIds;
+        itemIds[0] = _itemId;
+
+        acessoriesContract.issueTokens(
+            beneficiaries,
+            itemIds
+        );
+
+        emit UpgradeResolved(
+            tokenOwner,
+            _requestIndex
+        );
+    }
+
+    function resolveUpgradeSend(
         uint256 _requestIndex,
         address _newTokenAddress,
         uint256 _newTokenId
@@ -572,23 +311,27 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         delete requests[_requestIndex];
 
-        bytes32 originalHash = getHash(
+        bytes32 tokenHash = getHash(
             tokenAddress,
             tokenId
         );
 
-        delete registrer[tokenOwner][originalHash];
+        uint256 nextLevel = getLevel(
+            tokenOwner,
+            tokenHash
+        ) + 1;
+
+        delete registrer[tokenOwner][tokenHash];
 
         _takePayment(
             tokenOwner,
-            levels[maxUpgradeLevel].costAmountDG,
-            levels[maxUpgradeLevel].costAmountICE
+            levels[nextLevel].costAmountDG,
+            levels[nextLevel].costAmountICE
         );
 
-        // return or not to return original token (DEBATE)
         ERC721(tokenAddress).transferFrom(
             address(this),
-            depositAddress, // change where to send exactly (onlyCEO can decide)
+            depositAddressNFT,
             tokenId
         );
 
@@ -597,24 +340,29 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _newTokenId
         );
 
-        registrer[tokenOwner][newHash].level = maxUpgradeLevel;
+        registrer[tokenOwner][newHash].level = nextLevel;
         registrer[tokenOwner][newHash].bonus = getNumber(
-            levels[maxUpgradeLevel].minBonus,
-            levels[maxUpgradeLevel].maxBonus,
+            levels[nextLevel].minBonus,
+            levels[nextLevel].maxBonus,
             upgradeCount,
             block.timestamp
         );
 
-        upgradeCount =
-        upgradeCount + 1;
+        unchecked {
+            upgradeCount =
+            upgradeCount + 1;
+        }
 
-        // issue new tokens upgraded to level5
         ERC721(_newTokenAddress).transferFrom(
             address(this),
             tokenOwner,
             _newTokenId
         );
-        // event
+
+        emit UpgradeResolved(
+            tokenOwner,
+            _requestIndex
+        );
     }
 
     function delegateToken(
@@ -625,17 +373,17 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     )
         external
     {
-        require(
-            _delegatePercent <= 100,
-            'iceRegistrant: invalid percent'
-        );
-
         ERC721 tokenNFT = ERC721(_tokenAddress);
-        address tokenOwner = msg.sender;
+        address tokenOwner = msgSender();
 
         require(
             tokenNFT.ownerOf(_tokenId) == tokenOwner,
             'iceRegistrant: invalid owner'
+        );
+
+        require(
+            _delegatePercent <= 100,
+            'iceRegistrant: invalid percent'
         );
 
         bytes32 tokenHash = getHash(
@@ -652,6 +400,60 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _delegateAddress,
             _delegatePercent,
             tokenOwner
+        );
+    }
+
+    function removeDelegate(
+        address _tokenAddress,
+        uint256 _tokenId
+    )
+        external
+    {
+
+    }
+
+    function reIceNFT(
+        address _oldOwner,
+        address _tokenAddress,
+        uint256 _tokenId
+    )
+        external
+    {
+        ERC721 token = ERC721(_tokenAddress);
+        address newOwner = msgSender();
+
+        require(
+            token.ownerOf(_tokenId) == newOwner,
+            'iceRegistrant: invalid owner'
+        );
+
+        bytes32 tokenHash = getHash(
+            _tokenAddress,
+            _tokenId
+        );
+
+        uint256 currentLevel = getLevel(
+            _oldOwner,
+            _tokenAddress,
+            _tokenId
+        );
+
+        _takePayment(
+            newOwner,
+            levels[currentLevel].moveAmountDG,
+            levels[currentLevel].moveAmountICE
+        );
+
+        registrer[newOwner][tokenHash].level = registrer[_oldOwner][tokenHash].level;
+        registrer[newOwner][tokenHash].bonus = registrer[_oldOwner][tokenHash].bonus;
+
+        delete registrer[_oldOwner][tokenHash];
+
+        emit IceLevelTransfer(
+            _oldOwner,
+            newOwner,
+            _tokenAddress,
+            _tokenId
         );
     }
 
@@ -689,7 +491,75 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    function getIceLevel(
+    function getSupply(
+        uint256 _itemId
+    )
+        public
+        returns (uint256)
+    {
+        (   string memory rarity,
+            uint256 maxSupply,
+            uint256 totalSupply,
+            uint256 price,
+            address beneficiary,
+            string memory metadata,
+            string memory contentHash
+
+        ) = acessoriesContract.items(_itemId);
+
+        emit SupplyCheck(
+            rarity,
+            maxSupply,
+            price,
+            beneficiary,
+            metadata,
+            contentHash
+        );
+
+        return totalSupply;
+    }
+
+    function _takePayment(
+        address _payer,
+        uint256 _dgAmount,
+        uint256 _iceAmount
+    )
+        internal
+    {
+        if (_dgAmount > 0) {
+            safeTransferFrom(
+                tokenAddressDG,
+                _payer,
+                depositAddressDG,
+                _dgAmount
+            );
+        }
+
+        if (_iceAmount > 0) {
+            safeTransferFrom(
+                tokenAddressICE,
+                _payer,
+                address(this),
+                _iceAmount
+            );
+
+            ERC20 iceToken = ERC20(tokenAddressICE);
+            iceToken.burn(_iceAmount);
+        }
+    }
+
+    function getLevel(
+        address _tokenOwner,
+        bytes32 _tokenHash
+    )
+        public
+        view
+        returns (uint256)
+    {
+        return registrer[_tokenOwner][_tokenHash].level;
+    }
+
+    function getLevel(
         address _tokenOwner,
         address _tokenAddress,
         uint256 _tokenId
@@ -732,7 +602,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         view
         returns (bool)
     {
-        uint256 iceLevel = getIceLevel(
+        uint256 iceLevel = getLevel(
             _tokenOwner,
             _tokenAddress,
             _tokenId
