@@ -12,7 +12,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
     uint256 public upgradeCount;
     uint256 public upgradeRequestCount;
-    uint256 public delegateCountLimit;
 
     address public tokenAddressDG;
     address public tokenAddressICE;
@@ -57,8 +56,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     constructor(
         address _tokenAddressDG,
         address _tokenAddressICE,
-        address _acessoriesContract,
-        uint256 _delegateCountLmit
+        address _acessoriesContract
     )
         EIP712Base('IceRegistrant', 'v1.0')
     {
@@ -68,8 +66,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         acessoriesContract = DGAccessories(
             _acessoriesContract
         );
-
-        delegateCountLimit = _delegateCountLmit;
     }
 
     function changeDepositAddressDG(
@@ -403,15 +399,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    function removeDelegate(
-        address _tokenAddress,
-        uint256 _tokenId
-    )
-        external
-    {
-
-    }
-
     function reIceNFT(
         address _oldOwner,
         address _tokenAddress,
@@ -448,6 +435,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         registrer[newOwner][tokenHash].bonus = registrer[_oldOwner][tokenHash].bonus;
 
         delete registrer[_oldOwner][tokenHash];
+        delete delegate[_oldOwner][tokenHash]
 
         emit IceLevelTransfer(
             _oldOwner,
@@ -455,6 +443,25 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _tokenAddress,
             _tokenId
         );
+    }
+
+    function adjustRegistrantEntry(
+        address _tokenOwner,
+        address _tokenAddress,
+        uint256 _tokenId,
+        uint256 _bonusValue,
+        uint256 _levelValue
+    )
+        external
+        onlyWorker
+    {
+        bytes32 tokenHash = getHash(
+            _tokenAddress,
+            _tokenId
+        );
+
+        registrer[_tokenOwner][tokenHash].level = _levelValue;
+        registrer[_tokenOwner][tokenHash].bonus = _bonusValue;
     }
 
     function transferIceLevel(
