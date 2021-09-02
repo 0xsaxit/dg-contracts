@@ -1,8 +1,10 @@
-// SPDX-License-Identifier: -- 💎 --
+// SPDX-License-Identifier: -- 🧊 --
 
 pragma solidity ^0.8.6;
 
-contract ICEToken {
+import "./common-contracts-0.8/EIP712MetaTransaction.sol";
+
+contract IceToken is EIP712MetaTransaction {
 
     string private _name = "Decentral Games ICE";
     string private _symbol = "ICE";
@@ -38,7 +40,7 @@ contract ICEToken {
     constructor(
         address _ICEMaster
     )
-
+        EIP712Base('IceToken', 'v1.0')
     {
         ICEMaster = _ICEMaster;
     }
