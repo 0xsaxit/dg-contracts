@@ -66,7 +66,7 @@ contract dgSlots is AccessController {
         uint256 _wearableBonus
     )
         public
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
     {
         require(

@@ -237,7 +237,7 @@ abstract contract EIP712MetaTransaction is EIP712Base {
     }
 }
 
-contract TransferHelper {
+contract TransferHelperTreasury {
 
     bytes4 private constant TRANSFER = bytes4(
         keccak256(
@@ -567,7 +567,7 @@ contract TokenController is AccessController {
     }
 }
 
-contract dgTreasury is GameController, TokenController, HashChain, TransferHelper, EIP712MetaTransaction {
+contract dgTreasury is GameController, TokenController, HashChain, TransferHelperTreasury, EIP712MetaTransaction {
 
     using SafeMath for uint256;
 

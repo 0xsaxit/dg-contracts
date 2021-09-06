@@ -6,12 +6,12 @@ pragma solidity ^0.8.0;
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
 // Single Play - Cyber Slots - TokenIndex
 
-import "./common-contracts/MultiController.sol";
+import "./common-contracts/AccessController.sol";
 import "./common-contracts/MultiHashChain.sol";
 import "./common-contracts/TreasuryInstance.sol";
 import "./common-contracts/PointerInstance.sol";
 
-contract dgCyberSlots is MultiController, MultiHashChain {
+contract dgCyberSlots is AccessController, MultiHashChain {
 
     TreasuryInstance public treasury;
     PointerInstance public pointerContract;

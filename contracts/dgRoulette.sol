@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.5;
+pragma solidity ^0.7.4;
 
 // Roulette Logic Contract ///////////////////////////////////////////////////////////
 // Author: Decentral Games (hello@decentral.games) ///////////////////////////////////////
@@ -97,6 +97,26 @@ contract dgRoulette is AccessController {
             _wearableBonus
         );
     }
+
+    function createBet(
+        address _player,
+        uint8 _betType,
+        uint8 _number,
+        uint8 _tokenIndex,
+        uint128 _value
+    )
+        external
+        onlyWorker
+    {
+        bet(
+            _player,
+            _betType,
+            _number,
+            _tokenIndex,
+            _value
+        );
+    }
+
 
     function bet(
         address _player,
@@ -241,7 +261,6 @@ contract dgRoulette is AccessController {
         uint8[] memory _wearableBonus
     )
         public
-        whenNotPaused
         onlyWorker
     {
         require(
@@ -317,7 +336,6 @@ contract dgRoulette is AccessController {
         bytes32 _localhash
     )
         public
-        whenNotPaused
         onlyWorker
     {
         require(
@@ -388,7 +406,9 @@ contract dgRoulette is AccessController {
         uint8 _tokenIndex,
         uint256 _playerCount,
         uint256 _wearableBonus
-    ) private {
+    )
+        private
+    {
         if (totalPayout[_player] > totalBets[_player]) {
 
             uint256 points = totalPayout[_player].sub(totalBets[_player]);

@@ -124,7 +124,7 @@ contract dgBackgammon is AccessController {
         uint8 _tokenIndex
     )
         external
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
         returns (bool)
     {
@@ -211,7 +211,7 @@ contract dgBackgammon is AccessController {
         address _playerRaising
     )
         external
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
         onlyOnGoingGame(_gameId)
         isPlayerInGame(_gameId, _playerRaising)
@@ -246,7 +246,7 @@ contract dgBackgammon is AccessController {
 
     function callDouble(uint256 _gameId, address _playerCalling)
         external
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
         onlyDoublingStage(_gameId)
         isPlayerInGame(_gameId, _playerCalling)
@@ -288,7 +288,7 @@ contract dgBackgammon is AccessController {
         uint256 _playerTwoWearableBonus
     )
         external
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
         onlyDoublingStage(_gameId)
         isPlayerInGame(_gameId, _playerDropping)
@@ -335,7 +335,7 @@ contract dgBackgammon is AccessController {
         uint256 _playerTwoWearableBonus
     )
         external
-        whenNotPaused
+        // whenNotPaused
         onlyWorker
         onlyOnGoingGame(_gameId)
         isPlayerInGame(_gameId, _winPlayer)

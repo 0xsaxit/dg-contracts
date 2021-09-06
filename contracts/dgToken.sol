@@ -15,7 +15,7 @@ contract Context {
 }
 
 contract ERC20 is Context {
-    using SafeMath for uint256;
+    using SafeMathDG for uint256;
 
     mapping (address => uint256) private _balances;
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -235,7 +235,7 @@ contract dgToken is ERC20 {
     }
 }
 
-library SafeMath {
+library SafeMathDG {
 
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a + b;

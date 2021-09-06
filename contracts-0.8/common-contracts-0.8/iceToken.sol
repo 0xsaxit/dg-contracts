@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.6;
 
-import "./common-contracts-0.8/EIP712MetaTransaction.sol";
+import "./EIP712MetaTransaction.sol";
 
 contract IceToken is EIP712MetaTransaction {
 
@@ -10,7 +10,7 @@ contract IceToken is EIP712MetaTransaction {
     string private _symbol = "ICE";
     uint8 private _decimals = 18;
 
-    address public ICEMaster;
+    address public IceMaster;
 
     mapping (address => uint256) private _balances;
     mapping (address => mapping (address => uint256)) private _allowances;
@@ -29,36 +29,36 @@ contract IceToken is EIP712MetaTransaction {
         uint256 value
     );
 
-    modifier onlyICEMaster {
+    modifier onlyIceMaster {
         require(
-            _msgSender() == ICEMaster,
-            'ICEToken: access denied'
+            _msgSender() == IceMaster,
+            'IceToken: access denied'
         );
         _;
     }
 
     constructor(
-        address _ICEMaster
+        address _IceMaster
     )
         EIP712Base('IceToken', 'v1.0')
     {
-        ICEMaster = _ICEMaster;
+        IceMaster = _IceMaster;
     }
 
     function transferOwnership(
         address _contractDAO
     )
         external
-        onlyICEMaster
+        onlyIceMaster
     {
-        ICEMaster = _contractDAO;
+        IceMaster = _contractDAO;
     }
 
     function renounceOwnership()
         external
-        onlyICEMaster
+        onlyIceMaster
     {
-        ICEMaster = address(0x0);
+        IceMaster = address(0x0);
     }
 
     function name()
@@ -210,7 +210,7 @@ contract IceToken is EIP712MetaTransaction {
         uint256 _amount
     )
         external
-        onlyICEMaster
+        onlyIceMaster
     {
         _totalSupply =
         _totalSupply + _amount;

@@ -9,8 +9,8 @@ async function tryCatch(promise, reason, message) {
             'Expected a VM exception but did not get one'
         );
 
-        // console.log(error.reason);
-        // console.log(message);
+        console.log(error.reason);
+        console.log(message);
 
         assert.equal(
             `revert ${error.reason}`,

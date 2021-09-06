@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.7.5;
+pragma solidity ^0.7.4;
 
 import "./common-contracts/TreasuryInstance.sol";
 import "./common-contracts/AccessController.sol";

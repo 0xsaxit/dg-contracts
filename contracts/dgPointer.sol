@@ -204,7 +204,8 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
     mapping(address => mapping(address => uint256)) public affiliateProfit;
     mapping(address => mapping(address => uint256)) public affiliateHistoryProfit;
 
-    OldPointer public immutable oldPointer;
+    // OldPointer public immutable oldPointer;
+    OldPointer public oldPointer;
 
     uint256 public affiliateBonus;
     uint256 public wearableBonusPerObject;
@@ -244,7 +245,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
     constructor(
         address _distributionToken,
-        address _oldPointerAddress,
+        // address _oldPointerAddress,
         string memory name,
         string memory version
     ) EIP712Base(name, version) {
@@ -264,9 +265,9 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
         wearableBonuses[3] = 30;
         wearableBonuses[4] = 40;
 
-        oldPointer = OldPointer(
+        /* oldPointer = OldPointer(
             _oldPointerAddress
-        );
+        );*/
     }
 
     function assignAffiliate(
@@ -281,9 +282,9 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
             'Pointer: self-referral'
         );
 
-        _checkAffiliatesInOldPointer(
+        /* _checkAffiliatesInOldPointer(
             _player
-        );
+        );*/
 
         require(
             affiliateData[_player] == ZERO_ADDRESS,
@@ -437,9 +438,9 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
     )
         internal
     {
-        _checkAffiliatesInOldPointer(
+        /* _checkAffiliatesInOldPointer(
             _player
-        );
+        );*/
 
         if (_isAffiliated(_player)) {
 

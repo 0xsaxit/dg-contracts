@@ -320,7 +320,7 @@ contract dgPoker is AccessController {
         uint256[] calldata _entryBets,
         uint256[] calldata _approvals,
         uint8 _tokenIndex,
-        uint256 _serverId,
+        // uint256 _serverId,
         uint256 _landId,
         uint256 _tableId,
         uint8 _beneficiaryPercent,
@@ -451,7 +451,7 @@ contract dgPoker is AccessController {
             "manualPayout: invalid playersCount"
         );
 
-        
+
         // require(
         //     _checkWinnerWageredAmount(
         //         _wageredAmounts,
@@ -509,7 +509,7 @@ contract dgPoker is AccessController {
     )
         private
     {
-        uint256 refundTotal;
+        // uint256 refundTotal;
         for (uint8 i = 0; i < _refundAmounts.length; i++) {
 
             address _playerAddress = Games[_gameId].players[i];
@@ -533,9 +533,9 @@ contract dgPoker is AccessController {
 
             Games[_gameId].wageredTotal =
             Games[_gameId].wageredTotal.add(_wageredAmounts[i]);
-            Games[_gameId].refundTotal = 
+            Games[_gameId].refundTotal =
             Games[_gameId].refundTotal.add(_refundAmounts[i]);
-            Games[_gameId].approvedTotal = 
+            Games[_gameId].approvedTotal =
             Games[_gameId].approvedTotal.add(Games[_gameId].approvals[i]);
         }
     }
@@ -550,7 +550,7 @@ contract dgPoker is AccessController {
         private
         returns (uint256)
     {
-        uint256 wageredTotal = Games[_gameId].wageredTotal;
+        // uint256 wageredTotal = Games[_gameId].wageredTotal;
         uint256 totalAmount = Games[_gameId].refundTotal.add(_winAmount);
 
         require(
@@ -558,8 +558,8 @@ contract dgPoker is AccessController {
             "_payoutWin: invalid totalAmount"
         );
 
-        uint256 taxableAmount = _winAmount > 0 
-            ? _winAmount.sub(_wageredAmount) 
+        uint256 taxableAmount = _winAmount > 0
+            ? _winAmount.sub(_wageredAmount)
             : 0;
 
         uint256 treasuryPayout = _proceedWithPayout(

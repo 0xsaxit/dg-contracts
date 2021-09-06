@@ -14,7 +14,7 @@ contract ContextA {
     }
 }
 
-contract bpToken is ContextA {
+contract Token is ContextA {
 
     using SafeMathFull for uint256;
 

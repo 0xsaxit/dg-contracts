@@ -434,9 +434,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         registrer[newOwner][tokenHash].level = registrer[_oldOwner][tokenHash].level;
         registrer[newOwner][tokenHash].bonus = registrer[_oldOwner][tokenHash].bonus;
 
-        delete registrer[_oldOwner][tokenHash];
-        delete delegate[_oldOwner][tokenHash]
-
         emit IceLevelTransfer(
             _oldOwner,
             newOwner,

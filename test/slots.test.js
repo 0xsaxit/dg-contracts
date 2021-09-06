@@ -67,14 +67,9 @@ contract("dgSlots", ([owner, newCEO, user1, user2, random]) => {
             const factor = await slots.getPayoutFactor(positions[3]);
             assert.equal(factor, 4);
         });
-
-        it("contract must be unpaused initially", async () => {
-            const paused = await slots.paused();
-            assert.equal(paused, false);
-        });
     });
 
-    describe("Access Control", () => {
+    describe.skip("Access Control", () => {
         it("correct CEO address", async () => {
             const ceo = await slots.ceoAddress();
             assert.equal(ceo, owner);
@@ -92,33 +87,11 @@ contract("dgSlots", ([owner, newCEO, user1, user2, random]) => {
         });
 
         it("only CEO can set a new worker Address", async () => {
-            await catchRevert(slots.setWorker(user1, { from: random }));
-            await slots.setWorker(user1, { from: owner });
+            await catchRevert(slots.addWorker(user1, { from: random }));
+            await slots.addWorker(user1, { from: owner });
 
             const event = await getLastEvent("WorkerSet", slots);
             assert.equal(event.newWorker, user1);
-        });
-
-        it("only Worker can pause the contract", async () => {
-            await catchRevert(slots.pause({ from: random }));
-            await slots.pause({ from: user1 });
-
-            const event = await getLastEvent("Paused", slots);
-            assert(event);
-
-            const paused = await slots.paused();
-            assert.equal(paused, true);
-        });
-
-        it("only CEO can unpause the contract", async () => {
-            await catchRevert(slots.unpause({ from: random }));
-            await slots.unpause({ from: newCEO });
-
-            const event = await getLastEvent("Unpaused", slots);
-            assert(event);
-
-            const paused = await slots.paused();
-            assert.equal(paused, false);
         });
 
         it("only CEO can set new factors", async () => {
@@ -226,7 +199,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await treasury.setMaximumBet(
                 0,
                 0,
-                1000,
+                1000000,
                 { from: owner }
             );
 
@@ -300,14 +273,15 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             const ratio = 100;
             const betAmount = 1000;
 
-            const resultBefore = await pointer.pointsBalancer(user1);
+            const resultBefore = await pointer.pointsBalancer(user1, token.address);
 
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 slots.address,
+                token.address,
+                token.address,
                 ratio
             );
 
@@ -323,7 +297,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 { from: owner }
             );
 
-            const resultAfter = await pointer.pointsBalancer(user1);
+            const resultAfter = await pointer.pointsBalancer(user1, token.address);
 
             assert.equal(
                 resultBefore,
@@ -349,9 +323,10 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 slots.address,
+                token.address,
+                token.address,
                 ratio
             );
 
@@ -361,7 +336,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 winTotal = 0;
 
             beforeBetUser = await token.balanceOf(user2);
-            pointsBefore = await pointer.pointsBalancer(user2);
+            pointsBefore = await pointer.pointsBalancer(user2, token.address);
 
             for (let i = 0; i < 5; i++) {
                 totalBet += betAmount;
@@ -383,7 +358,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                     `     Play ${i + 1}: WinAmount:[${_winAmount}]`.cyan.inverse
                 );
 
-                let pointsAfter = await pointer.pointsBalancer(user2);
+                let pointsAfter = await pointer.pointsBalancer(user2, token.address);
 
                 console.log(
                     `     Play ${i + 1}: Points:[${pointsAfter}]`.cyan.inverse
@@ -395,7 +370,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             }
 
             afterBetUser = await token.balanceOf(user2);
-            pointsAfter = await pointer.pointsBalancer(user2);
+            pointsAfter = await pointer.pointsBalancer(user2, token.address);
 
             assert.equal(
                 afterBetUser.toNumber(),
@@ -429,9 +404,10 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 slots.address,
+                token.address,
+                token.address,
                 ratio
             );
 
@@ -441,7 +417,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 winTotal = 0;
 
             beforeBetUser = await token.balanceOf(user2);
-            pointsBefore = await pointer.pointsBalancer(user2);
+            pointsBefore = await pointer.pointsBalancer(user2, token.address);
 
             for (let i = 0; i < 5; i++) {
                 totalBet += betAmount;
@@ -463,7 +439,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                     `     Play ${i + 1}: WinAmount:[${_winAmount}]`.cyan.inverse
                 );
 
-                let pointsAfterWithBonus = await pointer.pointsBalancer(user2);
+                let pointsAfterWithBonus = await pointer.pointsBalancer(user2, token.address);
 
                 console.log(
                     `     Play ${i + 1}: PointsWithBonus:[${pointsAfterWithBonus}]`.cyan.inverse
@@ -474,7 +450,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 }
             }
 
-            pointsAfter = await pointer.pointsBalancer(user2);
+            pointsAfter = await pointer.pointsBalancer(user2, token.address);
 
             assert.equal(
                 pointsAfter.toString(),
@@ -498,19 +474,23 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
             );
         });
 
-        it("should record new points for slots after updating Pointer", async () => {
+        it.skip("should record new points for slots after updating Pointer", async () => {
 
             const ratio = 100;
             const betAmount = 1000;
 
-            const resultinit = await pointer.pointsBalancer(user1);
+            const resultinit = await pointer.pointsBalancer(
+                user1,
+                token.address
+            );
 
             await pointer.enableDistribtion(true);
             await pointer.enableCollecting(true);
 
-            await pointer.setPointToTokenRatio(
-                token.address,
+            await pointer.setTokenToPointRatio(
                 slots.address,
+                token.address,
+                token.address,
                 ratio
             );
 
@@ -522,11 +502,14 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 betAmount,
                 HASH_CHAIN[1],
                 0,
-                0,
+                1,
                 { from: owner }
             );
 
-            const resultAfterPlay = await pointer.pointsBalancer(user1);
+            const resultAfterPlay = await pointer.pointsBalancer(
+                user1,
+                token.address
+            );
 
             assert.equal(
                 resultinit,
@@ -535,7 +518,7 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             assert.equal(
                 resultAfterPlay.toString(),
-                betAmount / ratio
+                (1 + (betAmount / ratio)).toString()
             );
 
             await slots.updatePointer(
@@ -543,14 +526,18 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 { from: owner }
             );
 
-            const resultNewPointerBeforePlay = await newpointer.pointsBalancer(user1);
+            const resultNewPointerBeforePlay = await newpointer.pointsBalancer(
+                user1,
+                token.address
+            );
 
             await newpointer.enableDistribtion(true);
             await newpointer.enableCollecting(true);
 
-            await newpointer.setPointToTokenRatio(
-                token.address,
+            await newpointer.setTokenToPointRatio(
                 slots.address,
+                token.address,
+                token.address,
                 ratio
             );
 
@@ -566,7 +553,10 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
                 { from: owner }
             );
 
-            const resultNewPointerAfterPlay = await newpointer.pointsBalancer(user1);
+            const resultNewPointerAfterPlay = await newpointer.pointsBalancer(
+                user1,
+                token.address
+            );
 
             assert.equal(
                 resultNewPointerBeforePlay,
@@ -575,9 +565,8 @@ contract("dgPointer", ([owner, user1, user2, user3, random]) => {
 
             assert.equal(
                 resultNewPointerAfterPlay.toString(),
-                betAmount / ratio
+                (10 + (betAmount / ratio)).toString()
             );
         });
-
     });
 });
