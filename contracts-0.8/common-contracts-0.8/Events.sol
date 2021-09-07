@@ -54,6 +54,12 @@ contract Events {
         uint256 indexed tokenId
     );
 
+    event InitialMinting(
+        uint256 indexed tokenId,
+        uint256 indexed mintCount,
+        address indexed tokenOwner
+    );
+
     event SupplyCheck(
         string rarity,
         uint256 maxSupply,

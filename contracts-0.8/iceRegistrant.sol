@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: -- 💎 --
+// SPDX-License-Identifier: -- 🧊 --
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.6;
 
 import "./common-contracts-0.8/EIP712MetaTransaction.sol";
 import "./common-contracts-0.8/AccessController.sol";
@@ -19,16 +19,23 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     address public depositAddressDG;
     address public depositAddressNFT;
 
+    address public paymentToken;
+    uint256 public mintingPrice;
+
+    uint256 public mintCount;
+    uint256 public defaultItemId;
+
+    uint256 public constant mintLimit = 500;
     DGAccessories public acessoriesContract;
 
     struct Level {
+        bool isActive;
         uint256 costAmountDG;
         uint256 moveAmountDG;
         uint256 costAmountICE;
         uint256 moveAmountICE;
         uint256 minBonus;
         uint256 maxBonus;
-        bool isActive;
     }
 
     struct Upgrade {
@@ -54,18 +61,26 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     mapping (address => mapping (bytes32 => Delegate)) public delegate;
 
     constructor(
+        uint256 _mintingPrice,
+        address _paymentToken,
         address _tokenAddressDG,
         address _tokenAddressICE,
-        address _acessoriesContract
+        address _acessoriesContract,
+        uint256 _defaultItemId
     )
         EIP712Base('IceRegistrant', 'v1.0')
     {
+        paymentToken = _paymentToken;
+        mintingPrice = _mintingPrice;
+
         tokenAddressDG = _tokenAddressDG;
         tokenAddressICE = _tokenAddressICE;
 
         acessoriesContract = DGAccessories(
             _acessoriesContract
         );
+
+        defaultItemId = _defaultItemId;
     }
 
     function changeDepositAddressDG(
@@ -95,6 +110,24 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         acessoriesContract = DGAccessories(
             _newAcessoriesContract
         );
+    }
+
+    function changeMintingPrice(
+        uint256 _newMintingPrice
+    )
+        external
+        onlyCEO
+    {
+        mintingPrice = _newMintingPrice;
+    }
+
+    function changePaymentToken(
+        address _newPaymentToken
+    )
+        external
+        onlyCEO
+    {
+        paymentToken = _newPaymentToken;
     }
 
     function manageLevel(
@@ -128,6 +161,64 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _costAmountICE,
             _moveAmountICE,
             _isActive
+        );
+    }
+
+    function mintToken()
+        external
+    {
+        require(
+            mintLimit > mintCount,
+            'iceRegistrant: sold-out'
+        );
+
+        address minterAddress = msgSender();
+
+        safeTransferFrom(
+            paymentToken,
+            minterAddress,
+            ceoAddress,
+            mintingPrice
+        );
+
+        uint256 newTokenId = acessoriesContract.encodeTokenId(
+            defaultItemId,
+            getSupply(defaultItemId) + 1
+        );
+
+        bytes32 newHash = getHash(
+            address(acessoriesContract),
+            newTokenId
+        );
+
+        registrer[minterAddress][newHash].level = 1;
+        registrer[minterAddress][newHash].bonus = getNumber(
+            levels[0].minBonus,
+            levels[0].maxBonus,
+            mintCount,
+            block.timestamp
+        );
+
+        unchecked {
+            mintCount =
+            mintCount + 1;
+        }
+
+        address[] memory beneficiaries;
+        beneficiaries[0] = minterAddress;
+
+        uint256[] memory itemIds;
+        itemIds[0] = defaultItemId;
+
+        acessoriesContract.issueTokens(
+            beneficiaries,
+            itemIds
+        );
+
+        emit InitialMinting(
+            newTokenId,
+            mintCount,
+            minterAddress
         );
     }
 
@@ -259,7 +350,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
 
         bytes32 newHash = getHash(
-            tokenAddress,
+            address(acessoriesContract),
             newTokenId
         );
 
@@ -431,8 +522,23 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             levels[currentLevel].moveAmountICE
         );
 
-        registrer[newOwner][tokenHash].level = registrer[_oldOwner][tokenHash].level;
-        registrer[newOwner][tokenHash].bonus = registrer[_oldOwner][tokenHash].bonus;
+        uint256 oldLevel = registrer[_oldOwner][tokenHash].level;
+        uint256 oldBonus = registrer[_oldOwner][tokenHash].bonus;
+
+        require(
+            oldLevel > registrer[newOwner][tokenHash].level,
+            'iceRegistrant: preventing level downgrade'
+        );
+
+        require(
+            oldBonus > registrer[newOwner][tokenHash].bonus,
+            'iceRegistrant: preventing bonus downgrade'
+        );
+
+        delete registrer[_oldOwner][tokenHash];
+
+        registrer[newOwner][tokenHash].level = oldLevel;
+        registrer[newOwner][tokenHash].bonus = oldBonus;
 
         emit IceLevelTransfer(
             _oldOwner,
@@ -440,6 +546,30 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _tokenAddress,
             _tokenId
         );
+    }
+
+    function adjustDelegateEntry(
+        address _tokenOwner,
+        address _tokenAddress,
+        uint256 _tokenId,
+        address _delegateAddress,
+        uint256 _delegatePercent
+    )
+        external
+        onlyWorker
+    {
+        bytes32 tokenHash = getHash(
+            _tokenAddress,
+            _tokenId
+        );
+
+        require(
+            _delegatePercent <= 100,
+            'iceRegistrant: invalid percent'
+        );
+
+        delegate[_tokenOwner][tokenHash].delegateAddress = _delegateAddress;
+        delegate[_tokenOwner][tokenHash].delegatePercent = _delegatePercent;
     }
 
     function adjustRegistrantEntry(
@@ -459,40 +589,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         registrer[_tokenOwner][tokenHash].level = _levelValue;
         registrer[_tokenOwner][tokenHash].bonus = _bonusValue;
-    }
-
-    function transferIceLevel(
-        address _oldOwner,
-        address _tokenAddress,
-        uint256 _tokenId,
-        address _newOwner
-    )
-        external
-        onlyWorker
-    {
-        ERC721 token = ERC721(_tokenAddress);
-
-        require(
-            token.ownerOf(_tokenId) == _newOwner,
-            'iceRegistrant: invalid owner'
-        );
-
-        bytes32 tokenHash = getHash(
-            _tokenAddress,
-            _tokenId
-        );
-
-        registrer[_newOwner][tokenHash].level = registrer[_oldOwner][tokenHash].level;
-        registrer[_newOwner][tokenHash].bonus = registrer[_oldOwner][tokenHash].bonus;
-
-        delete registrer[_oldOwner][tokenHash];
-
-        emit IceLevelTransfer(
-            _oldOwner,
-            _newOwner,
-            _tokenAddress,
-            _tokenId
-        );
     }
 
     function getSupply(
@@ -606,13 +702,13 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         view
         returns (bool)
     {
-        uint256 iceLevel = getLevel(
+        uint256 iceBonus = getIceBonus(
             _tokenOwner,
             _tokenAddress,
             _tokenId
         );
 
-        return iceLevel > 0;
+        return iceBonus > 0;
     }
 
     function getHash(
