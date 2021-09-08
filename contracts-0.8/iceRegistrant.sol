@@ -22,11 +22,12 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     address public paymentToken;
     uint256 public mintingPrice;
 
-    uint256 public mintCount;
-    uint256 public defaultItemId;
+    uint256 public saleCount;
 
-    uint256 public constant mintLimit = 500;
-    DGAccessories public acessoriesContract;
+    uint256 public immutable saleLimit;
+    uint256 public immutable saleFrame;
+
+    address public acessoriesContract;
 
     struct Level {
         bool isActive;
@@ -54,6 +55,11 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256 delegatePercent;
     }
 
+    mapping (address => bool) public targets;
+
+    mapping (address => uint256) public frames;
+    mapping (uint256 => uint256) public limits;
+
     mapping (uint256 => Level) public levels;
     mapping (uint256 => Request) public requests;
 
@@ -65,22 +71,22 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address _paymentToken,
         address _tokenAddressDG,
         address _tokenAddressICE,
-        address _acessoriesContract,
-        uint256 _defaultItemId
+        address _acessoriesContract
     )
         EIP712Base('IceRegistrant', 'v1.0')
     {
+        saleLimit = 500;
+        saleFrame = 24 hours;
+
         paymentToken = _paymentToken;
         mintingPrice = _mintingPrice;
 
         tokenAddressDG = _tokenAddressDG;
         tokenAddressICE = _tokenAddressICE;
 
-        acessoriesContract = DGAccessories(
-            _acessoriesContract
-        );
+        targets[_acessoriesContract] = true;
 
-        defaultItemId = _defaultItemId;
+        acessoriesContract = _acessoriesContract;
     }
 
     function changeDepositAddressDG(
@@ -107,9 +113,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         external
         onlyCEO
     {
-        acessoriesContract = DGAccessories(
-            _newAcessoriesContract
-        );
+        acessoriesContract = _newAcessoriesContract;
     }
 
     function changeMintingPrice(
@@ -121,6 +125,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         mintingPrice = _newMintingPrice;
     }
 
+    function changeMintLimits(
+        uint256 _itemId,
+        uint256 _newLimit
+    )
+        external
+        onlyCEO
+    {
+        limits[_itemId] = _newLimit;
+    }
+
     function changePaymentToken(
         address _newPaymentToken
     )
@@ -128,6 +142,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         onlyCEO
     {
         paymentToken = _newPaymentToken;
+    }
+
+    function changeTarget(
+        address _tokenAddress,
+        bool _isActive
+    )
+        external
+        onlyCEO
+    {
+        targets[_tokenAddress] = _isActive;
     }
 
     function manageLevel(
@@ -164,61 +188,84 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    function mintToken()
+    function mintToken(
+        uint256 _itemId,
+        address _minterAddress
+    )
         external
+        onlyWorker
     {
         require(
-            mintLimit > mintCount,
+            saleLimit > saleCount,
             'iceRegistrant: sold-out'
         );
 
-        address minterAddress = msgSender();
+        unchecked {
+            saleCount =
+            saleCount + 1;
+        }
+
+        require(
+            limits[_itemId] > 0,
+            'iceRegistrant: limited'
+        );
+
+        unchecked {
+            limits[_itemId] =
+            limits[_itemId] - 1;
+        }
+
+        require(
+            block.timestamp - frames[_minterAddress] > saleFrame,
+            'iceRegistrant: cool-down detected'
+        );
+
+        frames[_minterAddress] = block.timestamp;
 
         safeTransferFrom(
             paymentToken,
-            minterAddress,
+            _minterAddress,
             ceoAddress,
             mintingPrice
         );
 
-        uint256 newTokenId = acessoriesContract.encodeTokenId(
-            defaultItemId,
-            getSupply(defaultItemId) + 1
+        DGAccessories target = DGAccessories(
+            acessoriesContract
+        );
+
+        uint256 newTokenId = target.encodeTokenId(
+            _itemId,
+            getSupply(_itemId) + 1
         );
 
         bytes32 newHash = getHash(
-            address(acessoriesContract),
+            acessoriesContract,
             newTokenId
         );
 
-        registrer[minterAddress][newHash].level = 1;
-        registrer[minterAddress][newHash].bonus = getNumber(
+        registrer[_minterAddress][newHash].level = 1;
+        registrer[_minterAddress][newHash].bonus = getNumber(
             levels[0].minBonus,
             levels[0].maxBonus,
-            mintCount,
+            saleCount,
             block.timestamp
         );
 
-        unchecked {
-            mintCount =
-            mintCount + 1;
-        }
-
         address[] memory beneficiaries;
-        beneficiaries[0] = minterAddress;
+        beneficiaries[0] = _minterAddress;
 
         uint256[] memory itemIds;
-        itemIds[0] = defaultItemId;
+        itemIds[0] = _itemId;
 
-        acessoriesContract.issueTokens(
+        target.issueTokens(
             beneficiaries,
             itemIds
         );
 
         emit InitialMinting(
             newTokenId,
-            mintCount,
-            minterAddress
+            saleCount,
+            _minterAddress
         );
     }
 
@@ -229,6 +276,11 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         external
         returns (uint256 requestIndex)
     {
+        require(
+            targets[_tokenAddress] == true,
+            'iceRegistrant: invalid token'
+        );
+
         ERC721 tokenNFT = ERC721(_tokenAddress);
         address tokenOwner = msgSender();
 
@@ -344,13 +396,17 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             tokenId
         );
 
-        uint256 newTokenId = acessoriesContract.encodeTokenId(
+        DGAccessories target = DGAccessories(
+            acessoriesContract
+        );
+
+        uint256 newTokenId = target.encodeTokenId(
             _itemId,
             getSupply(_itemId) + 1
         );
 
         bytes32 newHash = getHash(
-            address(acessoriesContract),
+            acessoriesContract,
             newTokenId
         );
 
@@ -373,7 +429,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256[] memory itemIds;
         itemIds[0] = _itemId;
 
-        acessoriesContract.issueTokens(
+        target.issueTokens(
             beneficiaries,
             itemIds
         );
@@ -497,6 +553,11 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     )
         external
     {
+        require(
+            targets[_tokenAddress] == true,
+            'iceRegistrant: invalid token'
+        );
+
         ERC721 token = ERC721(_tokenAddress);
         address newOwner = msgSender();
 
@@ -510,7 +571,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _tokenId
         );
 
-        uint256 currentLevel = getLevel(
+        uint256 currentLevel = getLevelById(
             _oldOwner,
             _tokenAddress,
             _tokenId
@@ -605,7 +666,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             string memory metadata,
             string memory contentHash
 
-        ) = acessoriesContract.items(_itemId);
+        ) = DGAccessories(acessoriesContract).items(_itemId);
 
         emit SupplyCheck(
             rarity,
@@ -659,7 +720,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         return registrer[_tokenOwner][_tokenHash].level;
     }
 
-    function getLevel(
+    function getLevelById(
         address _tokenOwner,
         address _tokenAddress,
         uint256 _tokenId
