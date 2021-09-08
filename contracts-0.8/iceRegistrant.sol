@@ -45,6 +45,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     }
 
     struct Request {
+        uint256 itemId;
         uint256 tokenId;
         address tokenAddress;
         address tokenOwner;
@@ -76,7 +77,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         EIP712Base('IceRegistrant', 'v1.0')
     {
         saleLimit = 500;
-        saleFrame = 24 hours;
+        saleFrame = 1 hours;
 
         paymentToken = _paymentToken;
         mintingPrice = _mintingPrice;
@@ -87,6 +88,18 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         targets[_acessoriesContract] = true;
 
         acessoriesContract = _acessoriesContract;
+
+        levels[0].minBonus = 1;
+        levels[0].maxBonus = 7;
+    }
+
+    function changeTokenAddressDG(
+        address _newTokenAddressDG
+    )
+        external
+        onlyCEO
+    {
+        tokenAddressDG = _newTokenAddressDG;
     }
 
     function changeDepositAddressDG(
@@ -185,6 +198,17 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _costAmountICE,
             _moveAmountICE,
             _isActive
+        );
+    }
+
+    function triggerEvent(
+        uint256 _itemId
+    )
+        external
+    {
+        emit Proceed(
+            _itemId,
+            msgSender()
         );
     }
 
@@ -312,6 +336,15 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _tokenId
         );
 
+        DGAccessories target = DGAccessories(
+            acessoriesContract
+        );
+
+        (uint256 itemId, uint256 issuedId) = target.decodeTokenId(
+            _tokenId
+        );
+
+        requests[requestIndex].itemId = itemId;
         requests[requestIndex].tokenId = _tokenId;
         requests[requestIndex].tokenAddress = _tokenAddress;
         requests[requestIndex].tokenOwner = tokenOwner;
@@ -322,6 +355,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         }
 
         emit UpgradeRequest(
+            itemId,
+            issuedId,
             tokenOwner,
             _tokenAddress,
             _tokenId,
@@ -440,6 +475,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
+    /*
     function resolveUpgradeSend(
         uint256 _requestIndex,
         address _newTokenAddress,
@@ -507,6 +543,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _requestIndex
         );
     }
+    */
 
     function delegateToken(
         address _tokenAddress,

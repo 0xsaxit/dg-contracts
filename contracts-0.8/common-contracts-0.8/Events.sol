@@ -4,6 +4,11 @@ pragma solidity ^0.8.0;
 
 contract Events {
 
+    event Proceed(
+        uint256 indexed itemId,
+        address indexed minterAddress
+    );
+
     event TokenUpgrade(
         address indexed tokenOwner,
         address indexed tokenAddress,
@@ -12,6 +17,8 @@ contract Events {
     );
 
     event UpgradeRequest(
+        uint256 indexed itemId,
+        uint256 issuedId,
         address tokenOwner,
         address tokenAddress,
         uint256 indexed tokenId,
@@ -53,7 +60,7 @@ contract Events {
         address indexed tokenAddress,
         uint256 indexed tokenId
     );
-
+    
     event InitialMinting(
         uint256 indexed tokenId,
         uint256 indexed mintCount,

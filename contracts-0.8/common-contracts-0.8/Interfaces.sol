@@ -41,11 +41,21 @@ interface DGAccessories  {
         uint256 _issuedId
     )
         external
-        pure 
+        pure
         returns (uint256 id);
 
+    function decodeTokenId(
+        uint256 _tokenId
+    )
+        external
+        pure
+        returns (
+            uint256 itemId,
+            uint256 issuedId
+        );
+
     function items(
-        uint256 id
+        uint256 _id
     )
         external
         view
