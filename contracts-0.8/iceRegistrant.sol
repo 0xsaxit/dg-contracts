@@ -91,6 +91,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         levels[0].minBonus = 1;
         levels[0].maxBonus = 7;
+
+        limits[0] = 100;
     }
 
     function changeTokenAddressDG(
