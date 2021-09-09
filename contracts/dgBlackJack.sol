@@ -275,6 +275,16 @@ contract dgBlackJack is AccessController, BlackJackHelper {
         uint256 tableId
     );
 
+    event GameResult(
+        bytes16 indexed gameId,
+        address[] players,
+        uint8[] tokens,
+        uint256 serverID,
+        uint256 landID,
+        uint256 tableID,
+        uint128[] winAmounts
+    );
+
     event DoubleDown(
         uint256 powerAfter
     );
@@ -603,6 +613,16 @@ contract dgBlackJack is AccessController, BlackJackHelper {
             _serverId,
             _landId,
             _tableId
+        );
+
+        emit GameResult(
+            _gameId,
+            Games[_gameId].players,
+            Games[_gameId].tokens,
+            _serverId,
+            _landId,
+            _tableId,
+            _payoutAmounts
         );
     }
 
