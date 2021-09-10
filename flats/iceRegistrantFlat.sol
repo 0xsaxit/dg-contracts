@@ -2,11 +2,564 @@
 
 pragma solidity ^0.8.6;
 
-import "./common-contracts-0.8/EIP712MetaTransaction.sol";
-import "./common-contracts-0.8/AccessController.sol";
-import "./common-contracts-0.8/TransferHelper.sol";
-import "./common-contracts-0.8/Interfaces.sol";
-import "./common-contracts-0.8/Events.sol";
+contract EIP712Base {
+
+    struct EIP712Domain {
+        string name;
+        string version;
+        uint256 chainId;
+        address verifyingContract;
+    }
+
+    bytes32 internal constant EIP712_DOMAIN_TYPEHASH = keccak256(bytes("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"));
+    bytes32 internal domainSeperator;
+
+    constructor(string memory name, string memory version) {
+        domainSeperator = keccak256(abi.encode(
+			EIP712_DOMAIN_TYPEHASH,
+			keccak256(bytes(name)),
+			keccak256(bytes(version)),
+			getChainID(),
+			address(this)
+		));
+    }
+
+    function getChainID() internal pure returns (uint256 id) {
+		assembly {
+			id := 1 // set to Goerli for now, Mainnet later
+		}
+	}
+
+    function getDomainSeperator() private view returns(bytes32) {
+		return domainSeperator;
+	}
+
+    /**
+    * Accept message hash and returns hash message in EIP712 compatible form
+    * So that it can be used to recover signer from signature signed using EIP712 formatted data
+    * https://eips.ethereum.org/EIPS/eip-712
+    * "\\x19" makes the encoding deterministic
+    * "\\x01" is the version byte to make it compatible to EIP-191
+    */
+    function toTypedMessageHash(bytes32 messageHash) internal view returns(bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", getDomainSeperator(), messageHash));
+    }
+}
+
+abstract contract EIP712MetaTransaction is EIP712Base {
+
+    bytes32 private constant META_TRANSACTION_TYPEHASH =
+        keccak256(
+            bytes(
+                "MetaTransaction(uint256 nonce,address from,bytes functionSignature)"
+            )
+        );
+
+    event MetaTransactionExecuted(
+        address userAddress,
+        address payable relayerAddress,
+        bytes functionSignature
+    );
+
+    mapping(address => uint256) internal nonces;
+
+    /*
+     * Meta transaction structure.
+     * No point of including value field here as if user is doing value transfer then he has the funds to pay for gas
+     * He should call the desired function directly in that case.
+     */
+    struct MetaTransaction {
+		uint256 nonce;
+		address from;
+        bytes functionSignature;
+	}
+
+    function executeMetaTransaction(
+        address userAddress,
+        bytes memory functionSignature,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    )
+        public
+        payable
+        returns(bytes memory)
+    {
+        MetaTransaction memory metaTx = MetaTransaction(
+            {
+                nonce: nonces[userAddress],
+                from: userAddress,
+                functionSignature: functionSignature
+            }
+        );
+
+        require(
+            verify(
+                userAddress,
+                metaTx,
+                sigR,
+                sigS,
+                sigV
+            ), "Signer and signature do not match"
+        );
+
+	    nonces[userAddress] =
+	    nonces[userAddress] + 1;
+
+        // Append userAddress at the end to extract it from calling context
+        (bool success, bytes memory returnData) = address(this).call(
+            abi.encodePacked(
+                functionSignature,
+                userAddress
+            )
+        );
+
+        require(
+            success,
+            'Function call not successful'
+        );
+
+        emit MetaTransactionExecuted(
+            userAddress,
+            payable(msg.sender),
+            functionSignature
+        );
+
+        return returnData;
+    }
+
+    function hashMetaTransaction(
+        MetaTransaction memory metaTx
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+		return keccak256(
+		    abi.encode(
+                META_TRANSACTION_TYPEHASH,
+                metaTx.nonce,
+                metaTx.from,
+                keccak256(metaTx.functionSignature)
+            )
+        );
+	}
+
+    function verify(
+        address user,
+        MetaTransaction memory metaTx,
+        bytes32 sigR,
+        bytes32 sigS,
+        uint8 sigV
+    )
+        internal
+        view
+        returns (bool)
+    {
+        address signer = ecrecover(
+            toTypedMessageHash(
+                hashMetaTransaction(metaTx)
+            ),
+            sigV,
+            sigR,
+            sigS
+        );
+
+        require(
+            signer != address(0x0),
+            'Invalid signature'
+        );
+		return signer == user;
+	}
+
+    function msgSender() internal view returns(address sender) {
+        if(msg.sender == address(this)) {
+            bytes memory array = msg.data;
+            uint256 index = msg.data.length;
+            assembly {
+                // Load the 32 bytes word from memory with the address on the lower 20 bytes, and mask those.
+                sender := and(mload(add(array, index)), 0xffffffffffffffffffffffffffffffffffffffff)
+            }
+        } else {
+            sender = msg.sender;
+        }
+        return sender;
+    }
+}
+
+contract AccessController {
+
+    address public ceoAddress;
+
+    mapping (address => bool) public isWorker;
+
+    event CEOSet(
+        address newCEO
+    );
+
+    event WorkerAdded(
+        address newWorker
+    );
+
+    event WorkerRemoved(
+        address existingWorker
+    );
+
+    constructor() {
+
+        address creator = msg.sender;
+
+        ceoAddress = creator;
+
+        isWorker[creator] = true;
+
+        emit CEOSet(
+            creator
+        );
+
+        emit WorkerAdded(
+            creator
+        );
+    }
+
+    modifier onlyCEO() {
+        require(
+            msg.sender == ceoAddress,
+            'AccessControl: CEO access denied'
+        );
+        _;
+    }
+
+    modifier onlyWorker() {
+        require(
+            isWorker[msg.sender] == true,
+            'AccessControl: worker access denied'
+        );
+        _;
+    }
+
+    modifier nonZeroAddress(address checkingAddress) {
+        require(
+            checkingAddress != address(0x0),
+            'AccessControl: invalid address'
+        );
+        _;
+    }
+
+    function setCEO(
+        address _newCEO
+    )
+        external
+        nonZeroAddress(_newCEO)
+        onlyCEO
+    {
+        ceoAddress = _newCEO;
+
+        emit CEOSet(
+            ceoAddress
+        );
+    }
+
+    function addWorker(
+        address _newWorker
+    )
+        external
+        onlyCEO
+    {
+        _addWorker(
+            _newWorker
+        );
+    }
+
+    function addWorkerBulk(
+        address[] calldata _newWorkers
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _newWorkers.length; index++) {
+            _addWorker(_newWorkers[index]);
+        }
+    }
+
+    function _addWorker(
+        address _newWorker
+    )
+        internal
+        nonZeroAddress(_newWorker)
+    {
+        require(
+            isWorker[_newWorker] == false,
+            'AccessControl: worker already exist'
+        );
+
+        isWorker[_newWorker] = true;
+
+        emit WorkerAdded(
+            _newWorker
+        );
+    }
+
+    function removeWorker(
+        address _existingWorker
+    )
+        external
+        onlyCEO
+    {
+        _removeWorker(
+            _existingWorker
+        );
+    }
+
+    function removeWorkerBulk(
+        address[] calldata _workerArray
+    )
+        external
+        onlyCEO
+    {
+        for (uint8 index = 0; index < _workerArray.length; index++) {
+            _removeWorker(_workerArray[index]);
+        }
+    }
+
+    function _removeWorker(
+        address _existingWorker
+    )
+        internal
+        nonZeroAddress(_existingWorker)
+    {
+        require(
+            isWorker[_existingWorker] == true,
+            "AccessControl: worker not detected"
+        );
+
+        isWorker[_existingWorker] = false;
+
+        emit WorkerRemoved(
+            _existingWorker
+        );
+    }
+}
+
+contract TransferHelper {
+
+    bytes4 private constant TRANSFER = bytes4(
+        keccak256(
+            bytes(
+                'transfer(address,uint256)' // 0xa9059cbb
+            )
+        )
+    );
+
+    bytes4 private constant TRANSFER_FROM = bytes4(
+        keccak256(
+            bytes(
+                'transferFrom(address,address,uint256)' // 0x23b872dd
+            )
+        )
+    );
+
+    function safeTransfer(
+        address _token,
+        address _to,
+        uint256 _value
+    )
+        internal
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                TRANSFER, // 0xa9059cbb
+                _to,
+                _value
+            )
+        );
+
+        require(
+            success && (
+                data.length == 0 || abi.decode(
+                    data, (bool)
+                )
+            ),
+            'TransferHelper: TRANSFER_FAILED'
+        );
+    }
+
+    function safeTransferFrom(
+        address _token,
+        address _from,
+        address _to,
+        uint _value
+    )
+        internal
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                TRANSFER_FROM,
+                _from,
+                _to,
+                _value
+            )
+        );
+
+        require(
+            success && (
+                data.length == 0 || abi.decode(
+                    data, (bool)
+                )
+            ),
+            'TransferHelper: TRANSFER_FROM_FAILED'
+        );
+    }
+
+}
+
+interface ERC721 {
+
+    function ownerOf(
+        uint256 _tokenId
+    )
+        external
+        view
+        returns (address);
+
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _tokenId
+    ) external;
+}
+
+interface ERC20 {
+
+    function burn(
+        uint256 _amount
+    )
+        external
+        returns (bool);
+}
+
+interface DGAccessories  {
+
+    function issueTokens(
+        address[] calldata _beneficiaries,
+        uint256[] calldata _itemIds
+    )
+        external
+        returns (bool);
+
+    function encodeTokenId(
+        uint256 _itemId,
+        uint256 _issuedId
+    )
+        external
+        pure
+        returns (uint256 id);
+
+    function decodeTokenId(
+        uint256 _tokenId
+    )
+        external
+        pure
+        returns (
+            uint256 itemId,
+            uint256 issuedId
+        );
+
+    function items(
+        uint256 _id
+    )
+        external
+        view
+        returns (
+            string memory rarity,
+            uint256 maxSupply,
+            uint256 totalSupply,
+            uint256 price,
+            address beneficiary,
+            string memory metadata,
+            string memory contentHash
+        );
+
+    function itemsCount()
+        external
+        view
+        returns (uint256);
+}
+
+contract Events {
+
+    event Proceed(
+        uint256 indexed itemId,
+        address indexed minterAddress
+    );
+
+    event TokenUpgrade(
+        address indexed tokenOwner,
+        address indexed tokenAddress,
+        uint256 indexed tokenId,
+        uint256 upgradeLevel
+    );
+
+    event UpgradeRequest(
+        uint256 indexed itemId,
+        uint256 issuedId,
+        address tokenOwner,
+        address tokenAddress,
+        uint256 indexed tokenId,
+        uint256 indexed requestIndex
+    );
+
+    event UpgradeCancel(
+        address indexed tokenOwner,
+        address indexed tokenAddress,
+        uint256 indexed tokenId,
+        uint256 upgradeIndex
+    );
+
+    event UpgradeResolved(
+        address indexed tokenOwner,
+        uint256 indexed upgradeIndex
+    );
+
+    event Delegated (
+        uint256 tokenId,
+        address indexed tokenAddress,
+        address indexed delegateAddress,
+        uint256 delegatePercent,
+        address indexed tokenOwner
+    );
+
+    event LevelEdit(
+        uint256 indexed level,
+        uint256 dgCostAmount,
+        uint256 iceCostAmount,
+        uint256 dgReRollAmount,
+        uint256 iceReRollAmount,
+        bool isActive
+    );
+
+    event IceLevelTransfer(
+        address oldOwner,
+        address indexed newOwner,
+        address indexed tokenAddress,
+        uint256 indexed tokenId
+    );
+
+    event InitialMinting(
+        uint256 indexed tokenId,
+        uint256 indexed mintCount,
+        address indexed tokenOwner
+    );
+
+    event SupplyCheck(
+        string rarity,
+        uint256 maxSupply,
+        uint256 price,
+        address indexed beneficiary,
+        string indexed metadata,
+        string indexed contentHash
+    );
+}
 
 contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransaction, Events {
 
@@ -35,8 +588,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256 moveAmountDG;
         uint256 costAmountICE;
         uint256 moveAmountICE;
-        uint256 floorBonus;
-        uint256 deltaBonus;
+        uint256 minBonus;
+        uint256 maxBonus;
     }
 
     struct Upgrade {
@@ -89,8 +642,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         acessoriesContract = _acessoriesContract;
 
-        levels[0].floorBonus = 1;
-        levels[0].deltaBonus = 6;
+        levels[0].minBonus = 1;
+        levels[0].maxBonus = 7;
 
         limits[0] = 100;
     }
@@ -175,8 +728,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256 _moveAmountDG,
         uint256 _costAmountICE,
         uint256 _moveAmountICE,
-        uint256 _floorBonus,
-        uint256 _deltaBonus,
+        uint256 _minBonus,
+        uint256 _maxBonus,
         bool _isActive
     )
         external
@@ -188,8 +741,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         levels[_level].costAmountICE = _costAmountICE;
         levels[_level].moveAmountICE = _moveAmountICE;
 
-        levels[_level].floorBonus = _floorBonus;
-        levels[_level].deltaBonus = _deltaBonus;
+        levels[_level].minBonus = _minBonus;
+        levels[_level].maxBonus = _maxBonus;
 
         levels[_level].isActive = _isActive;
 
@@ -271,16 +824,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         registrer[_minterAddress][newHash].level = 1;
         registrer[_minterAddress][newHash].bonus = getNumber(
-            levels[0].floorBonus,
-            levels[0].deltaBonus,
+            levels[0].minBonus,
+            levels[0].maxBonus,
             saleCount,
             block.timestamp
         );
 
-        address[] memory beneficiaries = new address[](1);
+        address[] memory beneficiaries;
         beneficiaries[0] = _minterAddress;
 
-        uint256[] memory itemIds = new uint256[](1);
+        uint256[] memory itemIds;
         itemIds[0] = _itemId;
 
         target.issueTokens(
@@ -449,8 +1002,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         registrer[tokenOwner][newHash].level = nextLevel;
         registrer[tokenOwner][newHash].bonus = getNumber(
-            levels[nextLevel].floorBonus,
-            levels[nextLevel].deltaBonus,
+            levels[nextLevel].minBonus,
+            levels[nextLevel].maxBonus,
             upgradeCount,
             block.timestamp
         );
@@ -460,10 +1013,10 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             upgradeCount + 1;
         }
 
-        address[] memory beneficiaries = new address[](1);
+        address[] memory beneficiaries;
         beneficiaries[0] = tokenOwner;
 
-        uint256[] memory itemIds = new uint256[](1);
+        uint256[] memory itemIds;
         itemIds[0] = _itemId;
 
         target.issueTokens(
@@ -826,8 +1379,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     }
 
     function getNumber(
-        uint256 _floorValue,
-        uint256 _deltaValue,
+        uint256 _minValue,
+        uint256 _maxValue,
         uint256 _nonceValue,
         uint256 _randomValue
     )
@@ -835,6 +1388,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         pure
         returns (uint256)
     {
-        return _floorValue + uint256(keccak256(abi.encodePacked(_nonceValue, _randomValue))) % (_deltaValue + 1);
+        return _minValue + uint256(keccak256(abi.encodePacked(_nonceValue, _randomValue))) % (_maxValue + 1);
     }
 }
