@@ -54,7 +54,19 @@ contract dgRoulette is AccessController {
         uint128 value;
     }
 
+    event BetPlaced(
+        bytes16 indexed gameId,
+        address[] players,
+        uint8[] betIDs,
+        uint8[] betValues,
+        uint128[] betAmounts,
+        uint8[] tokenIndex,
+        uint256 indexed landID,
+        uint256 indexed machineID
+    );
+
     event GameResult(
+        bytes16 _gameId,
         address[] _players,
         uint8[] _tokenIndex,
         uint256 indexed _landID,
@@ -148,6 +160,7 @@ contract dgRoulette is AccessController {
     }
 
     function _launch(
+        bytes16 _gameId,
         bytes32 _localhash,
         address[] memory _players,
         uint8[] memory _tokenIndex,
@@ -234,6 +247,7 @@ contract dgRoulette is AccessController {
         delete bets;
 
         emit GameResult(
+            _gameId,
             _players,
             _tokenIndex,
             _landID,
@@ -329,6 +343,17 @@ contract dgRoulette is AccessController {
                 checkedTokens[_tokenIndex[i]] = true;
             }
         }
+
+        emit BetPlaced(
+            _gameId,
+            _players,
+            _betIDs,
+            _betValues,
+            _betAmount,
+            _tokenIndex,
+            _landID,
+            _machineID
+        );
     }
 
     function resolveGame(
@@ -357,6 +382,7 @@ contract dgRoulette is AccessController {
 
         uint256 _spinResult;
         (winAmounts, _spinResult) = _launch(
+            _gameId,
             _localhash,
             Games[_gameId].players,
             Games[_gameId].tokenIndex,
