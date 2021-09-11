@@ -477,7 +477,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    /*
     function resolveUpgradeSend(
         uint256 _requestIndex,
         address _newTokenAddress,
@@ -523,8 +522,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         registrer[tokenOwner][newHash].level = nextLevel;
         registrer[tokenOwner][newHash].bonus = getNumber(
-            levels[nextLevel].minBonus,
-            levels[nextLevel].maxBonus,
+            levels[nextLevel].floorBonus,
+            levels[nextLevel].deltaBonus,
             upgradeCount,
             block.timestamp
         );
@@ -545,7 +544,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _requestIndex
         );
     }
-    */
 
     function delegateToken(
         address _tokenAddress,
