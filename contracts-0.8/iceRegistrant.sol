@@ -24,10 +24,12 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
     uint256 public saleCount;
 
-    uint256 public immutable saleLimit;
-    uint256 public immutable saleFrame;
+    uint256 public saleLimit;
+    uint256 public saleFrame;
 
+    bool public allowChangeSaleLimit;
     address public acessoriesContract;
+
 
     struct Level {
         bool isActive;
@@ -150,6 +152,36 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         limits[_itemId] = _newLimit;
     }
 
+    function changeSaleFrame(
+        uint256 _newSaleFrame
+    )
+        external
+        onlyCEO
+    {
+        saleFrame = _newSaleFrame;
+    }
+
+    function changeSaleLimit(
+        uint256 _newSaleLimit
+    )
+        external
+        onlyCEO
+    {
+        require(
+            allowChangeSaleLimit == true,
+            'iceRegistrant: change disabled'
+        );
+
+        saleLimit = _newSaleLimit;
+    }
+
+    function disabledSaleLimitChange()
+        external
+        onlyCEO
+    {
+        allowChangeSaleLimit = false;
+    }
+
     function changePaymentToken(
         address _newPaymentToken
     )
@@ -242,7 +274,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         }
 
         require(
-            block.timestamp - frames[_minterAddress] > saleFrame,
+            canPurchaseAgain(_minterAddress) == true,
             'iceRegistrant: cool-down detected'
         );
 
@@ -620,23 +652,23 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             levels[currentLevel].moveAmountICE
         );
 
-        uint256 oldLevel = registrer[_oldOwner][tokenHash].level;
-        uint256 oldBonus = registrer[_oldOwner][tokenHash].bonus;
+        uint256 reIceLevel = registrer[_oldOwner][tokenHash].level;
+        uint256 reIceBonus = registrer[_oldOwner][tokenHash].bonus;
 
         require(
-            oldLevel > registrer[newOwner][tokenHash].level,
+            reIceLevel > registrer[newOwner][tokenHash].level,
             'iceRegistrant: preventing level downgrade'
         );
 
         require(
-            oldBonus > registrer[newOwner][tokenHash].bonus,
+            reIceBonus > registrer[newOwner][tokenHash].bonus,
             'iceRegistrant: preventing bonus downgrade'
         );
 
         delete registrer[_oldOwner][tokenHash];
 
-        registrer[newOwner][tokenHash].level = oldLevel;
-        registrer[newOwner][tokenHash].bonus = oldBonus;
+        registrer[newOwner][tokenHash].level = reIceLevel;
+        registrer[newOwner][tokenHash].bonus = reIceBonus;
 
         emit IceLevelTransfer(
             _oldOwner,
@@ -807,6 +839,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
 
         return iceBonus > 0;
+    }
+
+    function canPurchaseAgain(
+        address _minterAddress
+    )
+        public
+        view
+        returns (bool)
+    {
+        return block.timestamp - frames[_minterAddress] > saleFrame;
     }
 
     function getHash(
