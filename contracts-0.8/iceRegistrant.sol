@@ -87,6 +87,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         tokenAddressDG = _tokenAddressDG;
         tokenAddressICE = _tokenAddressICE;
 
+        allowChangeSaleLimit = true;
         targets[_acessoriesContract] = true;
 
         acessoriesContract = _acessoriesContract;
