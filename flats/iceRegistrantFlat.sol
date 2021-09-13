@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🧊 --
 
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.7;
 
 contract EIP712Base {
 
@@ -577,9 +577,10 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
     uint256 public saleCount;
 
-    uint256 public immutable saleLimit;
-    uint256 public immutable saleFrame;
+    uint256 public saleLimit;
+    uint256 public saleFrame;
 
+    bool public allowChangeSaleLimit;
     address public acessoriesContract;
 
     struct Level {
@@ -588,8 +589,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256 moveAmountDG;
         uint256 costAmountICE;
         uint256 moveAmountICE;
-        uint256 minBonus;
-        uint256 maxBonus;
+        uint256 floorBonus;
+        uint256 deltaBonus;
     }
 
     struct Upgrade {
@@ -627,7 +628,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address _tokenAddressICE,
         address _acessoriesContract
     )
-        EIP712Base('IceRegistrant', 'v1.0')
+        EIP712Base('IceRegistrant', 'v1.1')
     {
         saleLimit = 500;
         saleFrame = 1 hours;
@@ -638,12 +639,13 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         tokenAddressDG = _tokenAddressDG;
         tokenAddressICE = _tokenAddressICE;
 
+        allowChangeSaleLimit = true;
         targets[_acessoriesContract] = true;
 
         acessoriesContract = _acessoriesContract;
 
-        levels[0].minBonus = 1;
-        levels[0].maxBonus = 7;
+        levels[0].floorBonus = 1;
+        levels[0].deltaBonus = 6;
 
         limits[0] = 100;
     }
@@ -703,6 +705,36 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         limits[_itemId] = _newLimit;
     }
 
+    function changeSaleFrame(
+        uint256 _newSaleFrame
+    )
+        external
+        onlyCEO
+    {
+        saleFrame = _newSaleFrame;
+    }
+
+    function changeSaleLimit(
+        uint256 _newSaleLimit
+    )
+        external
+        onlyCEO
+    {
+        require(
+            allowChangeSaleLimit == true,
+            'iceRegistrant: change disabled'
+        );
+
+        saleLimit = _newSaleLimit;
+    }
+
+    function disabledSaleLimitChange()
+        external
+        onlyCEO
+    {
+        allowChangeSaleLimit = false;
+    }
+
     function changePaymentToken(
         address _newPaymentToken
     )
@@ -728,8 +760,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256 _moveAmountDG,
         uint256 _costAmountICE,
         uint256 _moveAmountICE,
-        uint256 _minBonus,
-        uint256 _maxBonus,
+        uint256 _floorBonus,
+        uint256 _deltaBonus,
         bool _isActive
     )
         external
@@ -741,8 +773,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         levels[_level].costAmountICE = _costAmountICE;
         levels[_level].moveAmountICE = _moveAmountICE;
 
-        levels[_level].minBonus = _minBonus;
-        levels[_level].maxBonus = _maxBonus;
+        levels[_level].floorBonus = _floorBonus;
+        levels[_level].deltaBonus = _deltaBonus;
 
         levels[_level].isActive = _isActive;
 
@@ -795,7 +827,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         }
 
         require(
-            block.timestamp - frames[_minterAddress] > saleFrame,
+            canPurchaseAgain(_minterAddress) == true,
             'iceRegistrant: cool-down detected'
         );
 
@@ -824,16 +856,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         registrer[_minterAddress][newHash].level = 1;
         registrer[_minterAddress][newHash].bonus = getNumber(
-            levels[0].minBonus,
-            levels[0].maxBonus,
+            levels[0].floorBonus,
+            levels[0].deltaBonus,
             saleCount,
             block.timestamp
         );
 
-        address[] memory beneficiaries;
+        address[] memory beneficiaries = new address[](1);
         beneficiaries[0] = _minterAddress;
 
-        uint256[] memory itemIds;
+        uint256[] memory itemIds = new uint256[](1);
         itemIds[0] = _itemId;
 
         target.issueTokens(
@@ -1002,8 +1034,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         registrer[tokenOwner][newHash].level = nextLevel;
         registrer[tokenOwner][newHash].bonus = getNumber(
-            levels[nextLevel].minBonus,
-            levels[nextLevel].maxBonus,
+            levels[nextLevel].floorBonus,
+            levels[nextLevel].deltaBonus,
             upgradeCount,
             block.timestamp
         );
@@ -1013,10 +1045,10 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             upgradeCount + 1;
         }
 
-        address[] memory beneficiaries;
+        address[] memory beneficiaries = new address[](1);
         beneficiaries[0] = tokenOwner;
 
-        uint256[] memory itemIds;
+        uint256[] memory itemIds = new uint256[](1);
         itemIds[0] = _itemId;
 
         target.issueTokens(
@@ -1030,7 +1062,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    /*
     function resolveUpgradeSend(
         uint256 _requestIndex,
         address _newTokenAddress,
@@ -1076,8 +1107,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         registrer[tokenOwner][newHash].level = nextLevel;
         registrer[tokenOwner][newHash].bonus = getNumber(
-            levels[nextLevel].minBonus,
-            levels[nextLevel].maxBonus,
+            levels[nextLevel].floorBonus,
+            levels[nextLevel].deltaBonus,
             upgradeCount,
             block.timestamp
         );
@@ -1098,7 +1129,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _requestIndex
         );
     }
-    */
 
     function delegateToken(
         address _tokenAddress,
@@ -1175,23 +1205,23 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             levels[currentLevel].moveAmountICE
         );
 
-        uint256 oldLevel = registrer[_oldOwner][tokenHash].level;
-        uint256 oldBonus = registrer[_oldOwner][tokenHash].bonus;
+        uint256 reIceLevel = registrer[_oldOwner][tokenHash].level;
+        uint256 reIceBonus = registrer[_oldOwner][tokenHash].bonus;
 
         require(
-            oldLevel > registrer[newOwner][tokenHash].level,
+            reIceLevel > registrer[newOwner][tokenHash].level,
             'iceRegistrant: preventing level downgrade'
         );
 
         require(
-            oldBonus > registrer[newOwner][tokenHash].bonus,
+            reIceBonus > registrer[newOwner][tokenHash].bonus,
             'iceRegistrant: preventing bonus downgrade'
         );
 
         delete registrer[_oldOwner][tokenHash];
 
-        registrer[newOwner][tokenHash].level = oldLevel;
-        registrer[newOwner][tokenHash].bonus = oldBonus;
+        registrer[newOwner][tokenHash].level = reIceLevel;
+        registrer[newOwner][tokenHash].bonus = reIceBonus;
 
         emit IceLevelTransfer(
             _oldOwner,
@@ -1364,6 +1394,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         return iceBonus > 0;
     }
 
+    function canPurchaseAgain(
+        address _minterAddress
+    )
+        public
+        view
+        returns (bool)
+    {
+        return block.timestamp - frames[_minterAddress] > saleFrame;
+    }
+
     function getHash(
         address _tokenAddress,
         uint256 _tokenId
@@ -1379,8 +1419,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     }
 
     function getNumber(
-        uint256 _minValue,
-        uint256 _maxValue,
+        uint256 _floorValue,
+        uint256 _deltaValue,
         uint256 _nonceValue,
         uint256 _randomValue
     )
@@ -1388,6 +1428,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         pure
         returns (uint256)
     {
-        return _minValue + uint256(keccak256(abi.encodePacked(_nonceValue, _randomValue))) % (_maxValue + 1);
+        return _floorValue + uint256(keccak256(abi.encodePacked(_nonceValue, _randomValue))) % (_deltaValue + 1);
     }
 }

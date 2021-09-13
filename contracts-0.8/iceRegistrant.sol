@@ -30,7 +30,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     bool public allowChangeSaleLimit;
     address public acessoriesContract;
 
-
     struct Level {
         bool isActive;
         uint256 costAmountDG;
@@ -76,7 +75,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address _tokenAddressICE,
         address _acessoriesContract
     )
-        EIP712Base('IceRegistrant', 'v1.0')
+        EIP712Base('IceRegistrant', 'v1.1')
     {
         saleLimit = 500;
         saleFrame = 1 hours;
