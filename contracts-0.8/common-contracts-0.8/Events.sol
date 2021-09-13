@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 💎 --
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.7;
 
 contract Events {
 
@@ -60,7 +60,7 @@ contract Events {
         address indexed tokenAddress,
         uint256 indexed tokenId
     );
-    
+
     event InitialMinting(
         uint256 indexed tokenId,
         uint256 indexed mintCount,

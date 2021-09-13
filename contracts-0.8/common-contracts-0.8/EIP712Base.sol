@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.7;
 
 contract EIP712Base {
 

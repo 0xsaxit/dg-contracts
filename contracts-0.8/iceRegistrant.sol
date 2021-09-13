@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: -- 🧊 --
 
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.7;
 
 import "./common-contracts-0.8/EIP712MetaTransaction.sol";
 import "./common-contracts-0.8/AccessController.sol";
