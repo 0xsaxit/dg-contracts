@@ -143,4 +143,14 @@ abstract contract EIP712MetaTransaction is EIP712Base {
         }
         return sender;
     }
+
+    function getNonce(
+        address _user
+    )
+        external
+        view
+        returns(uint256 nonce)
+    {
+        nonce = nonces[_user];
+    }
 }
