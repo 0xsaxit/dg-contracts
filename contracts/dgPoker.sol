@@ -121,6 +121,13 @@ contract dgPoker is AccessController {
         bytes16 indexed gameId
     );
 
+    event GameResult(
+        bytes16 indexed gameId,
+        address player,
+        uint8 token,
+        uint256 winAmount
+    );
+
     PointerInstance public pointerContract;
 
     constructor(
@@ -497,6 +504,13 @@ contract dgPoker is AccessController {
 
         emit FinishedGame(
             _gameId
+        );
+
+        emit GameResult(
+            _gameId,
+            _winPlayerAddress,
+            Games[_gameId].tokenIndex,
+            _winAmount
         );
     }
 
