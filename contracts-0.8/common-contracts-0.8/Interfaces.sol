@@ -15,7 +15,8 @@ interface ERC721 {
         address _from,
         address _to,
         uint256 _tokenId
-    ) external;
+    )
+        external;
 }
 
 interface ERC20 {
@@ -23,8 +24,7 @@ interface ERC20 {
     function burn(
         uint256 _amount
     )
-        external
-        returns (bool);
+        external;
 }
 
 interface DGAccessories  {
@@ -33,8 +33,7 @@ interface DGAccessories  {
         address[] calldata _beneficiaries,
         uint256[] calldata _itemIds
     )
-        external
-        returns (bool);
+        external;
 
     function encodeTokenId(
         uint256 _itemId,

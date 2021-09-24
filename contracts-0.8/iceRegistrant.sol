@@ -28,7 +28,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     uint256 public saleFrame;
 
     bool public allowChangeSaleLimit;
-    address public acessoriesContract;
 
     struct Level {
         bool isActive;
@@ -57,7 +56,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256 delegatePercent;
     }
 
-    mapping (address => bool) public targets;
+    mapping (address => address) public targets;
 
     mapping (address => uint256) public frames;
     mapping (uint256 => uint256) public limits;
@@ -73,7 +72,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address _paymentToken,
         address _tokenAddressDG,
         address _tokenAddressICE,
-        address _acessoriesContract
+        address _accessoriesContract
     )
         EIP712Base('IceRegistrant', 'v1.1')
     {
@@ -87,14 +86,22 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         tokenAddressICE = _tokenAddressICE;
 
         allowChangeSaleLimit = true;
-        targets[_acessoriesContract] = true;
 
-        acessoriesContract = _acessoriesContract;
+        targets[_accessoriesContract] = _accessoriesContract;
 
         levels[0].floorBonus = 1;
         levels[0].deltaBonus = 6;
 
         limits[0] = 100;
+    }
+
+    function changeTokenAddressICE(
+        address _newTokenAddressICE
+    )
+        external
+        onlyCEO
+    {
+        tokenAddressICE = _newTokenAddressICE;
     }
 
     function changeTokenAddressDG(
@@ -122,15 +129,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         onlyCEO
     {
         depositAddressNFT = _newDepositAddressNFT;
-    }
-
-    function changeAcessoriesDG(
-        address _newAcessoriesContract
-    )
-        external
-        onlyCEO
-    {
-        acessoriesContract = _newAcessoriesContract;
     }
 
     function changeMintingPrice(
@@ -191,14 +189,14 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         paymentToken = _newPaymentToken;
     }
 
-    function changeTarget(
+    function changeTargetContract(
         address _tokenAddress,
-        bool _isActive
+        address _accessoriesContract
     )
         external
         onlyCEO
     {
-        targets[_tokenAddress] = _isActive;
+        targets[_tokenAddress] = _accessoriesContract;
     }
 
     function manageLevel(
@@ -248,7 +246,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
     function mintToken(
         uint256 _itemId,
-        address _minterAddress
+        address _minterAddress,
+        address _tokenAddress
     )
         external
         onlyWorker
@@ -288,16 +287,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
 
         DGAccessories target = DGAccessories(
-            acessoriesContract
+            targets[_tokenAddress]
         );
 
         uint256 newTokenId = target.encodeTokenId(
             _itemId,
-            getSupply(_itemId) + 1
+            getSupply(_itemId, targets[_tokenAddress]) + 1
         );
 
         bytes32 newHash = getHash(
-            acessoriesContract,
+            targets[_tokenAddress],
             newTokenId
         );
 
@@ -335,8 +334,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         returns (uint256 requestIndex)
     {
         require(
-            targets[_tokenAddress] == true,
-            'iceRegistrant: invalid token'
+            targets[_tokenAddress] != address(0x0),
+            'iceRegistrant: invalid token target'
         );
 
         ERC721 tokenNFT = ERC721(_tokenAddress);
@@ -371,7 +370,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
 
         DGAccessories target = DGAccessories(
-            acessoriesContract
+            targets[_tokenAddress]
         );
 
         (uint256 itemId, uint256 issuedId) = target.decodeTokenId(
@@ -466,16 +465,16 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
 
         DGAccessories target = DGAccessories(
-            acessoriesContract
+            targets[tokenAddress]
         );
 
         uint256 newTokenId = target.encodeTokenId(
             _itemId,
-            getSupply(_itemId) + 1
+            getSupply(_itemId, targets[tokenAddress]) + 1
         );
 
         bytes32 newHash = getHash(
-            acessoriesContract,
+            targets[tokenAddress],
             newTokenId
         );
 
@@ -623,7 +622,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         external
     {
         require(
-            targets[_tokenAddress] == true,
+            targets[_tokenAddress] != address(0x0),
             'iceRegistrant: invalid token'
         );
 
@@ -722,7 +721,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     }
 
     function getSupply(
-        uint256 _itemId
+        uint256 _itemId,
+        address _accessoriesContract
     )
         public
         returns (uint256)
@@ -735,7 +735,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             string memory metadata,
             string memory contentHash
 
-        ) = DGAccessories(acessoriesContract).items(_itemId);
+        ) = DGAccessories(_accessoriesContract).items(_itemId);
 
         emit SupplyCheck(
             rarity,
