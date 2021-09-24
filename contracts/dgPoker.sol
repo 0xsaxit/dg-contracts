@@ -124,7 +124,7 @@ contract dgPoker is AccessController {
     event GameResult(
         bytes16 indexed gameId,
         address player,
-        uint8 tokens,
+        uint8 token,
         uint256 winAmount
     );
 
