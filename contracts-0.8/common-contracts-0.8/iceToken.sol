@@ -40,7 +40,7 @@ contract IceToken is EIP712MetaTransaction {
     constructor(
         address _IceMaster
     )
-        EIP712Base('IceToken', 'v1.0')
+        EIP712Base('IceToken', 'v1.2')
     {
         IceMaster = _IceMaster;
     }
@@ -246,8 +246,20 @@ contract IceToken is EIP712MetaTransaction {
     function _msgSender()
         internal
         view
-        returns (address)
+        returns (address sender)
     {
-        return msg.sender;
+        if (msg.sender == address(this)) {
+            bytes memory array = msg.data;
+            uint256 index = msg.data.length;
+            assembly {
+                // Load the 32 bytes word from memory with the address on the lower 20 bytes, and mask those.
+                sender := and(
+                    mload(add(array, index)),
+                    0xffffffffffffffffffffffffffffffffffffffff
+                )
+            }
+        } else {
+            sender = msg.sender;
+        }
     }
 }
