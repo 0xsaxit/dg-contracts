@@ -56,6 +56,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         uint256 delegatePercent;
     }
 
+    mapping (bytes32 => address) public owners;
     mapping (address => address) public targets;
 
     mapping (address => uint256) public frames;
@@ -74,7 +75,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address _tokenAddressICE,
         address _accessoriesContract
     )
-        EIP712Base('IceRegistrant', 'v1.1')
+        EIP712Base('IceRegistrant', 'v1.2')
     {
         saleLimit = 500;
         saleFrame = 1 hours;
@@ -233,17 +234,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    function triggerEvent(
-        uint256 _itemId
-    )
-        external
-    {
-        emit Proceed(
-            _itemId,
-            msgSender()
-        );
-    }
-
     function mintToken(
         uint256 _itemId,
         address _minterAddress,
@@ -299,6 +289,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             targets[_tokenAddress],
             newTokenId
         );
+
+        owners[newHash] = _minterAddress;
 
         registrer[_minterAddress][newHash].level = 1;
         registrer[_minterAddress][newHash].bonus = getNumber(
@@ -450,6 +442,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             tokenHash
         ) + 1;
 
+        delete owners[tokenHash];
         delete registrer[tokenOwner][tokenHash];
 
         _takePayment(
@@ -477,6 +470,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             targets[tokenAddress],
             newTokenId
         );
+
+        owners[newHash] = tokenOwner;
 
         registrer[tokenOwner][newHash].level = nextLevel;
         registrer[tokenOwner][newHash].bonus = getNumber(
@@ -532,6 +527,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             tokenHash
         ) + 1;
 
+        delete owners[tokenHash];
         delete registrer[tokenOwner][tokenHash];
 
         _takePayment(
@@ -550,6 +546,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _newTokenAddress,
             _newTokenId
         );
+
+        owners[newHash] = tokenOwner;
 
         registrer[tokenOwner][newHash].level = nextLevel;
         registrer[tokenOwner][newHash].bonus = getNumber(
@@ -669,6 +667,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         registrer[newOwner][tokenHash].level = reIceLevel;
         registrer[newOwner][tokenHash].bonus = reIceBonus;
 
+        owners[tokenHash] = newOwner;
+
         emit IceLevelTransfer(
             _oldOwner,
             newOwner,
@@ -699,6 +699,14 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
 
         delegate[_tokenOwner][tokenHash].delegateAddress = _delegateAddress;
         delegate[_tokenOwner][tokenHash].delegatePercent = _delegatePercent;
+
+        emit Delegated(
+            _tokenId,
+            _tokenAddress,
+            _delegateAddress,
+            _delegatePercent,
+            _tokenOwner
+        );
     }
 
     function adjustRegistrantEntry(
@@ -715,6 +723,8 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             _tokenAddress,
             _tokenId
         );
+
+        owners[tokenHash] = _tokenOwner;
 
         registrer[_tokenOwner][tokenHash].level = _levelValue;
         registrer[_tokenOwner][tokenHash].bonus = _bonusValue;

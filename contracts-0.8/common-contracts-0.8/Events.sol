@@ -4,18 +4,6 @@ pragma solidity ^0.8.7;
 
 contract Events {
 
-    event Proceed(
-        uint256 indexed itemId,
-        address indexed minterAddress
-    );
-
-    event TokenUpgrade(
-        address indexed tokenOwner,
-        address indexed tokenAddress,
-        uint256 indexed tokenId,
-        uint256 upgradeLevel
-    );
-
     event UpgradeRequest(
         uint256 indexed itemId,
         uint256 issuedId,
@@ -48,9 +36,9 @@ contract Events {
     event LevelEdit(
         uint256 indexed level,
         uint256 dgCostAmount,
+        uint256 dgMoveAmount,
         uint256 iceCostAmount,
-        uint256 dgReRollAmount,
-        uint256 iceReRollAmount,
+        uint256 iceMoveAmount,
         bool isActive
     );
 
