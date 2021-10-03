@@ -47,11 +47,6 @@ contract IceKeeper {
         _;
     }
 
-    event Deposit(
-        address indexed account,
-        uint256 amount
-    );
-
     event Withdraw(
         address indexed account,
         uint256 amount
@@ -70,28 +65,14 @@ contract IceKeeper {
         uint256 amount
     );
 
-    receive() external payable {
-        emit Deposit(
-            msg.sender,
-            msg.value
-        );
-    }
-
     constructor(
         address _masterAccount,
         address _workerAccount,
         address _iceTokenAddress
-    )
-        payable
-    {
+    ) {
         masterAccount = _masterAccount;
         workerAccount = _workerAccount;
         distributionToken = _iceTokenAddress;
-
-        emit Deposit(
-            msg.sender,
-            msg.value
-        );
     }
 
     function createIceDrop(
@@ -309,16 +290,6 @@ contract IceKeeper {
         hasClaimed[_hash][_account] = true;
     }
 
-    function depositFunds()
-        external
-        payable
-    {
-        emit Deposit(
-            msg.sender,
-            msg.value
-        );
-    }
-
     function withdrawFunds(
         uint256 _amount
     )
@@ -357,10 +328,12 @@ contract IceKeeper {
 
     function getBalance()
         public
-        view
         returns (uint256)
     {
-        return address(this).balance;
+        return safeBalanceOf(
+            distributionToken,
+            address(this)
+        );
     }
 
     function showRemaining(
@@ -377,7 +350,6 @@ contract IceKeeper {
         bytes32 _hash
     )
         external
-        view
         returns (int256)
     {
         return int256(getBalance()) - int256(showRemaining(_hash));
@@ -393,7 +365,6 @@ contract IceKeeper {
 
     function showExcess()
         external
-        view
         returns (int256)
     {
         return int256(getBalance()) - int256(showRemaining());
