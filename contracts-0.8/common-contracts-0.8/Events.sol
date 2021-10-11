@@ -4,28 +4,23 @@ pragma solidity ^0.8.7;
 
 contract Events {
 
-    event UpgradeRequest(
+    event UpgradeItem(
         uint256 indexed itemId,
         uint256 issuedId,
-        address tokenOwner,
-        address tokenAddress,
-        uint256 indexed tokenId,
-        uint256 indexed requestIndex
-    );
-
-    event UpgradeCancel(
         address indexed tokenOwner,
-        address indexed tokenAddress,
         uint256 indexed tokenId,
-        uint256 upgradeIndex
+        address tokenAddress,
+        uint256 requestIndex
     );
 
     event UpgradeResolved(
+        uint256 indexed newItemId,
         address indexed tokenOwner,
-        uint256 indexed upgradeIndex
+        uint256 indexed newTokenId,
+        address tokenAddress
     );
 
-    event Delegated (
+    event Delegated(
         uint256 tokenId,
         address indexed tokenAddress,
         address indexed delegateAddress,

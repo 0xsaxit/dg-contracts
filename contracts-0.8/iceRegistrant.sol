@@ -68,6 +68,9 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     mapping (address => mapping (bytes32 => Upgrade)) public registrer;
     mapping (address => mapping (bytes32 => Delegate)) public delegate;
 
+    // TO:DO
+    // masterContract (registrer) --< contractA(redeployable)
+
     constructor(
         uint256 _mintingPrice,
         address _paymentToken,
@@ -318,12 +321,13 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    function requestUpgrade(
+    function upgradeToken(
         address _tokenAddress,
-        uint256 _tokenId
+        uint256 _tokenId,
+        uint256 _itemId
     )
         external
-        returns (uint256 requestIndex)
+        onlyWorker
     {
         require(
             targets[_tokenAddress] != address(0x0),
@@ -353,7 +357,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             'iceRegistrant: inactive level'
         );
 
-        requestIndex = upgradeRequestCount;
+        uint256 requestIndex = upgradeRequestCount;
 
         tokenNFT.transferFrom(
             tokenOwner,
@@ -379,52 +383,26 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             upgradeRequestCount + 1;
         }
 
-        emit UpgradeRequest(
+        emit UpgradeItem(
             itemId,
             issuedId,
             tokenOwner,
-            _tokenAddress,
             _tokenId,
+            _tokenAddress,
             requestIndex
         );
-    }
 
-    function cancelUpgrade(
-        uint256 _requestIndex
-    )
-        external
-    {
-        uint256 tokenId = requests[_requestIndex].tokenId;
-        address tokenAddress = requests[_requestIndex].tokenAddress;
-        address tokenOwner = requests[_requestIndex].tokenOwner;
-
-        require(
-            msgSender() == tokenOwner,
-            'iceRegistrant: invalid owner'
-        );
-
-        delete requests[_requestIndex];
-
-        ERC721(tokenAddress).transferFrom(
-            address(this),
-            tokenOwner,
-            tokenId
-        );
-
-        emit UpgradeCancel(
-            tokenOwner,
-            tokenAddress,
-            tokenId,
-            _requestIndex
+        _resolveUpgradeMint(
+            requestIndex,
+            _itemId
         );
     }
 
-    function resolveUpgradeMint(
+    function _resolveUpgradeMint(
         uint256 _requestIndex,
         uint256 _itemId
     )
-        external
-        onlyWorker
+        internal
     {
         uint256 tokenId = requests[_requestIndex].tokenId;
         address tokenAddress = requests[_requestIndex].tokenAddress;
@@ -498,79 +476,10 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
 
         emit UpgradeResolved(
+            _itemId,
             tokenOwner,
-            _requestIndex
-        );
-    }
-
-    function resolveUpgradeSend(
-        uint256 _requestIndex,
-        address _newTokenAddress,
-        uint256 _newTokenId
-    )
-        external
-        onlyWorker
-    {
-        uint256 tokenId = requests[_requestIndex].tokenId;
-        address tokenAddress = requests[_requestIndex].tokenAddress;
-        address tokenOwner = requests[_requestIndex].tokenOwner;
-
-        delete requests[_requestIndex];
-
-        bytes32 tokenHash = getHash(
-            tokenAddress,
-            tokenId
-        );
-
-        uint256 nextLevel = getLevel(
-            tokenOwner,
-            tokenHash
-        ) + 1;
-
-        delete owners[tokenHash];
-        delete registrer[tokenOwner][tokenHash];
-
-        _takePayment(
-            tokenOwner,
-            levels[nextLevel].costAmountDG,
-            levels[nextLevel].costAmountICE
-        );
-
-        ERC721(tokenAddress).transferFrom(
-            address(this),
-            depositAddressNFT,
-            tokenId
-        );
-
-        bytes32 newHash = getHash(
-            _newTokenAddress,
-            _newTokenId
-        );
-
-        owners[newHash] = tokenOwner;
-
-        registrer[tokenOwner][newHash].level = nextLevel;
-        registrer[tokenOwner][newHash].bonus = getNumber(
-            levels[nextLevel].floorBonus,
-            levels[nextLevel].deltaBonus,
-            upgradeCount,
-            block.timestamp
-        );
-
-        unchecked {
-            upgradeCount =
-            upgradeCount + 1;
-        }
-
-        ERC721(_newTokenAddress).transferFrom(
-            address(this),
-            tokenOwner,
-            _newTokenId
-        );
-
-        emit UpgradeResolved(
-            tokenOwner,
-            _requestIndex
+            newTokenId,
+            tokenAddress
         );
     }
 
