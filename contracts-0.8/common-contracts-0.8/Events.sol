@@ -20,14 +20,6 @@ contract Events {
         address tokenAddress
     );
 
-    event Delegated(
-        uint256 tokenId,
-        address indexed tokenAddress,
-        address indexed delegateAddress,
-        uint256 delegatePercent,
-        address indexed tokenOwner
-    );
-
     event LevelEdit(
         uint256 indexed level,
         uint256 dgCostAmount,

@@ -51,11 +51,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address tokenOwner;
     }
 
-    struct Delegate {
-        address delegateAddress;
-        uint256 delegatePercent;
-    }
-
     mapping (bytes32 => address) public owners;
     mapping (address => address) public targets;
 
@@ -66,10 +61,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     mapping (uint256 => Request) public requests;
 
     mapping (address => mapping (bytes32 => Upgrade)) public registrer;
-    mapping (address => mapping (bytes32 => Delegate)) public delegate;
-
-    // TO:DO
-    // masterContract (registrer) --< contractA(redeployable)
 
     constructor(
         uint256 _mintingPrice,
@@ -78,7 +69,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         address _tokenAddressICE,
         address _accessoriesContract
     )
-        EIP712Base('IceRegistrant', 'v1.2')
+        EIP712Base('IceRegistrant', 'v1.3')
     {
         saleLimit = 500;
         saleFrame = 1 hours;
@@ -322,6 +313,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
     }
 
     function upgradeToken(
+        address _tokenOwner,
         address _tokenAddress,
         uint256 _tokenId,
         uint256 _itemId
@@ -335,7 +327,7 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
 
         ERC721 tokenNFT = ERC721(_tokenAddress);
-        address tokenOwner = msgSender();
+        address tokenOwner = _tokenOwner;
 
         require(
             tokenNFT.ownerOf(_tokenId) == tokenOwner,
@@ -483,44 +475,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
         );
     }
 
-    function delegateToken(
-        address _tokenAddress,
-        uint256 _tokenId,
-        address _delegateAddress,
-        uint256 _delegatePercent
-    )
-        external
-    {
-        ERC721 tokenNFT = ERC721(_tokenAddress);
-        address tokenOwner = msgSender();
-
-        require(
-            tokenNFT.ownerOf(_tokenId) == tokenOwner,
-            'iceRegistrant: invalid owner'
-        );
-
-        require(
-            _delegatePercent <= 100,
-            'iceRegistrant: invalid percent'
-        );
-
-        bytes32 tokenHash = getHash(
-            _tokenAddress,
-            _tokenId
-        );
-
-        delegate[tokenOwner][tokenHash].delegateAddress = _delegateAddress;
-        delegate[tokenOwner][tokenHash].delegatePercent = _delegatePercent;
-
-        emit Delegated(
-            _tokenId,
-            _tokenAddress,
-            _delegateAddress,
-            _delegatePercent,
-            tokenOwner
-        );
-    }
-
     function reIceNFT(
         address _oldOwner,
         address _tokenAddress,
@@ -583,38 +537,6 @@ contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransactio
             newOwner,
             _tokenAddress,
             _tokenId
-        );
-    }
-
-    function adjustDelegateEntry(
-        address _tokenOwner,
-        address _tokenAddress,
-        uint256 _tokenId,
-        address _delegateAddress,
-        uint256 _delegatePercent
-    )
-        external
-        onlyWorker
-    {
-        bytes32 tokenHash = getHash(
-            _tokenAddress,
-            _tokenId
-        );
-
-        require(
-            _delegatePercent <= 100,
-            'iceRegistrant: invalid percent'
-        );
-
-        delegate[_tokenOwner][tokenHash].delegateAddress = _delegateAddress;
-        delegate[_tokenOwner][tokenHash].delegatePercent = _delegatePercent;
-
-        emit Delegated(
-            _tokenId,
-            _tokenAddress,
-            _delegateAddress,
-            _delegatePercent,
-            _tokenOwner
         );
     }
 
