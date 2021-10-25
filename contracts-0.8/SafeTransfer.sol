@@ -1,58 +1,64 @@
-// SPDX-License-Identifier: -- DG --
+// SPDX-License-Identifier: -- ICE --
 
 pragma solidity ^0.8.9;
 
-bytes4 constant TRANSFER = bytes4(
-    keccak256(
-        bytes(
-            'transfer(address,uint256)'
-        )
-    )
-);
+contract SafeTransfer {
 
-function safeTransfer(
-    address _token,
-    address _to,
-    uint256 _value
-) {
-    (bool success, bytes memory data) = _token.call(
-        abi.encodeWithSelector(
-            TRANSFER,
-            _to,
-            _value
-        )
-    );
-
-    require(
-        success && (
-            data.length == 0 || abi.decode(
-                data, (bool)
+    bytes4 constant TRANSFER = bytes4(
+        keccak256(
+            bytes(
+                'transfer(address,uint256)'
             )
-        ),
-        'TransferHelper: TRANSFER_FAILED'
-    );
-}
-
-bytes4 constant BALANCE_OF = bytes4(
-    keccak256(
-        bytes(
-            'balanceOf(address)'
         )
+    );
+
+    function safeTransfer(
+        address _token,
+        address _to,
+        uint256 _value
     )
-);
+      internal
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                TRANSFER,
+                _to,
+                _value
+            )
+        );
 
-function safeBalanceOf(
-    address _token,
-    address _owner
-)
-    returns (uint256)
-{
-    (bool success, bytes memory data) = _token.call(
-        abi.encodeWithSelector(
-            BALANCE_OF,
-            _owner
+        require(
+            success && (
+                data.length == 0 || abi.decode(
+                    data, (bool)
+                )
+            ),
+            'TransferHelper: TRANSFER_FAILED'
+        );
+    }
+
+    bytes4 constant BALANCE_OF = bytes4(
+        keccak256(
+            bytes(
+                'balanceOf(address)'
+            )
         )
     );
-    if (!success) return 0;
-    return abi.decode(data, (uint256));
+
+    function safeBalanceOf(
+        address _token,
+        address _owner
+    )
+        internal
+        returns (uint256)
+    {
+        (bool success, bytes memory data) = _token.call(
+            abi.encodeWithSelector(
+                BALANCE_OF,
+                _owner
+            )
+        );
+        if (!success) return 0;
+        return abi.decode(data, (uint256));
+    }
 }

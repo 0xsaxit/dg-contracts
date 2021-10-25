@@ -10,7 +10,7 @@ import "SafeTransfer.sol";
   * @author Vitally Marinchenko
   */
 
-contract IceKeeper {
+contract IceKeeper is SafeTransfer {
 
     address public immutable distributionToken;
 
