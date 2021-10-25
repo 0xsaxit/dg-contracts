@@ -1,6 +1,7 @@
-// SPDX-License-Identifier: -- 🌳 --
+// SPDX-License-Identifier: -- DG --
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.9;
+
 import "MerkleProof.sol";
 import "SafeTransfer.sol";
 
@@ -13,12 +14,16 @@ contract IceKeeper {
 
     address public immutable distributionToken;
 
+    uint256 public maximumDrop;
     uint256 public icedropCount;
     uint256 public totalRequired;
     uint256 public totalCollected;
 
     address public masterAccount;
-    address public workerAccount;
+
+    // TO:DO
+    address public dropsWorker;
+    address public claimWorker;
 
     struct Keeper {
         bytes32 root;
@@ -39,10 +44,18 @@ contract IceKeeper {
         _;
     }
 
-    modifier onlyWorker() {
+    modifier onlyDropsWorker() {
         require(
-            msg.sender == workerAccount,
-            'IceKeeper: invalid worker'
+            msg.sender == dropsWorker,
+            'IceKeeper: invalid drops worker'
+        );
+        _;
+    }
+
+    modifier onlyClaimWorker() {
+        require(
+            msg.sender == claimWorker,
+            'IceKeeper: invalid claim worker'
         );
         _;
     }
@@ -67,12 +80,25 @@ contract IceKeeper {
 
     constructor(
         address _masterAccount,
-        address _workerAccount,
-        address _iceTokenAddress
+        address _claimWorker,
+        address _dropsWorker,
+        address _iceTokenAddress,
+        uint256 _maximumDrop
     ) {
         masterAccount = _masterAccount;
-        workerAccount = _workerAccount;
+        claimWorker = _claimWorker;
+        dropsWorker = _dropsWorker;
         distributionToken = _iceTokenAddress;
+        maximumDrop = _maximumDrop;
+    }
+
+    function changeMaximumDrop(
+        uint256 _newMaximumDrop
+    )
+        external
+        onlyMaster
+    {
+        maximumDrop = _newMaximumDrop;
     }
 
     function createIceDrop(
@@ -81,7 +107,7 @@ contract IceKeeper {
         string calldata _ipfsAddress
     )
         external
-        onlyMaster
+        onlyDropsWorker
     {
         require(
             _total > 0,
@@ -188,7 +214,7 @@ contract IceKeeper {
         bytes32[] calldata _merkleProof
     )
         external
-        onlyWorker
+        onlyClaimWorker
     {
         _doClaim(
             _hash,
@@ -207,7 +233,7 @@ contract IceKeeper {
         bytes32[][] calldata _merkleProof
     )
         external
-        onlyWorker
+        onlyClaimWorker
     {
         for (uint256 i = 0; i < _hash.length; i++) {
             _doClaim(
@@ -232,6 +258,11 @@ contract IceKeeper {
         require(
             isClaimed(_hash, _account) == false,
             'IceKeeper: already claimed'
+        );
+
+        require(
+            _amount <= maximumDrop,
+            'IceKeeper: invalid amount'
         );
 
         bytes32 node = keccak256(
@@ -317,13 +348,22 @@ contract IceKeeper {
         masterAccount = _newMaster;
     }
 
-    function changeWorker(
-        address _newWorker
+    function changeClaimWorker(
+        address _newClaimWorker
     )
         external
         onlyMaster
     {
-        workerAccount = _newWorker;
+        claimWorker = _newClaimWorker;
+    }
+
+    function changeDropsWorker(
+        address _newDropsWorker
+    )
+        external
+        onlyMaster
+    {
+        dropsWorker = _newDropsWorker;
     }
 
     function getBalance()
