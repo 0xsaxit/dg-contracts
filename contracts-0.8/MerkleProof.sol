@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: -- 🌳 --
+// SPDX-License-Identifier: -- DG --
 
-pragma solidity ^0.8.5;
+pragma solidity ^0.8.9;
 
 /**
  * @dev These functions deal with verification of Merkle trees (hash trees)

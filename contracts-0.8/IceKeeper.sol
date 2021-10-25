@@ -21,7 +21,6 @@ contract IceKeeper {
 
     address public masterAccount;
 
-    // TO:DO
     address public dropsWorker;
     address public claimWorker;
 
