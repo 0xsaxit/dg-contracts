@@ -244,14 +244,14 @@ contract ERC20 {
 
 contract DGTownHall is ERC20("External DG", "xDG") {
 
-    DGToken public DG;
-    address immutable THIS_ADDRESS;
+    DGToken public immutable DG;
 
     constructor(
         address _tokenAddress
     ) {
-        DG = DGToken(_tokenAddress);
-        THIS_ADDRESS = address(this);
+        DG = DGToken(
+            _tokenAddress
+        );
     }
 
     function stepInside(
@@ -337,16 +337,6 @@ contract DGTownHall is ERC20("External DG", "xDG") {
         view
         returns (uint256)
     {
-        return DGBalanceOf(THIS_ADDRESS);
-    }
-
-    function DGBalanceOf(
-        address _target
-    )
-        public
-        view
-        returns (uint256)
-    {
-        return DG.balanceOf(_target);
+        return DG.balanceOf(address(this));
     }
 }
