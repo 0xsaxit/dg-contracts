@@ -1,15 +1,8 @@
-// SPDX-License-Identifier: DG
+// SPDX-License-Identifier: ---DG----
 
 pragma solidity ^0.8.9;
 
 interface IClassicDGToken {
-
-    function balanceOf(
-        address _account
-    )
-        external
-        view
-        returns (uint256);
 
     function transfer(
         address _recipient,
@@ -40,8 +33,9 @@ contract ERC20 {
     mapping(address => uint) public nonces;
 
     bytes32 public DOMAIN_SEPARATOR;
-    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
-    bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+    bytes32 public constant PERMIT_TYPEHASH = keccak256(
+        "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+    );
 
     event Transfer(
         address indexed _from,
@@ -312,53 +306,47 @@ contract DGLight is ERC20("Decentral Games", "DG") {
             _classicDGTokenAddress
         );
 
-        uint256 chainId = block.chainid;
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
                 keccak256(bytes(name())),
                 keccak256(bytes('1')),
-                chainId,
+                block.chainid,
                 address(this)
             )
         );
     }
 
     function goLight(
-        uint256 _classicAmount
+        uint256 _classicAmountToDeposit
     )
         external
     {
         classicDG.transferFrom(
             msg.sender,
             address(this),
-            _classicAmount
+            _classicAmountToDeposit
         );
 
         _mint(
             msg.sender,
-            _classicAmount * RATIO
+            _classicAmountToDeposit * RATIO
         );
     }
 
     function goClassic(
-        uint256 _lightAmount
+        uint256 _classicAmountToReceive
     )
         external
     {
-        require(
-            _lightAmount % RATIO == 0,
-            'DGLight: INVALID_REMINDER'
-        );
-
         classicDG.transfer(
             msg.sender,
-            _lightAmount / RATIO
+            _classicAmountToReceive
         );
 
         _burn(
             msg.sender,
-            _lightAmount
+            _classicAmountToReceive * RATIO
         );
     }
 }
