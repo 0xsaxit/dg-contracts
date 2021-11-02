@@ -189,7 +189,6 @@ contract ERC20 {
         );
 
         require(
-            recoveredAddress != address(0x0) &&
             recoveredAddress == _owner,
             'INVALID_SIGNATURE'
         );
