@@ -230,8 +230,10 @@ contract ERC20 {
         _totalSupply =
         _totalSupply + _amount;
 
-        _balances[_account] =
-        _balances[_account] + _amount;
+        unchecked {
+            _balances[_account] =
+            _balances[_account] + _amount;
+        }
 
         emit Transfer(
             address(0x0),
@@ -249,8 +251,10 @@ contract ERC20 {
         _balances[_account] =
         _balances[_account] - _amount;
 
-        _totalSupply =
-        _totalSupply - _amount;
+        unchecked {
+            _totalSupply =
+            _totalSupply - _amount;
+        }
 
         emit Transfer(
             _account,

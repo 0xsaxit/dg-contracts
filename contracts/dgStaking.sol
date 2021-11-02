@@ -273,7 +273,7 @@ contract LPTokenWrapper {
     using SafeERC20 for IERC20;
 
     IERC20 public bpt = IERC20(
-        0xb70C4d4578AeF63A1CecFF8bF4aE1BCeDD187a6b
+        0xb70C4d4578AeF63A1CecFF8bF4aE1BCeDD187a6b // LP Token Address
     );
 
     uint256 private _totalSupply;
@@ -321,7 +321,7 @@ contract dgStaking is LPTokenWrapper, Ownable {
     using SafeERC20 for IERC20;
 
     IERC20 public dg = IERC20(
-        0x938bE4C47B909613441427db721B66D73dDd58c0
+        0x938bE4C47B909613441427db721B66D73dDd58c0 // newDGLight address
     );
 
     uint256 public constant DURATION = 40 minutes;
