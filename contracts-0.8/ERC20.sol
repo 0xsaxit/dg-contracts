@@ -189,6 +189,7 @@ contract ERC20 {
         );
 
         require(
+            recoveredAddress != address(0) &&
             recoveredAddress == _owner,
             'INVALID_SIGNATURE'
         );
@@ -235,7 +236,7 @@ contract ERC20 {
         }
 
         emit Transfer(
-            address(0x0),
+            address(0),
             _account,
             _amount
         );
@@ -257,7 +258,7 @@ contract ERC20 {
 
         emit Transfer(
             _account,
-            address(0x0),
+            address(0),
             _amount
         );
     }
