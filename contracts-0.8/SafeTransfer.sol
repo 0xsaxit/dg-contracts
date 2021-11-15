@@ -2,6 +2,16 @@
 
 pragma solidity ^0.8.9;
 
+interface ERC20 {
+
+    function balanceOf(
+        address _iceKeeper
+    )
+        external
+        view
+        returns (uint256);
+}
+
 contract SafeTransfer {
 
     bytes4 constant TRANSFER = bytes4(
@@ -35,30 +45,5 @@ contract SafeTransfer {
             ),
             'TransferHelper: TRANSFER_FAILED'
         );
-    }
-
-    bytes4 constant BALANCE_OF = bytes4(
-        keccak256(
-            bytes(
-                'balanceOf(address)'
-            )
-        )
-    );
-
-    function safeBalanceOf(
-        address _token,
-        address _owner
-    )
-        internal
-        returns (uint256)
-    {
-        (bool success, bytes memory data) = _token.call(
-            abi.encodeWithSelector(
-                BALANCE_OF,
-                _owner
-            )
-        );
-        if (!success) return 0;
-        return abi.decode(data, (uint256));
     }
 }

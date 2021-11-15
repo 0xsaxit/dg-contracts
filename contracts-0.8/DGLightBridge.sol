@@ -30,8 +30,8 @@ contract DGLightBridge {
     mapping(address => uint256) public sponsors;
 
     constructor(
-        address _classicDG,
-        address _lightDG
+        address _classicDG, // 0x2a93172c8DCCbfBC60a39d56183B7279a2F647b4
+        address _lightDG // ??
     ) {
         classicDG = IERC20Token(
             _classicDG
@@ -54,7 +54,7 @@ contract DGLightBridge {
         );
 
         lightDG.transfer(
-            address(this),
+            msg.sender,
             _classicAmountToDeposit * RATIO
         );
     }

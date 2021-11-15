@@ -12,23 +12,26 @@ import "SafeTransfer.sol";
 
 contract IceKeeper is SafeTransfer {
 
-    address public immutable distributionToken;
+    address public constant distributionToken = address(
+        0xc6C855AD634dCDAd23e64DA71Ba85b8C51E5aD7c
+    );
 
     uint256 public maximumDrop;
     uint256 public icedropCount;
+
     uint256 public totalRequired;
     uint256 public totalCollected;
 
     address public masterAccount;
-
-    address public dropsWorker;
-    address public claimWorker;
 
     struct Keeper {
         bytes32 root;
         uint256 total;
         uint256 claimed;
     }
+
+    mapping(address => bool) public dropsWorkers;
+    mapping(address => bool) public claimWorkers;
 
     mapping(uint256 => string) public ipfsData;
     mapping(bytes32 => Keeper) public icedrops;
@@ -45,7 +48,7 @@ contract IceKeeper is SafeTransfer {
 
     modifier onlyDropsWorker() {
         require(
-            msg.sender == dropsWorker,
+            dropsWorkers[msg.sender] == true,
             'IceKeeper: invalid drops worker'
         );
         _;
@@ -53,7 +56,7 @@ contract IceKeeper is SafeTransfer {
 
     modifier onlyClaimWorker() {
         require(
-            msg.sender == claimWorker,
+            claimWorkers[msg.sender] == true,
             'IceKeeper: invalid claim worker'
         );
         _;
@@ -81,13 +84,13 @@ contract IceKeeper is SafeTransfer {
         address _masterAccount,
         address _claimWorker,
         address _dropsWorker,
-        address _iceTokenAddress,
         uint256 _maximumDrop
     ) {
         masterAccount = _masterAccount;
-        claimWorker = _claimWorker;
-        dropsWorker = _dropsWorker;
-        distributionToken = _iceTokenAddress;
+
+        claimWorkers[_claimWorker] = true;
+        dropsWorkers[_dropsWorker] = true;
+
         maximumDrop = _maximumDrop;
     }
 
@@ -348,29 +351,31 @@ contract IceKeeper is SafeTransfer {
     }
 
     function changeClaimWorker(
-        address _newClaimWorker
+        address _claimWorker,
+        bool _isWorker
     )
         external
         onlyMaster
     {
-        claimWorker = _newClaimWorker;
+        claimWorkers[_claimWorker] = _isWorker;
     }
 
     function changeDropsWorker(
-        address _newDropsWorker
+        address _dropsWorker,
+        bool _isWorker
     )
         external
         onlyMaster
     {
-        dropsWorker = _newDropsWorker;
+        dropsWorkers[_dropsWorker] = _isWorker;
     }
 
     function getBalance()
         public
+        view
         returns (uint256)
     {
-        return safeBalanceOf(
-            distributionToken,
+        return ERC20(distributionToken).balanceOf(
             address(this)
         );
     }
@@ -389,6 +394,7 @@ contract IceKeeper is SafeTransfer {
         bytes32 _hash
     )
         external
+        view
         returns (int256)
     {
         return int256(getBalance()) - int256(showRemaining(_hash));
@@ -404,6 +410,7 @@ contract IceKeeper is SafeTransfer {
 
     function showExcess()
         external
+        view
         returns (int256)
     {
         return int256(getBalance()) - int256(showRemaining());
