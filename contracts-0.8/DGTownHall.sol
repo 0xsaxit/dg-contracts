@@ -29,7 +29,7 @@ interface DGToken {
         returns (bool);
 }
 
-contract DGTownHall is ERC20("External DG", "xDG") {
+contract DGTownHall is ERC20("Decentral Games Governance", "xDG") {
 
     DGToken public immutable DG;
 
