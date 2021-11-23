@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: --DG--
+// SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.8.9;
+pragma solidity >=0.4.21 <=0.7.4;
 
 contract Migrations {
     address public owner;

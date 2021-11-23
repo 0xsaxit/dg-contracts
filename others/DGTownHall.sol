@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-import "./ERC20.sol";
+import "./ERC20NEW.sol";
 
 interface DGToken {
 
@@ -29,7 +29,7 @@ interface DGToken {
         returns (bool);
 }
 
-contract DGTownHall is ERC20("Decentral Games Governance", "xDG") {
+contract DGTownHall is ERC20NEW("Decentral Games Governance", "xDG") {
 
     DGToken public immutable DG;
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: -- 💎 --
+// SPDX-License-Identifier: ---DG----
 
 pragma solidity ^0.8.7;
 

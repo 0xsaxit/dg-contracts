@@ -2,12 +2,13 @@
 // const RouletteLogic = artifacts.require("RouletteLogic");
 // const MasterParent = artifacts.require("MasterParent");
 const Token = artifacts.require("Token");
-const dgTreasury = artifacts.require("dgTreasury");
-const dgRoulette = artifacts.require("dgRoulette");
-const dgSlots = artifacts.require("dgSlots");
-const dgBackgammon = artifacts.require("dgBackgammon");
-const dgBlackJack = artifacts.require("dgBlackJack");
-const dgPointer = artifacts.require("dgPointer");
+const LightToken = artifacts.require("LightToken");
+// const dgTreasury = artifacts.require("dgTreasury");
+// const dgRoulette = artifacts.require("dgRoulette");
+// const dgSlots = artifacts.require("dgSlots");
+// const dgBackgammon = artifacts.require("dgBackgammon");
+// const dgBlackJack = artifacts.require("dgBlackJack");
+// const dgPointer = artifacts.require("dgPointer");
 // const FAKEMana = artifacts.require("FAKEMana");
 
 module.exports = async function(deployer, network, accounts) {

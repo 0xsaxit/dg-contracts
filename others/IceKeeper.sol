@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.9;
 
-import "MerkleProof.sol";
-import "SafeTransfer.sol";
+import "./MerkleProof.sol";
+import "./SafeTransfer.sol";
 
 /**
   * @title Smart Ice Keeper
