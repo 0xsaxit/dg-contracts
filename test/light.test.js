@@ -1,5 +1,5 @@
-const Token = artifacts.require("Token");
-const LightToken = artifacts.require("LightToken");
+const DGToken = artifacts.require("dgToken");
+const DGLightToken = artifacts.require("DGLight");
 const catchRevert = require("./exceptionsHelpers.js").catchRevert;
 
 require("./utils");
@@ -25,21 +25,21 @@ const getLastEvent = async (eventName, instance) => {
 
 contract("Token", ([owner, alice, bob, random]) => {
 
-    let token;
-    let pretoken;
+    let dgLightToken;
+    let dgToken;
     let launchTime;
 
     beforeEach(async () => {
-        pretoken = await Token.new();
-        token = await LightToken.new(pretoken.address);
-        await pretoken.approve(token.address, STATIC_SUPPLY);
-        await token.goLight(STATIC_SUPPLY);
+        dgToken = await DGToken.new();
+        dgLightToken = await DGLightToken.new(dgToken.address);
+        await dgToken.approve(dgLightToken.address, STATIC_SUPPLY);
+        await dgLightToken.goLight(STATIC_SUPPLY);
     });
 
     describe("Token Initial Values", () => {
 
         it("should have correct token name", async () => {
-            const name = await token.name();
+            const name = await dgLightToken.name();
             assert.equal(
                 name,
                 "Decentral Games"
@@ -47,7 +47,7 @@ contract("Token", ([owner, alice, bob, random]) => {
         });
 
         it("should have correct token symbol", async () => {
-            const symbol = await token.symbol();
+            const symbol = await dgLightToken.symbol();
             assert.equal(
                 symbol,
                 "DG"
@@ -55,7 +55,7 @@ contract("Token", ([owner, alice, bob, random]) => {
         });
 
         it("should have correct token decimals", async () => {
-            const decimals = await token.decimals();
+            const decimals = await dgLightToken.decimals();
             assert.equal(
                 decimals,
                 18
@@ -64,7 +64,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
 
         it("should have correct token supply", async () => {
-            const supply = await token.totalSupply();
+            const supply = await dgLightToken.totalSupply();
             assert.equal(
                 supply,
                 9e+33
@@ -74,7 +74,7 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should return the correct balance for the given account", async () => {
             const expectedAmount = ONE_TOKEN;
 
-            await token.transfer(
+            await dgLightToken.transfer(
                 bob,
                 expectedAmount,
                 {
@@ -82,7 +82,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const balance = await token.balanceOf(bob);
+            const balance = await dgLightToken.balanceOf(bob);
 
             assert.equal(
                 balance,
@@ -91,7 +91,7 @@ contract("Token", ([owner, alice, bob, random]) => {
         });
 
         it("should return the correct allowance for the given spender", async () => {
-            const allowance = await token.allowance(owner, bob);
+            const allowance = await dgLightToken.allowance(owner, bob);
             assert.equal(
                 allowance,
                 0
@@ -104,9 +104,9 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should transfer correct amount from walletA to walletB", async () => {
 
             const transferValue = ONE_TOKEN;
-            const balanceBefore = await token.balanceOf(bob);
+            const balanceBefore = await dgLightToken.balanceOf(bob);
 
-            await token.transfer(
+            await dgLightToken.transfer(
                 bob,
                 transferValue,
                 {
@@ -114,7 +114,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const balanceAfter = await token.balanceOf(bob);
+            const balanceAfter = await dgLightToken.balanceOf(bob);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -124,10 +124,10 @@ contract("Token", ([owner, alice, bob, random]) => {
 
         it("should revert if not enough balance in the wallet", async () => {
 
-            const balanceBefore = await token.balanceOf(alice);
+            const balanceBefore = await dgLightToken.balanceOf(alice);
 
             await catchRevert(
-                token.transfer(
+                dgLightToken.transfer(
                     bob,
                     parseInt(balanceBefore) + 1,
                     {
@@ -140,9 +140,9 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should reduce wallets balance after transfer", async () => {
 
             const transferValue = ONE_TOKEN;
-            const balanceBefore = await token.balanceOf(owner);
+            const balanceBefore = await dgLightToken.balanceOf(owner);
 
-            await token.transfer(
+            await dgLightToken.transfer(
                 bob,
                 transferValue,
                 {
@@ -150,7 +150,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const balanceAfter = await token.balanceOf(owner);
+            const balanceAfter = await dgLightToken.balanceOf(owner);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -163,7 +163,7 @@ contract("Token", ([owner, alice, bob, random]) => {
             const transferValue = ONE_TOKEN;
             const expectedRecepient = bob;
 
-            await token.transfer(
+            await dgLightToken.transfer(
                 expectedRecepient,
                 transferValue,
                 {
@@ -173,7 +173,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             const { from, to, value } = await getLastEvent(
                 "Transfer",
-                token
+                dgLightToken
             );
 
             assert.equal(
@@ -195,20 +195,20 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should update the balance of the recipient when using transferFrom", async () => {
             const transferValue = ONE_TOKEN;
             const expectedRecipient = bob;
-            const balanceBefore = await token.balanceOf(bob);
+            const balanceBefore = await dgLightToken.balanceOf(bob);
 
-            await token.approve(
+            await dgLightToken.approve(
                 owner,
                 transferValue
             );
 
-            await token.transferFrom(
+            await dgLightToken.transferFrom(
                 owner,
                 expectedRecipient,
                 transferValue,
             );
 
-            const balanceAfter = await token.balanceOf(bob);
+            const balanceAfter = await dgLightToken.balanceOf(bob);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -219,20 +219,20 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should deduct from the balance of the sender when using transferFrom", async () => {
             const transferValue = ONE_TOKEN;
             const expectedRecipient = bob;
-            const balanceBefore = await token.balanceOf(owner);
+            const balanceBefore = await dgLightToken.balanceOf(owner);
 
-            await token.approve(
+            await dgLightToken.approve(
                 owner,
                 transferValue
             );
 
-            await token.transferFrom(
+            await dgLightToken.transferFrom(
                 owner,
                 expectedRecipient,
                 transferValue,
             );
 
-            const balanceAfter = await token.balanceOf(owner);
+            const balanceAfter = await dgLightToken.balanceOf(owner);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -245,7 +245,7 @@ contract("Token", ([owner, alice, bob, random]) => {
             const expectedRecipient = bob;
 
             await catchRevert(
-                token.transferFrom(
+                dgLightToken.transferFrom(
                     owner,
                     expectedRecipient,
                     transferValue
@@ -260,13 +260,13 @@ contract("Token", ([owner, alice, bob, random]) => {
             const transferValue = FOUR_ETH;
             const expectedRecipient = bob;
 
-            await token.approve(
+            await dgLightToken.approve(
                 alice,
                 approvedValue
             );
 
             await catchRevert(
-                token.transferFrom(
+                dgLightToken.transferFrom(
                     owner,
                     expectedRecipient,
                     transferValue,
@@ -285,7 +285,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             const approvalValue = ONE_TOKEN;
 
-            await token.approve(
+            await dgLightToken.approve(
                 bob,
                 approvalValue,
                 {
@@ -293,7 +293,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const allowanceValue = await token.allowance(
+            const allowanceValue = await dgLightToken.allowance(
                 owner,
                 bob
             );
@@ -308,7 +308,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             const transferValue = ONE_TOKEN;
 
-            await token.approve(
+            await dgLightToken.approve(
                 bob,
                 transferValue,
                 {
@@ -318,7 +318,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             const { owner: transferOwner, spender, value } = await getLastEvent(
                 "Approval",
-                token
+                dgLightToken
             );
 
             assert.equal(
@@ -343,7 +343,7 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should have correct master address", async () => {
 
             const expectedAddress = owner;
-            const masterAddress = await token.master();
+            const masterAddress = await dgLightToken.master();
 
             assert.equal(
                 expectedAddress,
@@ -372,9 +372,9 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should increase the balance of the wallet thats minting the tokens", async () => {
 
             const mintAmount = ONE_TOKEN;
-            const supplyBefore = await token.balanceOf(owner);
+            const supplyBefore = await dgLightToken.balanceOf(owner);
 
-            await token.mint(
+            await dgLightToken.mint(
                 mintAmount,
                 {
                     from: owner
@@ -382,7 +382,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             );
 
-            const supplyAfter = await token.balanceOf(owner);
+            const supplyAfter = await dgLightToken.balanceOf(owner);
 
             assert.equal(
                 parseInt(supplyAfter),
@@ -392,17 +392,17 @@ contract("Token", ([owner, alice, bob, random]) => {
 
         it("should add the correct amount to the total supply", async () => {
 
-            const supplyBefore = await token.balanceOf(owner);
+            const supplyBefore = await dgLightToken.balanceOf(owner);
             const mintAmount = ONE_TOKEN;
 
-            await token.mint(
+            await dgLightToken.mint(
                 mintAmount,
                 {
                     from: owner
                 }
             );
 
-            const totalSupply = await token.totalSupply();
+            const totalSupply = await dgLightToken.totalSupply();
 
             assert.equal(
                 BN(totalSupply).toString(),
@@ -415,9 +415,9 @@ contract("Token", ([owner, alice, bob, random]) => {
             const mintAmount = ONE_TOKEN;
             const mintWallet = bob;
 
-            const supplyBefore = await token.balanceOf(mintWallet);
+            const supplyBefore = await dgLightToken.balanceOf(mintWallet);
 
-            await token.mintByMaster(
+            await dgLightToken.mintByMaster(
                 mintAmount,
                 mintWallet,
                 {
@@ -425,7 +425,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const supplyAfter = await token.balanceOf(mintWallet);
+            const supplyAfter = await dgLightToken.balanceOf(mintWallet);
 
             assert.equal(
                 parseInt(supplyAfter),
@@ -438,9 +438,9 @@ contract("Token", ([owner, alice, bob, random]) => {
             const mintWallet = bob;
             const mintAmount = ONE_TOKEN;
 
-            const suppleBefore = await token.totalSupply();
+            const suppleBefore = await dgLightToken.totalSupply();
 
-            await token.mintByMaster(
+            await dgLightToken.mintByMaster(
                 mintAmount,
                 mintWallet,
                 {
@@ -448,7 +448,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const supplyAfter = await token.totalSupply();
+            const supplyAfter = await dgLightToken.totalSupply();
 
             assert.equal(
                 parseInt(supplyAfter),
@@ -462,7 +462,7 @@ contract("Token", ([owner, alice, bob, random]) => {
             const mintAmount = ONE_TOKEN;
 
             await catchRevert(
-                token.mintByMaster(
+                dgLightToken.mintByMaster(
                     mintAmount,
                     mintWallet,
                     {
@@ -479,9 +479,9 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should reduce the balance of the wallet thats burnng the tokens", async () => {
 
             const burnAmount = ONE_TOKEN;
-            const supplyBefore = await token.balanceOf(owner);
+            const supplyBefore = await dgLightToken.balanceOf(owner);
 
-            await token.burn(
+            await dgLightToken.burn(
                 burnAmount,
                 {
                     from: owner
@@ -489,7 +489,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             );
 
-            const supplyAfter = await token.balanceOf(owner);
+            const supplyAfter = await dgLightToken.balanceOf(owner);
 
             assert.equal(
                 supplyAfter,
@@ -499,10 +499,10 @@ contract("Token", ([owner, alice, bob, random]) => {
 
         it("should deduct the correct amount from the total supply", async () => {
 
-            const supplyBefore = await token.balanceOf(owner);
+            const supplyBefore = await dgLightToken.balanceOf(owner);
             const burnAmount = ONE_TOKEN;
 
-            await token.burn(
+            await dgLightToken.burn(
                 burnAmount,
                 {
                     from: owner
@@ -510,7 +510,7 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             );
 
-            const totalSupply = await token.totalSupply();
+            const totalSupply = await dgLightToken.totalSupply();
 
             assert.equal(
                 totalSupply,

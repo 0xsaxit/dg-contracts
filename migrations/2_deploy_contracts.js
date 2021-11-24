@@ -1,8 +1,8 @@
 // const SlotMachineLogic = artifacts.require("SlotMachineLogic");
 // const RouletteLogic = artifacts.require("RouletteLogic");
 // const MasterParent = artifacts.require("MasterParent");
-const Token = artifacts.require("Token");
-const LightToken = artifacts.require("LightToken");
+const DGToken = artifacts.require("dgToken");
+const DGLightToken = artifacts.require("DGLight");
 // const dgTreasury = artifacts.require("dgTreasury");
 // const dgRoulette = artifacts.require("dgRoulette");
 // const dgSlots = artifacts.require("dgSlots");

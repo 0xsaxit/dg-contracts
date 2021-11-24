@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-contract ERC20NEW {
+contract ERC20 {
 
     string private _name;
     string private _symbol;
@@ -12,7 +12,7 @@ contract ERC20NEW {
 
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
-    mapping(address => uint256) public nonces;
+    mapping(address => uint) public nonces;
 
     bytes32 public DOMAIN_SEPARATOR;
     bytes32 public constant PERMIT_TYPEHASH = keccak256(
