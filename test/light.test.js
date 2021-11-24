@@ -67,7 +67,7 @@ contract("Token", ([owner, alice, bob, random]) => {
             const supply = await dgLightToken.totalSupply();
             assert.equal(
                 supply,
-                9e+33
+                STATIC_SUPPLY
             );
         });
 
