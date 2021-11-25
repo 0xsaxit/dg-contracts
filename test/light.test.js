@@ -11,8 +11,7 @@ const BN = (value) => {
 
 // TESTING PARAMETERS
 const ONE_TOKEN = web3.utils.toWei("1");
-const FOUR_ETH = web3.utils.toWei("3");
-const FIVE_ETH = web3.utils.toWei("5");
+const THREE_ETH = web3.utils.toWei("3");
 const STATIC_SUPPLY = web3.utils.toWei("5000000");
 const RATIO = BN(1000);
 
@@ -39,7 +38,7 @@ const getLastEvent = async (eventName, instance) => {
     return events.pop().returnValues;
 };
 
-contract("Token", ([owner, alice, bob, random]) => {
+contract("DGLightToken", ([owner, alice, bob, random]) => {
 
     let dgLightToken;
     let dgToken;
@@ -271,7 +270,7 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should revert if the sender has spent more than their approved amount when using transferFrom", async () => {
 
             const approvedValue = ONE_TOKEN;
-            const transferValue = FOUR_ETH;
+            const transferValue = THREE_ETH;
             const expectedRecipient = bob;
 
             await dgLightToken.approve(
@@ -369,9 +368,12 @@ contract("Token", ([owner, alice, bob, random]) => {
         it("should revert if the sender has spent more than their approved amount when using goLight", async () => {
         
             const approvedValue = ONE_TOKEN;
-            const swapValue = FOUR_ETH;
+            const swapValue = THREE_ETH;
 
-            await dgToken.approve(dgLightToken.address, approvedValue);
+            await dgToken.approve(
+                dgLightToken.address,
+                approvedValue
+            );
             await catchRevert(
                 dgLightToken.goLight(
                     swapValue
@@ -383,7 +385,10 @@ contract("Token", ([owner, alice, bob, random]) => {
 
             const balanceBefore = await dgToken.balanceOf(owner);
 
-            await dgToken.approve(dgLightToken.address, balanceBefore.toString());
+            await dgToken.approve(
+                dgLightToken.address,
+                balanceBefore.toString()
+            );
             await catchRevert(
                 dgLightToken.goLight(
                     balanceBefore.addn(1).toString()
@@ -399,7 +404,10 @@ contract("Token", ([owner, alice, bob, random]) => {
                 const dgBalanceBefore = await dgToken.balanceOf(owner);
                 const balanceBefore = await dgLightToken.balanceOf(owner);
 
-                await dgToken.approve(dgLightToken.address, swapValue);
+                await dgToken.approve(
+                    dgLightToken.address,
+                    swapValue
+                );
                 await dgLightToken.goLight(
                     swapValue
                 );
@@ -432,7 +440,7 @@ contract("Token", ([owner, alice, bob, random]) => {
             );
         });
 
-        it("should swap correct amount from DGToken to DGLightToken", async () => {
+        it("should swap correct amount from DGLightToken to DGToken", async () => {
 
             for (let i = 0; i < testAmounts.length; i += 1) {
                 const swapValue = web3.utils.toWei(testAmounts[i]);
