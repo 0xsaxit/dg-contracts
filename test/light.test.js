@@ -14,12 +14,28 @@ const ONE_TOKEN = web3.utils.toWei("1");
 const FOUR_ETH = web3.utils.toWei("3");
 const FIVE_ETH = web3.utils.toWei("5");
 const STATIC_SUPPLY = web3.utils.toWei("5000000");
+const RATIO = BN(1000);
+
+const testAmounts = [
+    "0",
+    "1",
+    "5",
+    "20",
+    "50",
+    "100",
+    "1000",
+    "2865",
+    "27891",
+    "88964",
+    "775680",
+];
 
 const getLastEvent = async (eventName, instance) => {
     const events = await instance.getPastEvents(eventName, {
         fromBlock: 0,
         toBlock: "latest",
     });
+
     return events.pop().returnValues;
 };
 
@@ -27,7 +43,6 @@ contract("Token", ([owner, alice, bob, random]) => {
 
     let dgLightToken;
     let dgToken;
-    let launchTime;
 
     beforeEach(async () => {
         dgToken = await DGToken.new();
@@ -67,7 +82,7 @@ contract("Token", ([owner, alice, bob, random]) => {
             const supply = await dgLightToken.totalSupply();
             assert.equal(
                 supply,
-                STATIC_SUPPLY
+                BN(STATIC_SUPPLY).mul(RATIO).toString()
             );
         });
 
@@ -171,7 +186,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const { from, to, value } = await getLastEvent(
+            const { _from: from, _to: to, _value: value } = await getLastEvent(
                 "Transfer",
                 dgLightToken
             );
@@ -249,8 +264,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                     owner,
                     expectedRecipient,
                     transferValue
-                ),
-                "revert REQUIRES APPROVAL"
+                )
             );
         });
 
@@ -273,8 +287,7 @@ contract("Token", ([owner, alice, bob, random]) => {
                     {
                         from: alice
                     }
-                ),
-                "revert AMOUNT EXCEEDS APPROVED VALUE"
+                )
             );
         });
     });
@@ -316,7 +329,11 @@ contract("Token", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const { owner: transferOwner, spender, value } = await getLastEvent(
+            const {
+                _owner: transferOwner,
+                _spender: spender,
+                _value: value
+            } = await getLastEvent(
                 "Approval",
                 dgLightToken
             );
@@ -338,184 +355,107 @@ contract("Token", ([owner, alice, bob, random]) => {
         });
     });
 
-    describe("Master Functionality", () => {
+    describe("GoLight Functionality", () => {
 
-        it("should have correct master address", async () => {
-
-            const expectedAddress = owner;
-            const masterAddress = await dgLightToken.master();
-
-            assert.equal(
-                expectedAddress,
-                masterAddress
-            );
-        });
-
-        it("should have correct master address based on from wallet", async () => {
-
-            newToken = await Token.new(
-                {from: alice}
-            );
-
-            const expectedAddress = alice;
-            const masterAddress = await newToken.master();
-
-            assert.equal(
-                expectedAddress,
-                masterAddress
-            );
-        });
-    });
-
-    describe("Mint Functionality", () => {
-
-        it("should increase the balance of the wallet thats minting the tokens", async () => {
-
-            const mintAmount = ONE_TOKEN;
-            const supplyBefore = await dgLightToken.balanceOf(owner);
-
-            await dgLightToken.mint(
-                mintAmount,
-                {
-                    from: owner
-                }
-
-            );
-
-            const supplyAfter = await dgLightToken.balanceOf(owner);
-
-            assert.equal(
-                parseInt(supplyAfter),
-                parseInt(supplyBefore) + parseInt(mintAmount)
-            );
-        });
-
-        it("should add the correct amount to the total supply", async () => {
-
-            const supplyBefore = await dgLightToken.balanceOf(owner);
-            const mintAmount = ONE_TOKEN;
-
-            await dgLightToken.mint(
-                mintAmount,
-                {
-                    from: owner
-                }
-            );
-
-            const totalSupply = await dgLightToken.totalSupply();
-
-            assert.equal(
-                BN(totalSupply).toString(),
-                (BN(supplyBefore).add(BN(mintAmount))).toString()
-            );
-        });
-
-        it("should increase the balance for the wallet decided by master", async () => {
-
-            const mintAmount = ONE_TOKEN;
-            const mintWallet = bob;
-
-            const supplyBefore = await dgLightToken.balanceOf(mintWallet);
-
-            await dgLightToken.mintByMaster(
-                mintAmount,
-                mintWallet,
-                {
-                    from: owner
-                }
-            );
-
-            const supplyAfter = await dgLightToken.balanceOf(mintWallet);
-
-            assert.equal(
-                parseInt(supplyAfter),
-                parseInt(supplyBefore) + parseInt(mintAmount)
-            );
-        });
-
-        it("should add the correct amount to the total supply (mintByMaster)", async () => {
-
-            const mintWallet = bob;
-            const mintAmount = ONE_TOKEN;
-
-            const suppleBefore = await dgLightToken.totalSupply();
-
-            await dgLightToken.mintByMaster(
-                mintAmount,
-                mintWallet,
-                {
-                    from: owner
-                }
-            );
-
-            const supplyAfter = await dgLightToken.totalSupply();
-
-            assert.equal(
-                parseInt(supplyAfter),
-                parseInt(suppleBefore) + parseInt(mintAmount)
-            );
-        });
-
-        it("should only allow to mint from master address", async () => {
-
-            const mintWallet = bob;
-            const mintAmount = ONE_TOKEN;
+        it("should revert if there is no approval when using goLight", async () => {
 
             await catchRevert(
-                dgLightToken.mintByMaster(
-                    mintAmount,
-                    mintWallet,
-                    {
-                        from: alice
-                    }
-                ),
-                "revert Token: INVALID_MASTER"
+                dgLightToken.goLight(
+                    ONE_TOKEN
+                )
             );
         });
 
+        it("should revert if the sender has spent more than their approved amount when using goLight", async () => {
+        
+            const approvedValue = ONE_TOKEN;
+            const swapValue = FOUR_ETH;
+
+            await dgToken.approve(dgLightToken.address, approvedValue);
+            await catchRevert(
+                dgLightToken.goLight(
+                    swapValue
+                )
+            );
+        });
+
+        it("should revert if not enough balance in the wallet", async () => {
+
+            const balanceBefore = await dgToken.balanceOf(owner);
+
+            await dgToken.approve(dgLightToken.address, balanceBefore.toString());
+            await catchRevert(
+                dgLightToken.goLight(
+                    balanceBefore.addn(1).toString()
+                )
+            );
+        });
+
+        it("should swap correct amount from DGToken to DGLightToken", async () => {
+
+            for (let i = 0; i < testAmounts.length; i += 1) {
+                const swapValue = web3.utils.toWei(testAmounts[i]);
+
+                const dgBalanceBefore = await dgToken.balanceOf(owner);
+                const balanceBefore = await dgLightToken.balanceOf(owner);
+
+                await dgToken.approve(dgLightToken.address, swapValue);
+                await dgLightToken.goLight(
+                    swapValue
+                );
+
+                const dgBalanceAfter = await dgToken.balanceOf(owner);
+                const balanceAfter = await dgLightToken.balanceOf(owner);
+
+                assert.equal(
+                    dgBalanceAfter.toString(),
+                    dgBalanceBefore.sub(BN(swapValue)).toString()
+                );
+                assert.equal(
+                    balanceAfter.toString(),
+                    balanceBefore.add(BN(swapValue).mul(RATIO)).toString()
+                );
+            }
+        });
     });
-    describe("Burn Functionality", () => {
 
-        it("should reduce the balance of the wallet thats burnng the tokens", async () => {
+    describe("GoClassic Functionality", () => {
 
-            const burnAmount = ONE_TOKEN;
-            const supplyBefore = await dgLightToken.balanceOf(owner);
+        it("should revert if not enough balance in the wallet", async () => {
 
-            await dgLightToken.burn(
-                burnAmount,
-                {
-                    from: owner
-                }
+            const balanceBefore = await dgLightToken.balanceOf(owner);
 
-            );
-
-            const supplyAfter = await dgLightToken.balanceOf(owner);
-
-            assert.equal(
-                supplyAfter,
-                supplyBefore - burnAmount
+            await catchRevert(
+                dgLightToken.goClassic(
+                    balanceBefore.div(RATIO).addn(1).toString()
+                )
             );
         });
 
-        it("should deduct the correct amount from the total supply", async () => {
+        it("should swap correct amount from DGToken to DGLightToken", async () => {
 
-            const supplyBefore = await dgLightToken.balanceOf(owner);
-            const burnAmount = ONE_TOKEN;
+            for (let i = 0; i < testAmounts.length; i += 1) {
+                const swapValue = web3.utils.toWei(testAmounts[i]);
 
-            await dgLightToken.burn(
-                burnAmount,
-                {
-                    from: owner
-                }
+                const dgBalanceBefore = await dgToken.balanceOf(owner);
+                const balanceBefore = await dgLightToken.balanceOf(owner);
 
-            );
+                await dgLightToken.goClassic(
+                    swapValue
+                );
 
-            const totalSupply = await dgLightToken.totalSupply();
+                const dgBalanceAfter = await dgToken.balanceOf(owner);
+                const balanceAfter = await dgLightToken.balanceOf(owner);
 
-            assert.equal(
-                totalSupply,
-                supplyBefore - burnAmount
-            );
+                assert.equal(
+                    dgBalanceAfter.toString(),
+                    dgBalanceBefore.add(BN(swapValue)).toString()
+                );
+                assert.equal(
+                    balanceAfter.toString(),
+                    balanceBefore.sub(BN(swapValue).mul(RATIO)).toString()
+                );
+            }
         });
     });
 });
