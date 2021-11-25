@@ -12,6 +12,7 @@
         "test-roulette": "truffle test test/roulette.test.js",
         "test-bridge": "truffle test test/bridge.test.js",
         "test-light": "truffle test test/light.test.js",
+        "test-townhall": "truffle test test/townhall.test.js",
         "test-slots": "truffle test test/slots.test.js",
         "test-treasury": "truffle test test/treasury.test.js",
         "test-pointer": "truffle test test/pointer.test.js",
