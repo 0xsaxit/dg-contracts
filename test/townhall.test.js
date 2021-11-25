@@ -1,5 +1,5 @@
 const DGToken = artifacts.require("dgToken");
-const DGLightToken = artifacts.require("DGLight");
+const DGTownHall = artifacts.require("DGTownHall");
 const catchRevert = require("./exceptionsHelpers.js").catchRevert;
 
 require("./utils");
@@ -13,7 +13,6 @@ const BN = (value) => {
 const ONE_TOKEN = web3.utils.toWei("1");
 const THREE_ETH = web3.utils.toWei("3");
 const STATIC_SUPPLY = web3.utils.toWei("5000000");
-const RATIO = BN(1000);
 
 const testAmounts = [
     "0",
@@ -38,57 +37,99 @@ const getLastEvent = async (eventName, instance) => {
     return events.pop().returnValues;
 };
 
-contract("DGLightToken", ([owner, alice, bob, random]) => {
+const getxDGAmount = (dgAmount, dgTotal, xDGTotal) => {
+    if (dgTotal.isZero() || xDGTotal.isZero()) {
+        return dgAmount;
+    }
+    return dgAmount.mul(xDGTotal).div(dgTotal);
+}
 
-    let dgLightToken;
+const getDGAmount = (xDGAmount, dgTotal, xDGTotal) => {
+    return BN(xDGAmount).mul(dgTotal).div(xDGTotal);
+}
+
+contract("DGTownHall", ([owner, alice, bob, random]) => {
+
+    let dgTownHall;
     let dgToken;
 
     beforeEach(async () => {
         dgToken = await DGToken.new();
-        dgLightToken = await DGLightToken.new(dgToken.address);
-        await dgToken.approve(dgLightToken.address, STATIC_SUPPLY);
-        await dgLightToken.goLight(STATIC_SUPPLY);
+        dgTownHall = await DGTownHall.new(dgToken.address);
+        await dgToken.approve(dgTownHall.address, STATIC_SUPPLY);
+        await dgTownHall.stepInside(STATIC_SUPPLY);
     });
 
     describe("Token Initial Values", () => {
 
         it("should have correct token name", async () => {
-            const name = await dgLightToken.name();
+            const name = await dgTownHall.name();
             assert.equal(
                 name,
-                "Decentral Games"
+                "Decentral Games Governance"
             );
         });
 
         it("should have correct token symbol", async () => {
-            const symbol = await dgLightToken.symbol();
+            const symbol = await dgTownHall.symbol();
             assert.equal(
                 symbol,
-                "DG"
+                "xDG"
             );
         });
 
         it("should have correct token decimals", async () => {
-            const decimals = await dgLightToken.decimals();
+            const decimals = await dgTownHall.decimals();
             assert.equal(
                 decimals,
                 18
             );
         });
 
-
         it("should have correct token supply", async () => {
-            const supply = await dgLightToken.totalSupply();
+            const supply = await dgTownHall.totalSupply();
             assert.equal(
                 supply,
-                BN(STATIC_SUPPLY).mul(RATIO).toString()
+                STATIC_SUPPLY
+            );
+        });
+
+        it("should have correct inner supply", async () => {
+            const innerSupply = await dgTownHall.innerSupply();
+            assert.equal(
+                innerSupply,
+                STATIC_SUPPLY
+            );
+        });
+
+        it("should have correct inside amount", async () => {
+            const insideAmount = await dgTownHall.insideAmount(STATIC_SUPPLY);
+            assert.equal(
+                insideAmount,
+                STATIC_SUPPLY
+            );
+        });
+
+        it("should have correct outside amount", async () => {
+            const outsideAmount = await dgTownHall.outsidAmount(STATIC_SUPPLY);
+            assert.equal(
+                outsideAmount,
+                STATIC_SUPPLY
+            );
+        });
+
+        it("should have correct DG amount", async () => {
+            const dgAmount = await dgTownHall.DGAmount(owner);
+            assert.equal(
+                dgAmount,
+                STATIC_SUPPLY
             );
         });
 
         it("should return the correct balance for the given account", async () => {
             const expectedAmount = ONE_TOKEN;
 
-            await dgLightToken.transfer(
+            await dgTownHall.transfer(
                 bob,
                 expectedAmount,
                 {
@@ -96,7 +137,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const balance = await dgLightToken.balanceOf(bob);
+            const balance = await dgTownHall.balanceOf(bob);
 
             assert.equal(
                 balance,
@@ -105,7 +146,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
         });
 
         it("should return the correct allowance for the given spender", async () => {
-            const allowance = await dgLightToken.allowance(owner, bob);
+            const allowance = await dgTownHall.allowance(owner, bob);
             assert.equal(
                 allowance,
                 0
@@ -118,9 +159,9 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
         it("should transfer correct amount from walletA to walletB", async () => {
 
             const transferValue = ONE_TOKEN;
-            const balanceBefore = await dgLightToken.balanceOf(bob);
+            const balanceBefore = await dgTownHall.balanceOf(bob);
 
-            await dgLightToken.transfer(
+            await dgTownHall.transfer(
                 bob,
                 transferValue,
                 {
@@ -128,7 +169,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const balanceAfter = await dgLightToken.balanceOf(bob);
+            const balanceAfter = await dgTownHall.balanceOf(bob);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -138,10 +179,10 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
 
         it("should revert if not enough balance in the wallet", async () => {
 
-            const balanceBefore = await dgLightToken.balanceOf(alice);
+            const balanceBefore = await dgTownHall.balanceOf(alice);
 
             await catchRevert(
-                dgLightToken.transfer(
+                dgTownHall.transfer(
                     bob,
                     parseInt(balanceBefore) + 1,
                     {
@@ -154,9 +195,9 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
         it("should reduce wallets balance after transfer", async () => {
 
             const transferValue = ONE_TOKEN;
-            const balanceBefore = await dgLightToken.balanceOf(owner);
+            const balanceBefore = await dgTownHall.balanceOf(owner);
 
-            await dgLightToken.transfer(
+            await dgTownHall.transfer(
                 bob,
                 transferValue,
                 {
@@ -164,7 +205,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const balanceAfter = await dgLightToken.balanceOf(owner);
+            const balanceAfter = await dgTownHall.balanceOf(owner);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -177,7 +218,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
             const transferValue = ONE_TOKEN;
             const expectedRecepient = bob;
 
-            await dgLightToken.transfer(
+            await dgTownHall.transfer(
                 expectedRecepient,
                 transferValue,
                 {
@@ -187,7 +228,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
 
             const { _from: from, _to: to, _value: value } = await getLastEvent(
                 "Transfer",
-                dgLightToken
+                dgTownHall
             );
 
             assert.equal(
@@ -209,20 +250,20 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
         it("should update the balance of the recipient when using transferFrom", async () => {
             const transferValue = ONE_TOKEN;
             const expectedRecipient = bob;
-            const balanceBefore = await dgLightToken.balanceOf(bob);
+            const balanceBefore = await dgTownHall.balanceOf(bob);
 
-            await dgLightToken.approve(
+            await dgTownHall.approve(
                 owner,
                 transferValue
             );
 
-            await dgLightToken.transferFrom(
+            await dgTownHall.transferFrom(
                 owner,
                 expectedRecipient,
                 transferValue,
             );
 
-            const balanceAfter = await dgLightToken.balanceOf(bob);
+            const balanceAfter = await dgTownHall.balanceOf(bob);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -233,20 +274,20 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
         it("should deduct from the balance of the sender when using transferFrom", async () => {
             const transferValue = ONE_TOKEN;
             const expectedRecipient = bob;
-            const balanceBefore = await dgLightToken.balanceOf(owner);
+            const balanceBefore = await dgTownHall.balanceOf(owner);
 
-            await dgLightToken.approve(
+            await dgTownHall.approve(
                 owner,
                 transferValue
             );
 
-            await dgLightToken.transferFrom(
+            await dgTownHall.transferFrom(
                 owner,
                 expectedRecipient,
                 transferValue,
             );
 
-            const balanceAfter = await dgLightToken.balanceOf(owner);
+            const balanceAfter = await dgTownHall.balanceOf(owner);
 
             assert.equal(
                 parseInt(balanceAfter),
@@ -259,7 +300,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
             const expectedRecipient = bob;
 
             await catchRevert(
-                dgLightToken.transferFrom(
+                dgTownHall.transferFrom(
                     owner,
                     expectedRecipient,
                     transferValue
@@ -273,13 +314,13 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
             const transferValue = THREE_ETH;
             const expectedRecipient = bob;
 
-            await dgLightToken.approve(
+            await dgTownHall.approve(
                 alice,
                 approvedValue
             );
 
             await catchRevert(
-                dgLightToken.transferFrom(
+                dgTownHall.transferFrom(
                     owner,
                     expectedRecipient,
                     transferValue,
@@ -297,7 +338,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
 
             const approvalValue = ONE_TOKEN;
 
-            await dgLightToken.approve(
+            await dgTownHall.approve(
                 bob,
                 approvalValue,
                 {
@@ -305,7 +346,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
                 }
             );
 
-            const allowanceValue = await dgLightToken.allowance(
+            const allowanceValue = await dgTownHall.allowance(
                 owner,
                 bob
             );
@@ -320,7 +361,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
 
             const transferValue = ONE_TOKEN;
 
-            await dgLightToken.approve(
+            await dgTownHall.approve(
                 bob,
                 transferValue,
                 {
@@ -334,7 +375,7 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
                 _value: value
             } = await getLastEvent(
                 "Approval",
-                dgLightToken
+                dgTownHall
             );
 
             assert.equal(
@@ -354,28 +395,28 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
         });
     });
 
-    describe("GoLight Functionality", () => {
+    describe("StepInside Functionality", () => {
 
-        it("should revert if there is no approval when using goLight", async () => {
+        it("should revert if there is no approval when using stepInside", async () => {
 
             await catchRevert(
-                dgLightToken.goLight(
+                dgTownHall.stepInside(
                     ONE_TOKEN
                 )
             );
         });
 
-        it("should revert if the sender has spent more than their approved amount when using goLight", async () => {
+        it("should revert if the sender has spent more than their approved amount when using stepInside", async () => {
         
             const approvedValue = ONE_TOKEN;
             const swapValue = THREE_ETH;
 
             await dgToken.approve(
-                dgLightToken.address,
+                dgTownHall.address,
                 approvedValue
             );
             await catchRevert(
-                dgLightToken.goLight(
+                dgTownHall.stepInside(
                     swapValue
                 )
             );
@@ -386,82 +427,117 @@ contract("DGLightToken", ([owner, alice, bob, random]) => {
             const balanceBefore = await dgToken.balanceOf(owner);
 
             await dgToken.approve(
-                dgLightToken.address,
+                dgTownHall.address,
                 balanceBefore.toString()
             );
             await catchRevert(
-                dgLightToken.goLight(
+                dgTownHall.stepInside(
                     balanceBefore.addn(1).toString()
                 )
             );
         });
 
-        it("should swap correct amount from DGToken to DGLightToken", async () => {
+        it("should stake correct amount of DG Token", async () => {
 
             for (let i = 0; i < testAmounts.length; i += 1) {
-                const swapValue = web3.utils.toWei(testAmounts[i]);
+                const stakeValue = web3.utils.toWei(testAmounts[i]);
 
                 const dgBalanceBefore = await dgToken.balanceOf(owner);
-                const balanceBefore = await dgLightToken.balanceOf(owner);
+                const xDGBalanceBefore = await dgTownHall.balanceOf(owner);
+                const dgTotalBefore = await dgTownHall.innerSupply();
+                const xDGTotalBefore = await dgTownHall.totalSupply();
+
+                const xDGAmount = getxDGAmount(
+                    BN(stakeValue),
+                    dgTotalBefore,
+                    xDGTotalBefore
+                );
 
                 await dgToken.approve(
-                    dgLightToken.address,
-                    swapValue
+                    dgTownHall.address,
+                    stakeValue
                 );
-                await dgLightToken.goLight(
-                    swapValue
+                await dgTownHall.stepInside(
+                    stakeValue
                 );
 
                 const dgBalanceAfter = await dgToken.balanceOf(owner);
-                const balanceAfter = await dgLightToken.balanceOf(owner);
+                const xDGBalanceAfter = await dgTownHall.balanceOf(owner);
+                const dgTotalAfter = await dgTownHall.innerSupply();
+                const xDGTotalAfter = await dgTownHall.totalSupply();
 
                 assert.equal(
+                    dgTotalAfter.toString(),
+                    dgTotalBefore.add(BN(stakeValue)).toString()
+                )
+                assert.equal(
+                    xDGTotalAfter.toString(),
+                    xDGTotalBefore.add(xDGAmount).toString()
+                )
+                assert.equal(
                     dgBalanceAfter.toString(),
-                    dgBalanceBefore.sub(BN(swapValue)).toString()
+                    dgBalanceBefore.sub(BN(stakeValue)).toString()
                 );
                 assert.equal(
-                    balanceAfter.toString(),
-                    balanceBefore.add(BN(swapValue).mul(RATIO)).toString()
+                    xDGBalanceAfter.toString(),
+                    xDGBalanceBefore.add(xDGAmount).toString()
                 );
             }
         });
     });
 
-    describe("GoClassic Functionality", () => {
+    describe("StepOutside Functionality", () => {
 
         it("should revert if not enough balance in the wallet", async () => {
 
-            const balanceBefore = await dgLightToken.balanceOf(owner);
+            const balanceBefore = await dgTownHall.balanceOf(owner);
 
             await catchRevert(
-                dgLightToken.goClassic(
-                    balanceBefore.div(RATIO).addn(1).toString()
+                dgTownHall.stepOutside(
+                    balanceBefore.addn(1).toString()
                 )
             );
         });
 
-        it("should swap correct amount from DGLightToken to DGToken", async () => {
-
+        it("should unstake correct amount of xDG Token", async () => {
             for (let i = 0; i < testAmounts.length; i += 1) {
-                const swapValue = web3.utils.toWei(testAmounts[i]);
+                const stakeValue = web3.utils.toWei(testAmounts[i]);
 
                 const dgBalanceBefore = await dgToken.balanceOf(owner);
-                const balanceBefore = await dgLightToken.balanceOf(owner);
+                const xDGBalanceBefore = await dgTownHall.balanceOf(owner);
+                const dgTotalBefore = await dgTownHall.innerSupply();
+                const xDGTotalBefore = await dgTownHall.totalSupply();
 
-                await dgLightToken.goClassic(
-                    swapValue
+                const dgAmount = getDGAmount(
+                    BN(stakeValue),
+                    dgTotalBefore,
+                    xDGTotalBefore
+                );
+
+                await dgTownHall.stepOutside(
+                    stakeValue
                 );
 
                 const dgBalanceAfter = await dgToken.balanceOf(owner);
-                const balanceAfter = await dgLightToken.balanceOf(owner);
+                const xDGBalanceAfter = await dgTownHall.balanceOf(owner);
+                const dgTotalAfter = await dgTownHall.innerSupply();
+                const xDGTotalAfter = await dgTownHall.totalSupply();
 
                 assert.equal(
+                    dgTotalAfter.toString(),
+                    dgTotalBefore.sub(dgAmount).toString()
+                )
+                assert.equal(
+                    xDGTotalAfter.toString(),
+                    xDGTotalBefore.sub(BN(stakeValue)).toString()
+                )
+                assert.equal(
                     dgBalanceAfter.toString(),
-                    dgBalanceBefore.add(BN(swapValue)).toString()
+                    dgBalanceBefore.add(dgAmount).toString()
                 );
                 assert.equal(
-                    balanceAfter.toString(),
-                    balanceBefore.sub(BN(swapValue).mul(RATIO)).toString()
+                    xDGBalanceAfter.toString(),
+                    xDGBalanceBefore.sub(BN(stakeValue)).toString()
                 );
             }
         });

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-import "./ERC20NEW.sol";
+import "./ERC20.sol";
 
 interface IClassicDGToken {
 
@@ -22,7 +22,7 @@ interface IClassicDGToken {
         returns (bool);
 }
 
-contract LightToken is ERC20NEW("Decentral Games", "DG") {
+contract DGLight is ERC20("Decentral Games", "DG") {
 
     IClassicDGToken immutable public classicDG;
     uint16 constant public RATIO = 1000;
