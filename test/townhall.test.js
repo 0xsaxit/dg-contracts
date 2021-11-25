@@ -13,7 +13,6 @@ const BN = (value) => {
 const ONE_TOKEN = web3.utils.toWei("1");
 const THREE_ETH = web3.utils.toWei("3");
 const STATIC_SUPPLY = web3.utils.toWei("5000000");
-const RATIO = BN(1000);
 
 const testAmounts = [
     "0",
