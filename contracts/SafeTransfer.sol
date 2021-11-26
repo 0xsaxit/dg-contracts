@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-interface ERC20 {
+interface IERC20 {
 
     function balanceOf(
         address _iceKeeper

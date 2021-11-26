@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.7;
 
-import "./common-contracts-0.8/EIP712MetaTransaction.sol";
-import "./common-contracts-0.8/AccessController.sol";
-import "./common-contracts-0.8/TransferHelper.sol";
-import "./common-contracts-0.8/Interfaces.sol";
-import "./common-contracts-0.8/Events.sol";
+import "./common-contracts/EIP712MetaTransaction.sol";
+import "./common-contracts/AccessController.sol";
+import "./common-contracts/TransferHelper.sol";
+import "./common-contracts/Interfaces.sol";
+import "./common-contracts/Events.sol";
 
 contract IceRegistrant is AccessController, TransferHelper, EIP712MetaTransaction, Events {
 

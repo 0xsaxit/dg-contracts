@@ -375,7 +375,7 @@ contract IceKeeper is SafeTransfer {
         view
         returns (uint256)
     {
-        return ERC20(distributionToken).balanceOf(
+        return IERC20(distributionToken).balanceOf(
             address(this)
         );
     }

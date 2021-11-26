@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.6;
 
-import "./common-contracts-0.8/EIP712MetaTransaction.sol";
+import "./common-contracts/EIP712MetaTransaction.sol";
 
-contract IceToken2 is EIP712MetaTransaction {
+contract IceToken is EIP712MetaTransaction {
 
     string private _name = "Decentral Games ICE";
     string private _symbol = "ICE";
