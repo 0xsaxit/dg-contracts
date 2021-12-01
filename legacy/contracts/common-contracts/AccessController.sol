@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: ---DG----
+// SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.7.4;
 
 contract AccessController {
 
     address public ceoAddress;
+    address public workerAddress;
 
     mapping (address => bool) public isWorker;
 
@@ -25,7 +26,7 @@ contract AccessController {
         address creator = msg.sender;
 
         ceoAddress = creator;
-
+        workerAddress = creator;
         isWorker[creator] = true;
 
         emit CEOSet(

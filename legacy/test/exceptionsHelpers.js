@@ -9,10 +9,6 @@ async function tryCatch(promise, reason, message) {
             'Expected a VM exception but did not get one'
         );
 
-        if (!message) {
-            return;
-        }
-
         console.log(error.reason);
         console.log(message);
 

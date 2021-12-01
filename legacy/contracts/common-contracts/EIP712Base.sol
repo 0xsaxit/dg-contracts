@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: ---DG----
+// SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.7.4;
 
 contract EIP712Base {
 
@@ -12,10 +12,11 @@ contract EIP712Base {
     }
 
     bytes32 internal constant EIP712_DOMAIN_TYPEHASH = keccak256(bytes("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"));
+
     bytes32 internal domainSeperator;
 
     constructor(string memory name, string memory version) {
-        domainSeperator = keccak256(abi.encode(
+      domainSeperator = keccak256(abi.encode(
 			EIP712_DOMAIN_TYPEHASH,
 			keccak256(bytes(name)),
 			keccak256(bytes(version)),
@@ -44,4 +45,5 @@ contract EIP712Base {
     function toTypedMessageHash(bytes32 messageHash) internal view returns(bytes32) {
         return keccak256(abi.encodePacked("\x19\x01", getDomainSeperator(), messageHash));
     }
+
 }

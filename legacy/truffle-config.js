@@ -24,7 +24,6 @@ module.exports = {
     },
     mocha: {
         useColors: true,
-        reporter: "eth-gas-reporter",
         reporterOptions: {
             currency: "USD",
             gasPrice: 5
@@ -32,7 +31,7 @@ module.exports = {
     },
     compilers: {
         solc: {
-            version: "^0.8.9",
+            version: "^0.7.0",
             settings: {
                 optimizer: {
                     enabled: true,

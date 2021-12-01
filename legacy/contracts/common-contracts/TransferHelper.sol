@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: ---DG----
+// SPDX-License-Identifier: -- 🎲 --
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.7.4;
 
 contract TransferHelper {
 
