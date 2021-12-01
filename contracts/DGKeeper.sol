@@ -1,27 +1,24 @@
-// SPDX-License-Identifier: -- 🎲 --
+// SPDX-License-Identifier: --DG--
 
-pragma solidity ^0.7.4;
-
-import "./common-contracts/SafeMath.sol";
+pragma solidity ^0.8.9;
 
 contract DGKeeper {
-
-    using SafeMath for uint256;
 
     address public gateKeeper;
     address public gateOverseer;
     address public distributionToken;
-
     uint256 public totalRequired;
+
     uint256 immutable MIN_TIME_FRAME;
+    address immutable ZERO_ADDRESS;
 
     struct KeeperInfo {
+        bool isImmutable;
         uint256 keeperRate;
         uint256 keeperFrom;
         uint256 keeperTill;
         uint256 keeperBalance;
         uint256 keeperPayouts;
-        bool isImmutable;
     }
 
     mapping(address => KeeperInfo) public keeperList;
@@ -29,7 +26,7 @@ contract DGKeeper {
     modifier onlyGateKeeper() {
         require(
             msg.sender == gateKeeper,
-            'dgKeeper: keeper denied!'
+            'DGKeeper: keeper denied!'
         );
         _;
     }
@@ -37,7 +34,7 @@ contract DGKeeper {
     modifier onlyGateOverseer() {
         require(
             msg.sender == gateOverseer,
-            'dgKeeper: overseer denied!'
+            'DGKeeper: overseer denied!'
         );
         _;
     }
@@ -70,12 +67,14 @@ contract DGKeeper {
     ) {
         require(
             _minTimeFrame > 0,
-            'dgKeeper: increase _timeFrame'
+            'DGKeeper: increase _timeFrame'
         );
+
         distributionToken = _distributionToken;
         gateOverseer = _gateOverseer;
         gateKeeper = _gateKeeper;
         MIN_TIME_FRAME = _minTimeFrame;
+        ZERO_ADDRESS = address(0);
     }
 
     function allocateTokensBulk(
@@ -88,7 +87,7 @@ contract DGKeeper {
         external
         onlyGateKeeper
     {
-        for(uint i = 0; i < _recipients.length; i++) {
+        for (uint256 i = 0; i < _recipients.length; i++) {
             allocateTokens(
                 _recipients[i],
                 _tokensOpened[i],
@@ -111,40 +110,45 @@ contract DGKeeper {
     {
         require(
             _timeFrame >= MIN_TIME_FRAME,
-            'dgKeeper: _timeFrame below minimum'
+            'DGKeeper: _timeFrame below minimum'
         );
 
         require(
             keeperList[_recipient].keeperFrom == 0,
-            'dgKeeper: _recipient is active'
+            'DGKeeper: _recipient is active'
         );
 
-        totalRequired =
-        totalRequired
-            .add(_tokensOpened)
-            .add(_tokensLocked);
+        totalRequired = totalRequired
+            + _tokensOpened
+            + _tokensLocked;
 
-        safeBalanceOf(
+        _safeBalanceOf(
             distributionToken,
             address(this),
             totalRequired
         );
 
-        keeperList[_recipient].keeperFrom = getNow();
-        keeperList[_recipient].keeperTill = getNow().add(_timeFrame);
-        keeperList[_recipient].keeperRate = _tokensLocked.div(_timeFrame);
-        keeperList[_recipient].keeperBalance = _tokensLocked.mod(_timeFrame);
-        keeperList[_recipient].isImmutable = _isImmutable;
+        uint256 timestamp = getNow();
 
-        keeperList[_recipient].keeperBalance =
-        keeperList[_recipient].keeperBalance.add(_tokensOpened);
+        keeperList[_recipient].keeperFrom = timestamp;
+        keeperList[_recipient].keeperTill = timestamp
+            + _timeFrame;
+
+        keeperList[_recipient].keeperRate = _tokensLocked
+            / _timeFrame;
+
+        keeperList[_recipient].keeperBalance = _tokensLocked
+            % _timeFrame
+            + _tokensOpened;
+
+        keeperList[_recipient].isImmutable = _isImmutable;
 
         emit recipientCreated (
             _recipient,
             _timeFrame,
             _tokensLocked,
             _tokensOpened,
-            block.timestamp,
+            timestamp,
             _isImmutable
         );
     }
@@ -152,7 +156,9 @@ contract DGKeeper {
     function scrapeMyTokens()
         external
     {
-        _scrapeTokens(msg.sender);
+        _scrapeTokens(
+            msg.sender
+        );
     }
 
     function _scrapeTokens(
@@ -160,20 +166,21 @@ contract DGKeeper {
     )
         internal
     {
-       uint256 scrapeAmount =
-        availableBalance(_recipient);
+        uint256 scrapeAmount = availableBalance(
+            _recipient
+        );
 
         keeperList[_recipient].keeperPayouts =
-        keeperList[_recipient].keeperPayouts.add(scrapeAmount);
+        keeperList[_recipient].keeperPayouts + scrapeAmount;
 
-        safeTransfer(
+        _safeTransfer(
             distributionToken,
             _recipient,
             scrapeAmount
         );
 
         totalRequired =
-        totalRequired.sub(scrapeAmount);
+        totalRequired - scrapeAmount;
 
         emit tokensScraped (
             _recipient,
@@ -190,15 +197,15 @@ contract DGKeeper {
     {
         require(
             keeperList[_recipient].isImmutable == false,
-            'dgKeeper: _recipient is immutable'
+            'DGKeeper: _recipient is immutable'
         );
 
-        _scrapeTokens(_recipient);
+        _scrapeTokens(
+            _recipient
+        );
 
         totalRequired =
-        totalRequired.sub(
-            lockedBalance(_recipient)
-        );
+        totalRequired - lockedBalance(_recipient);
 
         delete keeperList[_recipient];
 
@@ -213,40 +220,38 @@ contract DGKeeper {
     )
         public
         view
-        returns (uint256)
+        returns (uint256 balance)
     {
         uint256 timePassed =
-            getNow() < keeperList[_recipient].keeperTill
-                ? getNow()
-                    .sub(keeperList[_recipient].keeperFrom)
-                : keeperList[_recipient].keeperTill
-                    .sub(keeperList[_recipient].keeperFrom);
+            getNow() < keeperList[_recipient].keeperTill ?
+            getNow() - keeperList[_recipient].keeperFrom : _diff(_recipient);
 
-        return keeperList[_recipient].keeperRate
-            .mul(timePassed)
-            .add(keeperList[_recipient].keeperBalance)
-            .sub(keeperList[_recipient].keeperPayouts);
+        balance = keeperList[_recipient].keeperRate
+            * timePassed
+            + keeperList[_recipient].keeperBalance
+            - keeperList[_recipient].keeperPayouts;
     }
 
-    function lockedBalance(address _recipient)
+    function lockedBalance(
+        address _recipient
+    )
         public
         view
-        returns (uint256)
+        returns (uint256 balance)
     {
         uint256 timeRemaining =
             keeperList[_recipient].keeperTill > getNow() ?
             keeperList[_recipient].keeperTill - getNow() : 0;
 
-        return keeperList[_recipient].keeperRate
-            .mul(timeRemaining);
+        balance = keeperList[_recipient].keeperRate * timeRemaining;
     }
 
     function getNow()
         public
         view
-        returns (uint256)
+        returns (uint256 time)
     {
-        return block.timestamp;
+        time = block.timestamp;
     }
 
     function changeDistributionToken(
@@ -262,14 +267,24 @@ contract DGKeeper {
         external
         onlyGateKeeper
     {
-        gateKeeper = address(0x0);
+        gateKeeper = ZERO_ADDRESS;
     }
 
     function renounceOverseerOwnership()
         external
         onlyGateOverseer
     {
-        gateOverseer = address(0x0);
+        gateOverseer = ZERO_ADDRESS;
+    }
+
+    function _diff(
+        address _recipient
+    )
+        internal
+        view
+        returns (uint256 difference)
+    {
+        difference = keeperList[_recipient].keeperTill - keeperList[_recipient].keeperFrom;
     }
 
     bytes4 private constant TRANSFER = bytes4(
@@ -288,7 +303,7 @@ contract DGKeeper {
         )
     );
 
-    function safeTransfer(
+    function _safeTransfer(
         address _token,
         address _to,
         uint256 _value
@@ -309,11 +324,11 @@ contract DGKeeper {
                     data, (bool)
                 )
             ),
-            'dgKeeper: TRANSFER_FAILED'
+            'DGKeeper: TRANSFER_FAILED'
         );
     }
 
-    function safeBalanceOf(
+    function _safeBalanceOf(
         address _token,
         address _owner,
         uint256 _required
@@ -331,7 +346,7 @@ contract DGKeeper {
             success && abi.decode(
                 data, (uint256)
             ) >= _required,
-            'dgKeeper: BALANCEOF_FAILED'
+            'DGKeeper: BALANCEOF_FAILED'
         );
     }
 }
