@@ -198,6 +198,7 @@ contract DGPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
     // stores amount that address can withdraw for specific token (player > payoutToken > amount )
     mapping(address => mapping(address => uint256)) public pointsBalancer;
+    mapping(address => mapping(address => uint256)) public pointsBalancerHistory;
 
     // stores ratio between input token to output token for each game (game > inputToken > outputToken)
     mapping(address => mapping(address => mapping(address => uint256))) public tokenToPointRatio;
@@ -429,6 +430,9 @@ contract DGPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
             pointsBalancer[_player][distributionToken] =
             pointsBalancer[_player][distributionToken] + playerPoints;
 
+            pointsBalancerHistory[_player][distributionToken] =
+            pointsBalancerHistory[_player][distributionToken] + playerPoints;
+
             _applyAffiliatePoints(
                 _player,
                 _token,
@@ -480,6 +484,9 @@ contract DGPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
         pointsBalancer[affiliate][_token] =
         pointsBalancer[affiliate][_token] + pointsToAdd;
+
+        pointsBalancerHistory[affiliate][_token] =
+        pointsBalancerHistory[affiliate][_token] + pointsToAdd;
 
         affiliateHistoryProfit[affiliate][_token] =
         affiliateHistoryProfit[affiliate][_token] + pointsToAdd;
