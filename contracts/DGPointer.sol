@@ -1,16 +1,31 @@
-// SPDX-License-Identifier: -- 🎲 --
+// SPDX-License-Identifier: --DG--
 
-pragma solidity ^0.7.4;
+pragma solidity ^0.8.7;
 
-import "./common-contracts/SafeMath.sol";
-import "./common-contracts/AccessController.sol";
-import "./common-contracts/ERC20Token.sol";
+interface ERC20Token {
+
+    function decimals()
+        external
+        view
+        returns (uint8);
+}
+
+interface OldPointer {
+    function affiliateData(
+        address player
+    )
+        external
+        view
+        returns (address);
+}
+
 import "./common-contracts/EIP712Base.sol";
 import "./common-contracts/TransferHelper.sol";
+import "./common-contracts/AccessController.sol";
 
 abstract contract EIP712MetaTransactionForPointer is EIP712Base {
 
-    using SafeMath for uint256;
+    address constant ZERO_ADDRESS = address(0);
 
     bytes32 private constant META_TRANSACTION_TYPEHASH =
         keccak256(
@@ -21,7 +36,7 @@ abstract contract EIP712MetaTransactionForPointer is EIP712Base {
 
     event MetaTransactionExecuted(
         address userAddress,
-        address payable relayerAddress,
+        address relayerAddress,
         bytes functionSignature
     );
 
@@ -39,61 +54,61 @@ abstract contract EIP712MetaTransactionForPointer is EIP712Base {
 	}
 
     function executeMetaTransaction(
-        address userAddress,
-        bytes memory functionSignature,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
+        address _userAddress,
+        bytes memory _functionSignature,
+        bytes32 _sigR,
+        bytes32 _sigS,
+        uint8 _sigV
     )
         public
         payable
-        returns(bytes memory)
+        returns (bytes memory)
     {
         MetaTransaction memory metaTx = MetaTransaction(
             {
-                nonce: nonces[userAddress],
-                from: userAddress,
-                functionSignature: functionSignature
+                nonce: nonces[_userAddress],
+                from: _userAddress,
+                functionSignature: _functionSignature
             }
         );
 
         require(
             verify(
-                userAddress,
+                _userAddress,
                 metaTx,
-                sigR,
-                sigS,
-                sigV
+                _sigR,
+                _sigS,
+                _sigV
             ), "Signer and signature do not match"
         );
 
-	    nonces[userAddress] =
-	    nonces[userAddress].add(1);
+	    nonces[_userAddress] =
+	    nonces[_userAddress] + 1;
 
         // Append userAddress at the end to extract it from calling context
         (bool success, bytes memory returnData) = address(this).call(
             abi.encodePacked(
-                functionSignature,
-                userAddress
+                _functionSignature,
+                _userAddress
             )
         );
 
         require(
-            success,
+            success == true,
             'Function call not successful'
         );
 
         emit MetaTransactionExecuted(
-            userAddress,
+            _userAddress,
             msg.sender,
-            functionSignature
+            _functionSignature
         );
 
         return returnData;
     }
 
     function hashMetaTransaction(
-        MetaTransaction memory metaTx
+        MetaTransaction memory _metaTx
     )
         internal
         pure
@@ -102,29 +117,29 @@ abstract contract EIP712MetaTransactionForPointer is EIP712Base {
 		return keccak256(
 		    abi.encode(
                 META_TRANSACTION_TYPEHASH,
-                metaTx.nonce,
-                metaTx.from,
-                keccak256(metaTx.functionSignature)
+                _metaTx.nonce,
+                _metaTx.from,
+                keccak256(_metaTx.functionSignature)
             )
         );
 	}
 
     function getNonce(
-        address user
+        address _user
     )
         external
         view
-        returns(uint256 nonce)
+        returns (uint256 nonce)
     {
-        nonce = nonces[user];
+        nonce = nonces[_user];
     }
 
     function verify(
-        address user,
-        MetaTransaction memory metaTx,
-        bytes32 sigR,
-        bytes32 sigS,
-        uint8 sigV
+        address _user,
+        MetaTransaction memory _metaTx,
+        bytes32 _sigR,
+        bytes32 _sigS,
+        uint8 _sigV
     )
         internal
         view
@@ -132,22 +147,27 @@ abstract contract EIP712MetaTransactionForPointer is EIP712Base {
     {
         address signer = ecrecover(
             toTypedMessageHash(
-                hashMetaTransaction(metaTx)
+                hashMetaTransaction(_metaTx)
             ),
-            sigV,
-            sigR,
-            sigS
+            _sigV,
+            _sigR,
+            _sigS
         );
 
         require(
-            signer != address(0x0),
+            signer != ZERO_ADDRESS,
             'Invalid signature'
         );
-		return signer == user;
+
+		return signer == _user;
 	}
 
-    function msgSender() internal view returns(address sender) {
-        if(msg.sender == address(this)) {
+    function msgSender()
+        internal
+        view
+        returns (address sender)
+    {
+        if (msg.sender == address(this)) {
             bytes memory array = msg.data;
             uint256 index = msg.data.length;
             assembly {
@@ -157,24 +177,12 @@ abstract contract EIP712MetaTransactionForPointer is EIP712Base {
         } else {
             sender = msg.sender;
         }
+
         return sender;
     }
 }
 
-interface OldPointer {
-    function affiliateData(
-        address player
-    )
-        external
-        view
-        returns (address);
-}
-
-contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionForPointer {
-
-    using SafeMath for uint256;
-
-    address constant ZERO_ADDRESS = address(0x0);
+contract DGPointer is AccessController, TransferHelper, EIP712MetaTransactionForPointer {
 
     uint256 public defaultPlayerBonus = 30;
     uint256 public defaultWearableBonus = 40;
@@ -245,10 +253,10 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
     constructor(
         address _distributionToken,
-        // address _oldPointerAddress,
-        string memory name,
-        string memory version
-    ) EIP712Base(name, version) {
+        address _oldPointerAddress,
+        string memory _name,
+        string memory _version
+    ) EIP712Base(_name, _version) {
 
         distributionToken = (
             _distributionToken
@@ -265,9 +273,9 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
         wearableBonuses[3] = 30;
         wearableBonuses[4] = 40;
 
-        /* oldPointer = OldPointer(
+        oldPointer = OldPointer(
             _oldPointerAddress
-        );*/
+        );
     }
 
     function assignAffiliate(
@@ -279,16 +287,16 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
     {
         require(
             _affiliate != _player,
-            'Pointer: self-referral'
+            'DGPointer: SELF_REFERRAL'
         );
 
-        /* _checkAffiliatesInOldPointer(
+        _checkAffiliatesInOldPointer(
             _player
-        );*/
+        );
 
         require(
             affiliateData[_player] == ZERO_ADDRESS,
-            'Pointer: player already affiliated'
+            'DGPointer: ALREADY_AFFILIATED'
         );
 
         affiliateData[_player] = _affiliate;
@@ -298,6 +306,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
         uint256 affiliateNonce =
         affiliateCounts[_affiliate];
+
         affiliatePlayer[_affiliate][affiliateNonce] = _player;
 
         emit AffiliateAssigned(
@@ -355,6 +364,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
         address _tokenTo
     )
         public
+        view
         returns (uint256, bool)
     {
         uint8 tokenFromDecimals = ERC20Token(_tokenFrom).decimals();
@@ -385,7 +395,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
     {
         require(
             _playersCount > 0,
-            'dgPointer: _playersCount error'
+            'DGPointer: COUNT_ERROR'
         );
 
         if (_isDeclaredContract(msg.sender) && collectingEnabled) {
@@ -417,7 +427,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
             );
 
             pointsBalancer[_player][distributionToken] =
-            pointsBalancer[_player][distributionToken].add(playerPoints);
+            pointsBalancer[_player][distributionToken] + playerPoints;
 
             _applyAffiliatePoints(
                 _player,
@@ -438,49 +448,48 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
     )
         internal
     {
-        /* _checkAffiliatesInOldPointer(
+        _checkAffiliatesInOldPointer(
             _player
-        );*/
+        );
 
-        if (_isAffiliated(_player)) {
+        if (_isAffiliated(_player) == false) return;
 
-            address affiliate = affiliateData[_player];
-            uint256 points = _calculatePoints(
-                _points,
-                tokenToPointRatio[msg.sender][_token][_token],
-                0,
-                false,
-                _multiplierA,
-                _multiplierB
-            );
+        address affiliate = affiliateData[_player];
+        uint256 points = _calculatePoints(
+            _points,
+            tokenToPointRatio[msg.sender][_token][_token],
+            0,
+            false,
+            _multiplierA,
+            _multiplierB
+        );
 
-            uint256 pointsToAdd = points
-                .mul(affiliateBonus)
-                .div(100);
+        uint256 pointsToAdd = points
+            * affiliateBonus
+            / 100;
 
-            affiliateProfit[_player][_token] =
-            affiliateProfit[_player][_token].add(pointsToAdd);
+        affiliateProfit[_player][_token] =
+        affiliateProfit[_player][_token] + pointsToAdd;
 
-            emit ProfitAdded(
-                affiliate,
-                _player,
-                pointsToAdd,
-                affiliateProfit[_player][_token]
-            );
+        emit ProfitAdded(
+            affiliate,
+            _player,
+            pointsToAdd,
+            affiliateProfit[_player][_token]
+        );
 
-            pointsBalancer[affiliate][_token] =
-            pointsBalancer[affiliate][_token].add(pointsToAdd);
+        pointsBalancer[affiliate][_token] =
+        pointsBalancer[affiliate][_token] + pointsToAdd;
 
-            affiliateHistoryProfit[affiliate][_token] =
-            affiliateHistoryProfit[affiliate][_token].add(pointsToAdd);
+        affiliateHistoryProfit[affiliate][_token] =
+        affiliateHistoryProfit[affiliate][_token] + pointsToAdd;
 
-            emit PointsAdded(
-                affiliate,
-                _player,
-                pointsToAdd,
-                pointsBalancer[affiliate][_token]
-            );
-        }
+        emit PointsAdded(
+            affiliate,
+            _player,
+            pointsToAdd,
+            pointsBalancer[affiliate][_token]
+        );
     }
 
     function profitPagination(
@@ -511,7 +520,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
 
         for (uint256 _playerIndex = start; _playerIndex > finish; _playerIndex--) {
             address player = affiliatePlayer[_affiliate][_playerIndex];
-            if (player != address(0x0)) {
+            if (player != ZERO_ADDRESS) {
                 _players[i] = player;
                 _profits[i] = affiliateProfit[player][_token];
                 i++;
@@ -532,16 +541,16 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
         returns (uint256)
     {
         uint256 pointsBase = _reverse
-            ? _points.div(10 ** _diff)
-            : _points.mul(10 ** _diff);
+            ? _points / (10 ** _diff)
+            : _points * (10 ** _diff);
 
         return pointsBase
-            .div(_ratio)
-            .mul(uint256(100)
-                .add(_multiplierA)
-                .add(_multiplierB)
+            / _ratio
+            * (uint256(100)
+                + _multiplierA
+                + _multiplierB
             )
-            .div(100);
+            / 100;
     }
 
     function getPlayerMultiplier(
@@ -639,7 +648,7 @@ contract dgPointer is AccessController, TransferHelper, EIP712MetaTransactionFor
     {
         require(
             distributionEnabled == true,
-            'Pointer: distribution disabled'
+            'DGPointer: DISTRIBUTION_DISABLED'
         );
 
         tokenAmount = pointsBalancer[_payoutAddress][_payoutToken];
