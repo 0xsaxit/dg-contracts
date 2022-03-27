@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: ---DG----
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.13;
 
 contract TransferHelper {
 
     bytes4 private constant TRANSFER = bytes4(
         keccak256(
             bytes(
-                'transfer(address,uint256)' // 0xa9059cbb
+                "transfer(address,uint256)" // 0xa9059cbb
             )
         )
     );
@@ -15,7 +15,7 @@ contract TransferHelper {
     bytes4 private constant TRANSFER_FROM = bytes4(
         keccak256(
             bytes(
-                'transferFrom(address,address,uint256)' // 0x23b872dd
+                "transferFrom(address,address,uint256)" // 0x23b872dd
             )
         )
     );
@@ -41,7 +41,7 @@ contract TransferHelper {
                     data, (bool)
                 )
             ),
-            'TransferHelper: TRANSFER_FAILED'
+            "TransferHelper: TRANSFER_FAILED"
         );
     }
 
@@ -68,8 +68,7 @@ contract TransferHelper {
                     data, (bool)
                 )
             ),
-            'TransferHelper: TRANSFER_FROM_FAILED'
+            "TransferHelper: TRANSFER_FROM_FAILED"
         );
     }
-
 }

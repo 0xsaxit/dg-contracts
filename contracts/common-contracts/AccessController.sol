@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: ---DG----
 
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.13;
 
 contract AccessController {
 
     address public ceoAddress;
-
     mapping (address => bool) public isWorker;
 
     event CEOSet(
@@ -23,9 +22,7 @@ contract AccessController {
     constructor() {
 
         address creator = msg.sender;
-
         ceoAddress = creator;
-
         isWorker[creator] = true;
 
         emit CEOSet(
@@ -40,7 +37,7 @@ contract AccessController {
     modifier onlyCEO() {
         require(
             msg.sender == ceoAddress,
-            'AccessControl: CEO access denied'
+            "AccessControl: CEO_DENIED"
         );
         _;
     }
@@ -48,15 +45,17 @@ contract AccessController {
     modifier onlyWorker() {
         require(
             isWorker[msg.sender] == true,
-            'AccessControl: worker access denied'
+            "AccessControl: WORKER_DENIED"
         );
         _;
     }
 
-    modifier nonZeroAddress(address checkingAddress) {
+    modifier nonZeroAddress(
+        address checkingAddress
+    ) {
         require(
             checkingAddress != address(0x0),
-            'AccessControl: invalid address'
+            "AccessControl: INVALID_ADDRESS"
         );
         _;
     }
